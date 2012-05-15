@@ -1,3 +1,7 @@
+*.lznt1
+*.xpress
+*.xpress_huff
+
 # Compiled Object files
 *.slo
 *.lo
