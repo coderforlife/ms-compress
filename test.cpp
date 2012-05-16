@@ -1,9 +1,7 @@
 #include "stdafx.h"
-#include "win-compression.h"
-#include "compression.h"
 
-#include <time.h>
-#include <stdio.h>
+#include "compression.h"
+#include "win-compression.h"
 
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
@@ -123,15 +121,15 @@ static void* alloc_rtl_workspace(USHORT format)
 
 static void compress_buf(USHORT format, bytes orig, size_t len, const wchar_t* rtl_out, const wchar_t* out, void* ws)
 {
-	NTSTATUS status;
+	NTSTATUS status = 0;
 	clock_t start, end;
-	ULONG uncomp_len, comp_len, comp2_len;
+	ULONG uncomp_len, comp_len, comp2_len = 0;
 	bytes uncomp = (bytes)malloc(len*4);
 	bytes comp = (bytes)malloc(len*4);
 	bytes comp2 = (bytes)malloc(len*4);
 	uint_fast16_t i;
 	
-	USHORT format2 = format;
+	CompressionFormat format2 = (CompressionFormat)format;
 	/*switch (format)
 	{
 	case COMPRESSION_FORMAT_LZNT1:		format2 = COMPRESSION_LZNT1; break;
@@ -263,11 +261,9 @@ static bool run_tests(const wchar_t* name, USHORT format, const wchar_t* ext)
 	return true;
 }
 
-int main(int argc, char** argv)
+int main()
 {
-#ifdef _MSC_VER
-	(argc); (argv); // these remove warnings in MSC but create warnings in GCC
-#endif
+	_wchdir(L"tests");
 
 	//fill_uncompressible(input, sizeof(input));
 	//fill_random(input, sizeof(input));

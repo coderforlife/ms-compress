@@ -1,4 +1,3 @@
-#include "stdafx.h"
 #include "lznt1.h"
 
 #include "Dictionary.h"
@@ -7,10 +6,17 @@
 #pragma unmanaged
 #endif
 
+#if defined(_MSC_VER) && defined(NDEBUG)
 #pragma optimize("t", on)
+#endif
 
 // Get the minimum of 2
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
+
+
+#ifdef COMPRESSION_API_EXPORT
+size_t lznt1_max_compressed_size(size_t in_len) { return in_len + 3 + 2 * (in_len / 4096); }
+#endif
 
 
 /////////////////// Compression Functions /////////////////////////////////////

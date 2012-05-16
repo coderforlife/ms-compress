@@ -4,9 +4,9 @@
 :: Make sure both mingw-w32\bin and mingw-w64\bin are in the PATH
 
 ::-Werror
-set FLAGS=-mconsole -static-libgcc -static-libstdc++ -O3 -march=core2 -Wall -s
-set FILES=compression.cpp Dictionary.cpp Bitstream.cpp lznt1.cpp lzx.cpp xpress.cpp xpress_huff.cpp test.cpp
-set OUT=compression
+set FLAGS=-mconsole -static-libgcc -static-libstdc++ -O3 -march=core2 -Wall -s -Ilibrary
+set FILES=test.cpp
+set OUT=test
 
 echo Compiling 32-bit...
 i686-w64-mingw32-g++ %FLAGS% %FILES% -o %OUT%.exe

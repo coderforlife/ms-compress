@@ -1,5 +1,3 @@
-#pragma once
-
 // Compression and Decompression Functions
 
 // These mimic RtlCompressBuffer and RtlDecompressBuffer from NTDLL.DLL. They provide access to
@@ -16,11 +14,23 @@
 //err = RtlDecompressBuffer(FORMAT, out, out_len, in, in_len, &size); // (switched order of in and out!)
 //size = decompress(FORMAT, in, in_len, out, out_len); if (size == 0) err = errno;
 
-#define COMPRESSION_NONE		0 // COMPRESSION_FORMAT_NONE
-#define COMPRESSION_LZX			1 // !!! COMPRESSION_FORMAT_DEFAULT
-#define COMPRESSION_LZNT1		2 // COMPRESSION_FORMAT_LZNT1
-#define COMPRESSION_XPRESS		3 // COMPRESSION_FORMAT_XPRESS
-#define COMPRESSION_XPRESS_HUFF	4 // COMPRESSION_FORMAT_XPRESS_HUFF
+#ifndef COMPRESSION_H
+#define COMPRESSION_H
+#include "compression-api.h"
 
-size_t compress(int format, const_bytes in, size_t in_len, bytes out, size_t out_len);
-size_t decompress(int format, const_bytes in, size_t in_len, bytes out, size_t out_len);
+typedef enum _CompressionFormat {
+	COMPRESSION_NONE		= 0, // COMPRESSION_FORMAT_NONE
+	COMPRESSION_LZX			= 1, // !!! COMPRESSION_FORMAT_DEFAULT
+	COMPRESSION_LZNT1		= 2, // COMPRESSION_FORMAT_LZNT1
+	COMPRESSION_XPRESS		= 3, // COMPRESSION_FORMAT_XPRESS
+	COMPRESSION_XPRESS_HUFF	= 4, // COMPRESSION_FORMAT_XPRESS_HUFF
+} CompressionFormat;
+
+EXTERN_C {
+
+COMPAPI size_t compress(CompressionFormat format, const_bytes in, size_t in_len, bytes out, size_t out_len);
+COMPAPI size_t decompress(CompressionFormat format, const_bytes in, size_t in_len, bytes out, size_t out_len);
+
+}
+
+#endif

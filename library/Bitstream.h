@@ -1,8 +1,11 @@
-#pragma once
-
 ////////////////////////////// Bitstreams //////////////////////////////////////////////////////////
 // A bitstream that allows either reading or writing, but not both at the same time.
 // It reads uint16s for bits and 16 bits can be reliably read at a time
+
+#ifndef BITSTREAM_H
+#define BITSTREAM_H
+#include "compression-api.h"
+
 struct _Bitstream
 {
 	union
@@ -32,3 +35,5 @@ void BSWriteInit(OutputBitstream* bstr, bytes out, size_t len);
 bool BSWriteBits(OutputBitstream* bstr, uint32_t b, byte n);
 bool BSWriteByte(OutputBitstream* bstr, byte b);
 void BSWriteFinish(OutputBitstream* bstr);
+
+#endif

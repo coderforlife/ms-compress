@@ -1,5 +1,3 @@
-#pragma once
-
 /////////////////// Dictionary /////////////////////////////////////////////////
 // The dictionary system used for LZNT1 and XPRESS compression.
 //
@@ -8,6 +6,10 @@
 // The compressor does not care about the format of the dictionary struct, it is
 // completely agnostic to it and any of the function implementations.
 
+
+#ifndef DICTIONARY_H
+#define DICTIONARY_H
+#include "compression-api.h"
 
 struct _Dictionary;
 typedef struct _Dictionary Dictionary;
@@ -35,3 +37,5 @@ bool Dictionary_Add(Dictionary* d, const_bytes data, const size_t max_len);
 // Returns the length of the string found, or 0 if nothing of length >= 3 was found
 // offset is set to the offset from the current position to the string
 uint_fast16_t Dictionary_Find(const Dictionary* d, const Dictionary* d2, const_bytes data, const uint_fast16_t max_len, const_bytes search, uint_fast16_t* offset);
+
+#endif

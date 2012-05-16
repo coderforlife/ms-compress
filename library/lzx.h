@@ -1,5 +1,3 @@
-#pragma once
-
 // Implements the LZX decompression algorithm used in WIM files.
 // This is very similar to LZX decompression for CAB files with some minor differences.
 //
@@ -15,5 +13,15 @@
 //   For aligned offset blocks, the aligned offset tree precedes the main pre-tree 
 //   Each block is treated independent of every other block (there is no delta compression of the trees and translation offset resets in each block)
 
-size_t lzx_compress(const_bytes in, size_t in_len, bytes out, size_t out_len);
-size_t lzx_decompress(const_bytes in, size_t in_len, bytes out, size_t out_len);
+#ifndef LZX_H
+#define LZX_H
+#include "compression-api.h"
+
+EXTERN_C {
+
+COMPAPI size_t lzx_compress(const_bytes in, size_t in_len, bytes out, size_t out_len);
+COMPAPI size_t lzx_decompress(const_bytes in, size_t in_len, bytes out, size_t out_len);
+
+}
+
+#endif

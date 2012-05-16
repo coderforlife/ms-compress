@@ -1,10 +1,13 @@
-#include "stdafx.h"
 #include "compression.h"
 
 #include "lznt1.h"
 #include "lzx.h"
 #include "xpress.h"
 #include "xpress_huff.h"
+
+#ifdef __cplusplus_cli
+#pragma unmanaged
+#endif
 
 #ifndef ARRAYSIZE
 #define ARRAYSIZE(x) sizeof(x)/sizeof(x[0])
@@ -42,7 +45,7 @@ static compress_func decompressors[] =
 	xpress_huff_decompress,
 };
 
-size_t compress(int format, const_bytes in, size_t in_len, bytes out, size_t out_len)
+size_t compress(CompressionFormat format, const_bytes in, size_t in_len, bytes out, size_t out_len)
 {
 	if (format >= ARRAYSIZE(compressors) || !compressors[format])
 	{
@@ -53,7 +56,7 @@ size_t compress(int format, const_bytes in, size_t in_len, bytes out, size_t out
 	return compressors[format](in, in_len, out, out_len);
 }
 
-size_t decompress(int format, const_bytes in, size_t in_len, bytes out, size_t out_len)
+size_t decompress(CompressionFormat format, const_bytes in, size_t in_len, bytes out, size_t out_len)
 {
 	if (format >= ARRAYSIZE(decompressors) || !decompressors[format])
 	{

@@ -1,4 +1,3 @@
-#include "stdafx.h"
 #include "Dictionary.h"
 
 // Implementation designed for being extremely fast at the expense of memory
@@ -13,7 +12,9 @@
 #pragma unmanaged
 #endif
 
+#if defined(_MSC_VER) && defined(NDEBUG)
 #pragma optimize("t", on)
+#endif
 
 #define MAX_BYTE	0x100					// maximum byte value (+1 for 0)
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))	// minimum of 2 values

@@ -1,5 +1,12 @@
-#include "stdafx.h"
 #include "xpress.h"
+
+#ifdef __cplusplus_cli
+#pragma unmanaged
+#endif
+
+#if defined(_MSC_VER) && defined(NDEBUG)
+#pragma optimize("t", on)
+#endif
 
 #define MIN_DATA	5
 #define MAX_BYTE	0x100	// +1
@@ -10,6 +17,11 @@
 
 #define MIN(a, b) (((a) < (b)) ? (a) : (b)) // Get the minimum of 2
 #define MAX(a, b) (((a) > (b)) ? (a) : (b)) // Get the maximum of 2
+
+
+#ifdef COMPRESSION_API_EXPORT
+size_t xpress_max_compressed_size(size_t in_len) { return in_len + 4 * ((in_len + 31) / 32); }
+#endif
 
 
 ////////////////////////////// Compression Dictionary //////////////////////////////////////////////

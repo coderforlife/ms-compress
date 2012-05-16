@@ -1,4 +1,3 @@
-#include "stdafx.h"
 #include "lzx.h"
 
 #include "Bitstream.h"
@@ -7,7 +6,9 @@
 #pragma unmanaged
 #endif
 
+#if defined(_MSC_VER) && defined(NDEBUG)
 #pragma optimize("t", on)
+#endif
 
 #define VERBATIM_BLOCK			1
 #define ALIGNED_OFFSET_BLOCK	2

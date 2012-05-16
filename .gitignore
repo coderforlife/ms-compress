@@ -1,6 +1,8 @@
 *.lznt1
 *.xpress
 *.xpress_huff
+x86
+x64
 
 # Compiled Object files
 *.slo

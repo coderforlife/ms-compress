@@ -3,15 +3,18 @@
 :: This builds using MinGW-w64 for 32 and 64 bit (http://mingw-w64.sourceforge.net/)
 :: Make sure both mingw-w32\bin and mingw-w64\bin are in the PATH
 
+::-Werror
+set FLAGS=-mconsole -static-libgcc -O3 -march=core2 -Wall -s -Ilibrary
+set FILES=test.cpp
+set OUT=test
+
 echo Compiling 32-bit...
-i686-w64-mingw32-gcc -mconsole -static-libgcc -O3 -march=core2 -o compression.exe -s ^
-	compression.c Dictionary.c Bitstream.c lznt1.c lzx.c xpress.c xpress_huff.c test.c ^
+i686-w64-mingw32-gcc %FLAGS% %FILES% -o %OUT%.exe
 
 echo.
 
 echo Compiling 64-bit...
 
-x86_64-w64-mingw32-gcc -mconsole -static-libgcc -O3 -march=core2 -o compression64.exe -s ^
-	compression.c Dictionary.c Bitstream.c lznt1.c lzx.c xpress.c xpress_huff.c test.c
+x86_64-w64-mingw32-gcc %FLAGS% %FILES% -o %OUT%64.exe
 
 pause

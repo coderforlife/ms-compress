@@ -1,4 +1,3 @@
-#include "stdafx.h"
 #include "xpress_huff.h"
 
 #include "Dictionary.h"
@@ -8,7 +7,9 @@
 #pragma unmanaged
 #endif
 
+#if defined(_MSC_VER) && defined(NDEBUG)
 #pragma optimize("t", on)
+#endif
 
 
 ////////////////////////////// General Definitions and Functions ///////////////////////////////////

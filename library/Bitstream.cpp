@@ -1,5 +1,12 @@
-#include "stdafx.h"
 #include "Bitstream.h"
+
+#ifdef __cplusplus_cli
+#pragma unmanaged
+#endif
+
+#if defined(_MSC_VER) && defined(NDEBUG)
+#pragma optimize("t", on)
+#endif
 
 
 // Reading functions:
