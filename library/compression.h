@@ -1,5 +1,22 @@
-// Compression and Decompression Functions
+// ms-compress: implements Microsoft compression algorithms
+// Copyright (C) 2012  Jeffrey Bush  jeff@coderforlife.com
+//
+// This library is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+
+// Compression and Decompression Functions
+//
 // These mimic RtlCompressBuffer and RtlDecompressBuffer from NTDLL.DLL. They provide access to
 // LZX (WIM), LZNT1, Xpress (LZ), and Xpress Huffman algorithms. They attempt to provide results
 // similar to the RTL functions in terms of speed and compression rate. The RTL functions do not
@@ -7,11 +24,11 @@
 // differences in the specific algorithms see their header files.
 
 // Here is how to convert between the RTL functions and these functions:
-
-//err = RtlCompressBuffer(FORMAT|MAX, in, in_len, out, out_len, 4096, &size, ***);
+//
+//err = RtlCompressBuffer(FORMAT|MAX, in, in_len, out, out_len, 4096, &size, ***); // chunk size and temporary buffer arguments dropped
 //size = compress(FORMAT, in, in_len, out, out_len); if (size == 0) err = errno;
-
-//err = RtlDecompressBuffer(FORMAT, out, out_len, in, in_len, &size); // (switched order of in and out!)
+//
+//err = RtlDecompressBuffer(FORMAT, out, out_len, in, in_len, &size); // switched order of in and out!
 //size = decompress(FORMAT, in, in_len, out, out_len); if (size == 0) err = errno;
 
 #ifndef COMPRESSION_H

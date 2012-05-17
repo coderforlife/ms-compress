@@ -1,3 +1,22 @@
+// ms-compress: implements Microsoft compression algorithms
+// Copyright (C) 2012  Jeffrey Bush  jeff@coderforlife.com
+//
+// This library is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+
+// General include file which includes necessary files, defines, and typedefs.
+
 #ifndef COMPRESSION_API_H
 #define COMPRESSION_API_H
 
@@ -142,7 +161,7 @@
 #define E_INVALID_DATA			0x103
 
 // Define types used
-typedef uint8_t byte;
+typedef uint8_t byte; // should always be unsigned char (there is a check for CHAR_BIT == 8 above)
 typedef byte* bytes;
 typedef const byte const_byte;
 typedef const_byte* const_bytes;

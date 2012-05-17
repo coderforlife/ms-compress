@@ -1,3 +1,20 @@
+// ms-compress: implements Microsoft compression algorithms
+// Copyright (C) 2012  Jeffrey Bush  jeff@coderforlife.com
+//
+// This library is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+
 #include "xpress.h"
 
 #ifdef __cplusplus_cli
@@ -68,6 +85,24 @@ static void xpress_hashes_init_lcg()
 	}
 	xpress_hashes_initialized = true;
 }
+// Common LCG parameters:
+//MSVCRT:     inline static void xpress_hashes_init() { xpress_hashes_init_lcg<SEED,      214013ul,    2531011ul, (1ull << 32),    16>(); }
+//RtlUniform: inline static void xpress_hashes_init() { xpress_hashes_init_lcg<SEED, 0x 7FFFFFEDul, 0x7FFFFFC3ul, (1ull << 31)-1,  15>(); }
+//Java:       inline static void xpress_hashes_init() { xpress_hashes_init_lcg<SEED, 0x5DEECE66Dul,         11ul, (1ull << 48), 48-15>(); } // the SEED is processed with (SEED ^ 0x5DEECE66Dul) % (1ull << 48)
+//GLIBC:      inline static void xpress_hashes_init() { xpress_hashes_init_lcg<SEED, 0x 41C64E6Dul,      12345ul, (1ull << 32),    16>(); }
+//CarbonLib:  inline static void xpress_hashes_init() { xpress_hashes_init_lcg<SEED,       16807ul,          0ul, (1ull << 31)-1,  15>(); } // Also called MINSTD
+// The real Microsoft one for XPRESS is similar to a LCG but not quite the same. It uses a seed of 0x13579BDFul. The inside loop of the LCG is changed to:
+//			uint32_t a = 0, b = hash, c = 0x87654321u;
+//			int k;
+//			for (k = 0; k < 32; ++k)
+//			{
+//				uint32_t d;
+//				a -= 0x61C88647u; b += a; c += a;
+//				d = ((c + 0x3B2A1908) ^ (b + 0x43B2A19) ^ (a - 0x789ABCDF)) + hash;
+//				hash = ((a + d) ^ (c + (d >> 5)) ^ (b + (d << 3))) + d;
+//			}
+//			table[j] = (hash -= 0x789ABCDFu) & (MAX_HASH - 1);
+
 // Initialize using the LCG with constants from GLIBC rand() and a "random" seed
 inline static void xpress_hashes_init() { xpress_hashes_init_lcg<0x001A5BA5u, 0x41C64E6Du, 12345u, 1ull << 32, 16>(); }
 inline static uint_fast16_t xpress_hash(const const_bytes x) { return xpress_hashes[0][x[0]] ^ xpress_hashes[1][x[1]] ^ xpress_hashes[2][x[2]]; }
