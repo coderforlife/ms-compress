@@ -294,7 +294,7 @@
     <ClCompile Include="Bitstream.cpp" />
     <ClCompile Include="compression.cpp" />
     <ClCompile Include="Dictionary.cpp" />
-    <ClCompile Include="lznt1.cpp" />
+    <ClCompile Include="lznt1.c" />
     <ClCompile Include="lzx.cpp" />
     <ClCompile Include="xpress.cpp" />
     <ClCompile Include="xpress_huff.cpp" />
