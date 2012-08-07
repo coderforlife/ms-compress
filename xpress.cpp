@@ -102,9 +102,10 @@ static void xpress_hashes_init_lcg()
 //				hash = ((a + d) ^ (c + (d >> 5)) ^ (b + (d << 3))) + d;
 //			}
 //			table[j] = (hash -= 0x789ABCDFu) & (MAX_HASH - 1);
+// Different hash tables will not effect compression ratio but may effect speed.
 
 // Initialize using the LCG with constants from GLIBC rand() and a "random" seed
-inline static void xpress_hashes_init() { xpress_hashes_init_lcg<0x001A5BA5u, 0x41C64E6Du, 12345u, 1ull << 32, 16>(); }
+inline static void xpress_hashes_init() { xpress_hashes_init_lcg<0x2a190348ul, 0x41C64E6Du, 12345u, 1ull << 32, 16>(); }
 inline static uint_fast16_t xpress_hash(const const_bytes x) { return xpress_hashes[0][x[0]] ^ xpress_hashes[1][x[1]] ^ xpress_hashes[2][x[2]]; }
 
 typedef struct _XpressLzDictionary // 192 kb (on 32-bit) or 384 kb (on 64-bit)
