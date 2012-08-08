@@ -31,11 +31,11 @@
 #define XPRESS_HUFF_H
 #include "compression-api.h"
 
-EXTERN_C {
+EXTERN_C_START
 
 COMPAPI size_t xpress_huff_compress(const_bytes in, size_t in_len, bytes out, size_t out_len);
 COMPAPI size_t xpress_huff_decompress(const_bytes in, size_t in_len, bytes out, size_t out_len);
 
-}
+EXTERN_C_END
 
 #endif

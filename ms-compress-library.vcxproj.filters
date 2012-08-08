@@ -56,14 +56,14 @@
     <ClCompile Include="compression.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Bitstream.cpp">
-      <Filter>Internal</Filter>
-    </ClCompile>
-    <ClCompile Include="Dictionary.cpp">
-      <Filter>Internal</Filter>
-    </ClCompile>
     <ClCompile Include="lznt1.c">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Dictionary.c">
+      <Filter>Internal</Filter>
+    </ClCompile>
+    <ClCompile Include="Bitstream.c">
+      <Filter>Internal</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

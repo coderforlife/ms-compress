@@ -159,6 +159,8 @@
       <WarningLevel>Level4</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>COMPRESSION_API_DLL;COMPRESSION_API_EXPORT;WIN32;_DEBUG;_WINDOWS;_USRDLL;LIBRARY_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalOptions>
+      </AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -185,6 +187,7 @@
       <WarningLevel>Level4</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>COMPRESSION_API_DLL;COMPRESSION_API_EXPORT;WIN32;_DEBUG;_WINDOWS;_USRDLL;LIBRARY_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalOptions> /GH /Gh</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -291,9 +294,9 @@
     <ClInclude Include="xpress_huff.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Bitstream.cpp" />
+    <ClCompile Include="Bitstream.c" />
     <ClCompile Include="compression.cpp" />
-    <ClCompile Include="Dictionary.cpp" />
+    <ClCompile Include="Dictionary.c" />
     <ClCompile Include="lznt1.c" />
     <ClCompile Include="lzx.cpp" />
     <ClCompile Include="xpress.cpp" />

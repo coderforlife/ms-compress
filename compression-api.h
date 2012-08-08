@@ -150,9 +150,11 @@
 #endif
 
 #ifndef __cplusplus
-	#define EXTERN_C
+	#define EXTERN_C_START
+	#define EXTERN_C_END
 #else
-	#define EXTERN_C extern "C"
+	#define EXTERN_C_START extern "C" {
+	#define EXTERN_C_END   }
 #endif
 
 // Custom errno values

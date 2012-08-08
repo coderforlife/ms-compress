@@ -78,9 +78,17 @@ static void xpress_hashes_init_lcg()
 		int j;
 		for (j = 0; j < MAX_BYTE; ++j)
 		{
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable:4724) // warning C4724: potential mod by 0
+#pragma warning(disable:4127) // warning C4127: conditional expression is constant
+#endif
 			if (M)	hash = (hash * A + C) % M; // if M == 0, then M is actually max int, no need to do any division
 			else	hash = (hash * A + C);
 			table[j] = (hash >> S) & (MAX_HASH - 1);
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 		}
 	}
 	xpress_hashes_initialized = true;
@@ -105,7 +113,14 @@ static void xpress_hashes_init_lcg()
 // Different hash tables will not effect compression ratio but may effect speed.
 
 // Initialize using the LCG with constants from GLIBC rand() and a "random" seed
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable:4309) // warning C4309: 'specialization' : truncation of constant value
+#endif
 inline static void xpress_hashes_init() { xpress_hashes_init_lcg<0x2a190348ul, 0x41C64E6Du, 12345u, 1ull << 32, 16>(); }
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 inline static uint_fast16_t xpress_hash(const const_bytes x) { return xpress_hashes[0][x[0]] ^ xpress_hashes[1][x[1]] ^ xpress_hashes[2][x[2]]; }
 
 typedef struct _XpressLzDictionary // 192 kb (on 32-bit) or 384 kb (on 64-bit)

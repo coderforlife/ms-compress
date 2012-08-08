@@ -66,7 +66,7 @@ void Dictionary_Destroy(Dictionary* d)
 	uint_fast16_t i, j;
 	for (i = 0; i < MAX_BYTE; ++i)
 		for (j = 0; j < MAX_BYTE; ++j)
-			free(d->entries[i][j].pos);
+			free((bytes*)d->entries[i][j].pos);
 	free(d);
 }
 
@@ -93,7 +93,7 @@ bool Dictionary_Add(Dictionary* d, const_bytes data, const size_t max_len)
 		Entry* e = d->entries[x]+y;
 		if (e->size >= e->cap)
 		{
-			const_bytes *temp = (const_bytes*)realloc(e->pos, (e->cap=(e->cap?((e->cap==0x8000)?0xFFFF:(e->cap<<1)):8))*sizeof(const_bytes));
+			const_bytes *temp = (const_bytes*)realloc((bytes*)e->pos, (e->cap=(e->cap?((e->cap==0x8000)?0xFFFF:(e->cap<<1)):8))*sizeof(const_bytes));
 			if (temp == NULL)
 			{
 				PRINT_ERROR("Dictionary Add Error: realloc failed\n");
@@ -147,7 +147,14 @@ uint_fast16_t Dictionary_Find(const Dictionary* d, const Dictionary* d2, const_b
 				}
 
 				// Found the best match, stop now
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable:4701) // warning C4701: potentially uninitialized local variable 'o' used
+#endif
 				if (l == max_len) { *offset = o; return l; }
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 			}
 
 			// Do an exhaustive search (with the possible positions)

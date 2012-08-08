@@ -28,9 +28,10 @@
 #define DICTIONARY_H
 #include "compression-api.h"
 
+EXTERN_C_START
+
 struct _Dictionary;
 typedef struct _Dictionary Dictionary;
-
 
 // Creates and returns an uninitialized dictionary struct
 // Returns NULL on error (and sets errno)
@@ -54,5 +55,7 @@ bool Dictionary_Add(Dictionary* d, const_bytes data, const size_t max_len);
 // Returns the length of the string found, or 0 if nothing of length >= 3 was found
 // offset is set to the offset from the current position to the string
 uint_fast16_t Dictionary_Find(const Dictionary* d, const Dictionary* d2, const_bytes data, const uint_fast16_t max_len, const_bytes search, uint_fast16_t* offset);
+
+EXTERN_C_END
 
 #endif

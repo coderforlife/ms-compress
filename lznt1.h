@@ -38,7 +38,7 @@
 #define LZNT1_H
 #include "compression-api.h"
 
-EXTERN_C {
+EXTERN_C_START
 
 COMPAPI size_t lznt1_compress(const_bytes in, size_t in_len, bytes out, size_t out_len);
 #ifdef COMPRESSION_API_EXPORT
@@ -50,6 +50,6 @@ COMPAPI size_t lznt1_max_compressed_size(size_t in_len);
 COMPAPI size_t lznt1_decompress(const_bytes in, size_t in_len, bytes out, size_t out_len);
 COMPAPI size_t lznt1_uncompressed_size(const_bytes in, size_t in_len);
 
-}
+EXTERN_C_END
 
 #endif

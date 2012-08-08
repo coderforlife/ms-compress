@@ -43,11 +43,11 @@ typedef enum _CompressionFormat {
 	COMPRESSION_XPRESS_HUFF	= 4, // COMPRESSION_FORMAT_XPRESS_HUFF
 } CompressionFormat;
 
-EXTERN_C {
+EXTERN_C_START
 
 COMPAPI size_t compress(CompressionFormat format, const_bytes in, size_t in_len, bytes out, size_t out_len);
 COMPAPI size_t decompress(CompressionFormat format, const_bytes in, size_t in_len, bytes out, size_t out_len);
 
-}
+EXTERN_C_END
 
 #endif
