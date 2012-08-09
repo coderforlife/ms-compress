@@ -26,10 +26,6 @@
 #pragma unmanaged
 #endif
 
-#ifndef ARRAYSIZE
-#define ARRAYSIZE(x) sizeof(x)/sizeof(x[0])
-#endif
-
 // no-compression compression function
 size_t copy_data(const_bytes in, size_t in_len, bytes out, size_t out_len)
 {

@@ -249,9 +249,23 @@ size_t lzx_uncompressed_size(const_bytes in, size_t in_len) {
 }
 
 size_t lzx_compress(const_bytes in, size_t in_len, bytes out, size_t out_len) {
-	PRINT_ERROR("LZX Compression: Not implemented\n");
-	errno = E_ILLEGAL_FORMAT;
-	return 0;
+	if (in_len > 0x8000 || out_len < 3) { return 0; }
+	OutputBitstream bits;
+	BSWriteInit(&bits, out, out_len);
+	
+	// Write header
+	BSWriteBits(&bits, UNCOMPRESSED_BLOCK, 3);
+	if (in_len == 0x8000) {
+		BSWriteBits(&bits, 1, 1);
+	} else {
+		BSWriteBits(&bits, 0, 1);
+		BSWriteBits(&bits, (uint32_t)in_len, 16);
+	}
+
+	// Write block
+	if (out_len < in_len + 20) { return 0; }
+	memcpy(out + 20, in, in_len);
+	return in_len;
 }
 
 #ifdef COMPRESSION_API_EXPORT
