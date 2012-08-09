@@ -186,6 +186,21 @@ static bool lzx_decompress_block(InputBitstream *in, bytes out, size_t out_len, 
 	return true;
 }
 
+static void lzx_decompress_translation(bytes out, size_t out_len) {
+	if (out_len >= 6) {
+		const_bytes start = out, end = out + out_len - 6;
+		while ((out = (bytes)memchr(out, 0xE8, end - out)) != NULL) {
+			int32_t pos = (int32_t)(out++ - start);
+			int32_t absValue = GET_UINT32(out);
+			if (absValue >= -pos && absValue < TRANSLATION_SIZE) {
+				uint32_t offset = (absValue >= 0) ? absValue - pos : absValue + TRANSLATION_SIZE;
+				SET_UINT32(out, offset);
+			}
+			out += 4;
+		}
+	}
+}
+
 size_t lzx_decompress(const_bytes in, size_t in_len, bytes out, size_t out_len) { // approximately 11 kb of memory on stack
 	InputBitstream bits;
 	byte type;
@@ -224,24 +239,13 @@ size_t lzx_decompress(const_bytes in, size_t in_len, bytes out, size_t out_len) 
 		lzx_read_table(&bits, newLevels, 249);
 		if (!lzx_set_code_lengths(&LenDecoder, 249, newLevels)) { return false; }
 
-		if (!lzx_decompress_block(&bits, out, out_len, &MainDecoder, &LenDecoder, isAlignType ? &AlignDecoder : NULL, repDists))
+		if (!lzx_decompress_block(&bits, out, uncompressedSize, &MainDecoder, &LenDecoder, isAlignType ? &AlignDecoder : NULL, repDists))
 			return false;
 	} else {
 		return 0;
 	}
 
-	if (out_len >= 6) { // translate the output data
-		const_bytes start = out, end = out + out_len - 6;
-		while ((out = (bytes)memchr(out, 0xE8, end - out)) != NULL) {
-			int32_t pos = (int32_t)(out++ - start);
-			int32_t absValue = GET_UINT32(out);
-			if (absValue >= -pos && absValue < TRANSLATION_SIZE) {
-				uint32_t offset = (absValue >= 0) ? absValue - pos : absValue + TRANSLATION_SIZE;
-				SET_UINT32(out, offset);
-			}
-			out += 4;
-		}
-	}
+	lzx_decompress_translation(out, uncompressedSize);
 	return uncompressedSize;
 }
 
