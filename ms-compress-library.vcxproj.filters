@@ -44,16 +44,7 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="lzx.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="xpress.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="xpress_huff.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="compression.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="lznt1.c">
@@ -64,6 +55,15 @@
     </ClCompile>
     <ClCompile Include="Bitstream.c">
       <Filter>Internal</Filter>
+    </ClCompile>
+    <ClCompile Include="xpress.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="lzx.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="compression.c">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

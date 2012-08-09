@@ -187,7 +187,8 @@
       <WarningLevel>Level4</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>COMPRESSION_API_DLL;COMPRESSION_API_EXPORT;WIN32;_DEBUG;_WINDOWS;_USRDLL;LIBRARY_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalOptions> /GH /Gh</AdditionalOptions>
+      <AdditionalOptions>
+      </AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -295,11 +296,11 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Bitstream.c" />
-    <ClCompile Include="compression.cpp" />
+    <ClCompile Include="compression.c" />
     <ClCompile Include="Dictionary.c" />
     <ClCompile Include="lznt1.c" />
-    <ClCompile Include="lzx.cpp" />
-    <ClCompile Include="xpress.cpp" />
+    <ClCompile Include="lzx.c" />
+    <ClCompile Include="xpress.c" />
     <ClCompile Include="xpress_huff.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

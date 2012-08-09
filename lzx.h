@@ -37,7 +37,14 @@
 EXTERN_C_START
 
 COMPAPI size_t lzx_compress(const_bytes in, size_t in_len, bytes out, size_t out_len);
+#ifdef COMPRESSION_API_EXPORT
+COMPAPI size_t lzx_max_compressed_size(size_t in_len);
+#else
+#define lzx_max_compressed_size(in_len) (((size_t)(in_len)) + 20)
+#endif
+
 COMPAPI size_t lzx_decompress(const_bytes in, size_t in_len, bytes out, size_t out_len);
+COMPAPI size_t lzx_uncompressed_size(const_bytes in, size_t in_len); // instant, not based on size
 
 EXTERN_C_END
 

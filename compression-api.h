@@ -99,11 +99,15 @@
 	#define ROTL(x, bits) (((x) << (bits)) | ((x) >> (sizeof(x) - (bits))))
 #endif
 
+// Get ARRAYSIZE
+#ifndef ARRAYSIZE
+	#define ARRAYSIZE(x) sizeof(x)/sizeof(x[0])
+#endif
 
 // Error message system (mainly for debugging)
 #ifdef _DEBUG
-	#define PRINT_WARNINGS
-	#define PRINT_ERRORS
+	//#define PRINT_WARNINGS
+	//#define PRINT_ERRORS
 #endif
 
 #if defined(PRINT_WARNINGS) || defined(PRINT_ERRORS)

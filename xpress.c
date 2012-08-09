@@ -67,32 +67,33 @@ static uint16_t xpress_hashes[3][MAX_BYTE];
 static bool xpress_hashes_initialized = false;
 // Initializes the tabulation data using a linear congruential generator
 // The values are essentially random and evenly distributed
-template<uint32_t SEED, uint32_t A, uint32_t C, uint32_t M, uint32_t S>
-static void xpress_hashes_init_lcg()
-{
-	uint32_t hash = SEED;
-	int i;
-	for (i = 0; i < 3; ++i)
-	{
-		uint16_t* table = xpress_hashes[i];
-		int j;
-		for (j = 0; j < MAX_BYTE; ++j)
-		{
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable:4724) // warning C4724: potential mod by 0
-#pragma warning(disable:4127) // warning C4127: conditional expression is constant
-#endif
-			if (M)	hash = (hash * A + C) % M; // if M == 0, then M is actually max int, no need to do any division
-			else	hash = (hash * A + C);
-			table[j] = (hash >> S) & (MAX_HASH - 1);
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif
-		}
-	}
-	xpress_hashes_initialized = true;
-}
+//// Generic version:
+//template<uint32_t SEED, uint32_t A, uint32_t C, uint32_t M, uint32_t S>
+//static void xpress_hashes_init_lcg()
+//{
+//	uint32_t hash = SEED;
+//	int i;
+//	for (i = 0; i < 3; ++i)
+//	{
+//		uint16_t* table = xpress_hashes[i];
+//		int j;
+//		for (j = 0; j < MAX_BYTE; ++j)
+//		{
+//#ifdef _MSC_VER
+//#pragma warning(push)
+//#pragma warning(disable:4724) // warning C4724: potential mod by 0
+//#pragma warning(disable:4127) // warning C4127: conditional expression is constant
+//#endif
+//			if (M)	hash = (hash * A + C) % M; // if M == 0, then M is actually max int, no need to do any division
+//			else	hash = (hash * A + C);
+//			table[j] = (hash >> S) & (MAX_HASH - 1);
+//#ifdef _MSC_VER
+//#pragma warning(pop)
+//#endif
+//		}
+//	}
+//	xpress_hashes_initialized = true;
+//}
 // Common LCG parameters:
 //MSVCRT:     inline static void xpress_hashes_init() { xpress_hashes_init_lcg<SEED,      214013ul,    2531011ul, (1ull << 32),    16>(); }
 //RtlUniform: inline static void xpress_hashes_init() { xpress_hashes_init_lcg<SEED, 0x 7FFFFFEDul, 0x7FFFFFC3ul, (1ull << 31)-1,  15>(); }
@@ -113,14 +114,30 @@ static void xpress_hashes_init_lcg()
 // Different hash tables will not effect compression ratio but may effect speed.
 
 // Initialize using the LCG with constants from GLIBC rand() and a "random" seed
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable:4309) // warning C4309: 'specialization' : truncation of constant value
-#endif
-inline static void xpress_hashes_init() { xpress_hashes_init_lcg<0x2a190348ul, 0x41C64E6Du, 12345u, 1ull << 32, 16>(); }
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif
+//// Generic version:
+//#ifdef _MSC_VER
+//#pragma warning(push)
+//#pragma warning(disable:4309) // warning C4309: 'specialization' : truncation of constant value
+//#endif
+//inline static void xpress_hashes_init() { xpress_hashes_init_lcg<0x2a190348ul, 0x41C64E6Du, 12345u, 1ull << 32, 16>(); }
+//#ifdef _MSC_VER
+//#pragma warning(pop)
+//#endif
+static void xpress_hashes_init() {
+	uint32_t hash = 0x2a190348ul;
+	int i;
+	for (i = 0; i < 3; ++i)
+	{
+		uint16_t* table = xpress_hashes[i];
+		int j;
+		for (j = 0; j < MAX_BYTE; ++j)
+		{
+			hash = hash * 0x41C64E6Du + 12345u;
+			table[j] = (hash >> 16) & (MAX_HASH - 1);
+		}
+	}
+	xpress_hashes_initialized = true;
+}
 inline static uint_fast16_t xpress_hash(const const_bytes x) { return xpress_hashes[0][x[0]] ^ xpress_hashes[1][x[1]] ^ xpress_hashes[2][x[2]]; }
 
 typedef struct _XpressLzDictionary // 192 kb (on 32-bit) or 384 kb (on 64-bit)
@@ -293,7 +310,8 @@ size_t xpress_decompress(const_bytes in, size_t in_len, bytes out, size_t out_le
 	while (in < in_endx && out < out_endx)
 	{
 		// Handle a fragment
-		flagged = (flags = GET_UINT32(in)) & 0x80000000;
+		flags = GET_UINT32(in);
+		flagged = flags & 0x80000000;
 		flags = (flags << 1) | 1;
 		in += 4;
 		do
@@ -305,19 +323,17 @@ size_t xpress_decompress(const_bytes in, size_t in_len, bytes out, size_t out_le
 
 				// Offset/length symbol
 				sym = GET_UINT16(in);
-				off = (sym >> 3) + 1;
 				in += 2;
-				if ((len = sym & 0x7) == 0x7)
+				off = (sym >> 3) + 1;
+				len = sym & 0x7;
+				if (len == 0x7)
 				{
 					if (half_byte) { len = *half_byte >> 4; half_byte = NULL; }
 					else           { len = *in & 0xF;       half_byte = in++; }
 					if (len == 0xF)
 					{
-						if (in + 7 > in_endx)
-						{
-							goto CHECKED_LENGTH;
-						}
-						else if ((len = *(in++)) == 0xFF)
+						if (in + 7 > in_endx) goto CHECKED_LENGTH;
+						if ((len = *(in++)) == 0xFF)
 						{
 							len = GET_UINT16(in);
 							in += 2;
@@ -331,7 +347,8 @@ size_t xpress_decompress(const_bytes in, size_t in_len, bytes out, size_t out_le
 				}
 				len += 0x3;
 
-				if ((o = out-off) < out_start) { PRINT_ERROR("Xpress Decompression Error: Invalid data: Illegal offset (%p-%u < %p)\n", out, off, out_start); errno = E_INVALID_DATA; return 0; }
+				o = out-off;
+				if (o < out_start) { PRINT_ERROR("Xpress Decompression Error: Invalid data: Illegal offset (%p-%u < %p)\n", out, off, out_start); errno = E_INVALID_DATA; return 0; }
 
 				// Write up to 3 bytes for close offsets so that we have >=4 bytes to read in all cases
 				switch (off)
@@ -376,12 +393,28 @@ size_t xpress_decompress(const_bytes in, size_t in_len, bytes out, size_t out_le
 				flagged = flags & 0x80000000;
 				flags <<= 1;
 			}
-			else
+			else if ((flags & 0x80000000) != 0)  // Copy 1 byte directly
 			{
-				// Copy bytes directly
-					 if ((flagged = (flags & 0x80000000)) != 0) { *out++ = *in++; flags <<= 1; } // Copy 1 byte directly
-				else if ((flagged = (flags & 0x40000000)) != 0) { *(uint16_t*)out = *(uint16_t*)in; out += 2; in += 2; flags <<= 2; } // Copy 2 bytes directly
-				else     { byte n = (flags & 0x20000000) ? 3 : 4; *(uint32_t*)out = *(uint32_t*)in; out += n; in += n; flagged = (flags & 0x30000000); flags <<= n; } // Copy 3 or 4 bytes directly
+				*out++ = *in++;
+				flagged = 1;
+				flags <<= 1;
+			}
+			else if ((flags & 0x40000000) != 0) // Copy 2 bytes directly
+			{
+				*(uint16_t*)out = *(uint16_t*)in;
+				out += 2;
+				in += 2;
+				flagged = 1;
+				flags <<= 2;
+			}
+			else // Copy 3 or 4 bytes directly
+			{
+				byte n = (flags & 0x20000000) ? 3 : 4;
+				*(uint32_t*)out = *(uint32_t*)in;
+				out += n;
+				in += n;
+				flagged = (flags & 0x30000000);
+				flags <<= n;
 			}
 		} while (flags);
 	}

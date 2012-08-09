@@ -23,8 +23,6 @@
 #define BITSTREAM_H
 #include "compression-api.h"
 
-EXTERN_C_START
-
 struct _Bitstream
 {
 	union
@@ -40,6 +38,7 @@ struct _Bitstream
 typedef struct _Bitstream InputBitstream;
 typedef struct _Bitstream OutputBitstream;
 
+EXTERN_C_START
 
 // Reading functions:
 void BSReadInit(InputBitstream* bstr, const_bytes in, size_t len);
@@ -54,7 +53,6 @@ void BSWriteInit(OutputBitstream* bstr, bytes out, size_t len);
 bool BSWriteBits(OutputBitstream* bstr, uint32_t b, byte n);
 bool BSWriteByte(OutputBitstream* bstr, byte b);
 void BSWriteFinish(OutputBitstream* bstr);
-
 
 EXTERN_C_END
 
