@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-// This code is adapted from 7-zip. See http://www.7-zip.org/.
+// Decompression code is adapted from 7-zip. See http://www.7-zip.org/.
 
 #include "lzx.h"
 
@@ -129,29 +129,10 @@ static bool lzx_read_table(InputBitstream *in, bytes newLevels, uint32_t numSymb
 	return true;
 }
 
-static bool lzx_decompress_block(int isAlignType, InputBitstream *in, bytes out, size_t out_len) { 
-	Decoder MainDecoder;  // 496
-	Decoder LenDecoder;   // 249
-	Decoder AlignDecoder; // 8
-	byte newLevels[512];
+static bool lzx_decompress_block(InputBitstream *in, bytes out, size_t out_len, Decoder *MainDecoder, Decoder *LenDecoder, Decoder *AlignDecoder, uint32_t repDists[]) {
 	bytes end = out + out_len;
-	uint32_t repDists[3]= { 0, 0, 0 }, i;
-
-	if (isAlignType) {
-		for (i = 0; i < 8; i++)
-			newLevels[i] = (byte)BSReadBits(in, 3);
-		if (!lzx_set_code_lengths(&AlignDecoder, 8, newLevels)) { return false; }
-	}
-
-	lzx_read_table(in, newLevels, 256);
-	lzx_read_table(in, newLevels + 256, 240);
-	if (!lzx_set_code_lengths(&MainDecoder, 496, newLevels)) { return false; }
-	
-	lzx_read_table(in, newLevels, 249);
-	if (!lzx_set_code_lengths(&LenDecoder, 249, newLevels)) { return false; }
-
 	while (out < end) {
-		uint32_t sym = lzx_decode_symbol(&MainDecoder, in);
+		uint32_t sym = lzx_decode_symbol(MainDecoder, in);
 		if (sym < 0x100) {
 			*out++ = (byte)sym;
 		} else {
@@ -161,7 +142,7 @@ static bool lzx_decompress_block(int isAlignType, InputBitstream *in, bytes out,
 				return false;
 			len = sym & 0x7 + 2; // posLenSlot % kNumLenSlots;
 			if (len == 9) {
-				len = 9 + lzx_decode_symbol(&LenDecoder, in);
+				len = 9 + lzx_decode_symbol(LenDecoder, in);
 				if (len >= 258)
 					return false;
 			}
@@ -180,10 +161,10 @@ static bool lzx_decompress_block(int isAlignType, InputBitstream *in, bytes out,
 					n = 17;
 					dist = (pos - 0x22) << 17;
 				}
-				if (isAlignType && n >= 3) {
+				if (AlignDecoder && n >= 3) {
 					uint32_t alignTemp;
 					dist += BSReadBits(in, n - 3) << 3;
-					alignTemp = lzx_decode_symbol(&AlignDecoder, in);
+					alignTemp = lzx_decode_symbol(AlignDecoder, in);
 					if (alignTemp >= 8)
 						return false;
 					dist += alignTemp;
@@ -201,13 +182,14 @@ static bool lzx_decompress_block(int isAlignType, InputBitstream *in, bytes out,
 			out += len;
 		}
 	}
+
 	return true;
 }
 
 size_t lzx_decompress(const_bytes in, size_t in_len, bytes out, size_t out_len) { // approximately 11 kb of memory on stack
 	InputBitstream bits;
 	byte type;
-	int isAlignType;
+	bool isAlignType;
 	uint32_t uncompressedSize;
 
 	if (!in_len) { return 0; }
@@ -221,9 +203,33 @@ size_t lzx_decompress(const_bytes in, size_t in_len, bytes out, size_t out_len) 
 
 	if (type == UNCOMPRESSED_BLOCK && uncompressedSize + 20 <= in_len) {
 		memcpy(out, in + 20, uncompressedSize); // copy the uncompressed data, aligned to 32-bit boundary and skipping past the rep distances
-	} else if (type != VERBATIM_BLOCK && !isAlignType && !lzx_decompress_block(isAlignType, &bits, out, uncompressedSize)) {
+	} else if (type == VERBATIM_BLOCK || isAlignType) {
+		Decoder MainDecoder;  // 496
+		Decoder LenDecoder;   // 249
+		Decoder AlignDecoder; // 8
+		byte newLevels[512];
+		uint32_t repDists[3]= { 0, 0, 0 };
+
+		if (isAlignType) {
+			int i;
+			for (i = 0; i < 8; i++)
+				newLevels[i] = (byte)BSReadBits(&bits, 3);
+			if (!lzx_set_code_lengths(&AlignDecoder, 8, newLevels)) { return false; }
+		}
+
+		lzx_read_table(&bits, newLevels, 256);
+		lzx_read_table(&bits, newLevels + 256, 240);
+		if (!lzx_set_code_lengths(&MainDecoder, 496, newLevels)) { return false; }
+	
+		lzx_read_table(&bits, newLevels, 249);
+		if (!lzx_set_code_lengths(&LenDecoder, 249, newLevels)) { return false; }
+
+		if (!lzx_decompress_block(&bits, out, out_len, &MainDecoder, &LenDecoder, isAlignType ? &AlignDecoder : NULL, repDists))
+			return false;
+	} else {
 		return 0;
 	}
+
 	if (out_len >= 6) { // translate the output data
 		const_bytes start = out, end = out + out_len - 6;
 		while ((out = (bytes)memchr(out, 0xE8, end - out)) != NULL) {
@@ -249,8 +255,10 @@ size_t lzx_uncompressed_size(const_bytes in, size_t in_len) {
 }
 
 size_t lzx_compress(const_bytes in, size_t in_len, bytes out, size_t out_len) {
-	if (in_len > 0x8000 || out_len < 3) { return 0; }
 	OutputBitstream bits;
+
+	if (in_len > 0x8000 || out_len < 3) { return 0; }
+
 	BSWriteInit(&bits, out, out_len);
 	
 	// Write header
