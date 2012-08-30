@@ -23,37 +23,104 @@
 #define BITSTREAM_H
 #include "compression-api.h"
 
-struct _Bitstream
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable:4512) // warning C4512: assignment operator could not be generated
+#endif
+
+class Bitstream
 {
-	union
-	{
-		const_bytes in;	// Reading only: The input byte array
-		bytes out;		// Writing only: The output byte array
-	} data;
-	size_t index, len;	// The current position and length of the stream
+protected:
+	size_t index;	    // The current position of the stream
+	const size_t len;	// The length of the stream
 	uint32_t mask;		// The next bits to be read/written in the bitstream
 	byte bits;			// The number of bits in mask that are valid
-	uint16_t* pntr[2];	// Writing only: the uint16's to write the data in mask to when there are enough bits
+	inline Bitstream(size_t len, uint32_t mask, byte bits) : len(len), index(4), mask(mask), bits(bits) { assert(4 < len); }
+public:
+	inline size_t Position() { return this->index; }
 };
-typedef struct _Bitstream InputBitstream;
-typedef struct _Bitstream OutputBitstream;
-
-EXTERN_C_START
 
 // Reading functions:
-void BSReadInit(InputBitstream* bstr, const_bytes in, size_t len);
-uint32_t BSPeek(const InputBitstream* bstr, byte n);
-void BSSkip(InputBitstream* bstr, byte n);
-byte BSReadBit(InputBitstream* bstr);
-uint32_t BSReadBits(InputBitstream* bstr, byte n);
+class InputBitstream : public Bitstream
+{
+private:
+	const const_bytes in;
+public:
+	inline InputBitstream(const_bytes in, size_t len) : Bitstream(len, (GET_UINT16(in) << 16) | GET_UINT16(in+2), 32), in(in) { assert(in); }
+	inline uint32_t Peek(byte n) const { return (n > this->bits) ? 0xFFFFFFFF : ((n == 0) ? 0 : (this->mask >> (32 - n))); }
+	inline void Skip(byte n)
+	{
+		this->mask <<= n;
+		this->bits -= n;
+		if (this->bits < 16 && this->index + 2 <= this->len)
+		{
+			this->mask |= GET_UINT16(this->in + this->index) << (16 - this->bits);
+			this->bits |= 0x10; //this->bits += 16;
+			this->index += 2;
+		}
+	}
+	inline byte ReadBit() { byte x = 0xFF; if (this->bits) { x = (byte)(this->mask >> 31); this->Skip(1); } return x; }
+	inline uint32_t ReadBits(byte n) { uint32_t x = this->Peek(n); if (x != 0xFFFFFFFF) { this->Skip(n); } return x; }
 
+	inline size_t RemainingBytes() { return this->len - this->index; }
+	// Assume that you have already checked for necessary room
+	inline byte     ReadRawByte()   { assert(this->index + 1 <= this->len); return this->in[this->index++]; }
+	inline uint16_t ReadRawUInt16() { assert(this->index + 2 <= this->len); uint16_t x = GET_UINT16(this->in+this->index); this->index += 2; return x; }
+	inline uint32_t ReadRawUInt32() { assert(this->index + 4 <= this->len); uint32_t x = GET_UINT32(this->in+this->index); this->index += 4; return x; }
+
+	inline bool MaskIsZero() { return (this->mask>>(32-this->bits)) == 0; }
+};
 
 // Writing functions:
-void BSWriteInit(OutputBitstream* bstr, bytes out, size_t len);
-bool BSWriteBits(OutputBitstream* bstr, uint32_t b, byte n);
-bool BSWriteByte(OutputBitstream* bstr, byte b);
-void BSWriteFinish(OutputBitstream* bstr);
+class OutputBitstream : public Bitstream
+{
+private:
+	bytes out;
+	uint16_t* pntr[2];	// the uint16's to write the data in mask to when there are enough bits
+public:
+	inline OutputBitstream(bytes out, size_t len) : Bitstream(len, 0, 0), out(out)
+	{
+		assert(out);
+		this->pntr[0] = (uint16_t*)out;
+		this->pntr[1] = (uint16_t*)(out+2);
+	}
+	inline bool WriteBits(uint32_t b, byte n)
+	{
+		{
+			this->mask |= b << (32 - (this->bits += n));
+			if (this->bits > 16)
+			{
+				if (this->pntr[1] == NULL) return false; // only 16 bits can fit into pntr[0]!
+				SET_UINT16(this->pntr[0], this->mask >> 16);
+				this->mask <<= 16;
+				this->bits &= 0xF; //this->bits -= 16;
+				this->pntr[0] = this->pntr[1];
+				if (this->index + 2 > this->len)
+				{
+					// No more uint16s are available, however we can still write 16 more bits to pntr[0]
+					this->pntr[1] = NULL;
+				}
+				else
+				{
+					this->pntr[1] = (uint16_t*)(this->out+this->index);
+					this->index += 2;
+				}
+			}
+			return true;
+		}
+	}
+	inline bool WriteRawByte(byte x)       { if (this->index + 1 > this->len) { return false; } this->out[this->index++] = x; return true; }
+	inline bool WriteRawUInt16(uint16_t x) { if (this->index + 2 > this->len) { return false; } SET_UINT16(this->out + this->index, x); this->index += 2; return true; }
+	inline bool WriteRawUInt32(uint32_t x) { if (this->index + 4 > this->len) { return false; } SET_UINT32(this->out + this->index, x); this->index += 4; return true; }
+	inline void Finish()
+	{
+		SET_UINT16(this->pntr[0], this->mask >> 16); // if !bits then mask is 0 anyways
+		if (this->pntr[1]) *this->pntr[1] = 0;
+	}
+};
 
-EXTERN_C_END
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 #endif

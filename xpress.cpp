@@ -17,6 +17,8 @@
 
 #include "xpress.h"
 
+#include "XpressDictionary.h"
+
 #ifdef __cplusplus_cli
 #pragma unmanaged
 #endif
@@ -26,168 +28,14 @@
 #endif
 
 #define MIN_DATA	5
-#define MAX_BYTE	0x100	// +1
-#define MAX_OFFSET	0x2000
-#define MAX_OFF_DBL	(MAX_OFFSET*2)
-#define MAX_LENGTH	UINT32_MAX
-#define MAX_HASH	0x8000	// +1
 
 #define MIN(a, b) (((a) < (b)) ? (a) : (b)) // Get the minimum of 2
-#define MAX(a, b) (((a) > (b)) ? (a) : (b)) // Get the maximum of 2
 
+typedef XpressDictionary<0x2000> Dictionary;
 
 #ifdef COMPRESSION_API_EXPORT
 size_t xpress_max_compressed_size(size_t in_len) { return in_len + 4 * ((in_len + 31) / 32); }
 #endif
-
-
-////////////////////////////// Compression Dictionary //////////////////////////////////////////////
-inline static uint32_t GetMatchLength(const_bytes a, const_bytes b, const const_bytes end)
-{
-	// like memcmp but tells you the length of the match and optimized
-	// assumptions: a < b < end
-	const const_bytes b_start = b, end_4 = end-4;
-	byte a0, b0;
-	while (b < end_4 && *((uint32_t*)a) == *((uint32_t*)b))
-	{
-		a += 4;
-		b += 4;
-	}
-	do
-	{
-		a0 = *a++;
-		b0 = *b++;
-	} while (b < end && a0 == b0);
-	return (uint_fast16_t)(b - b_start - 1);
-}
-
-// Tabulation Hashing
-// Will hash 3 bytes at a time to a number from 0 to 0x7FFF (inclusive)
-static uint16_t xpress_hashes[3][MAX_BYTE];
-static bool xpress_hashes_initialized = false;
-// Initializes the tabulation data using a linear congruential generator
-// The values are essentially random and evenly distributed
-//// Generic version:
-//template<uint32_t SEED, uint32_t A, uint32_t C, uint32_t M, uint32_t S>
-//static void xpress_hashes_init_lcg()
-//{
-//	uint32_t hash = SEED;
-//	int i;
-//	for (i = 0; i < 3; ++i)
-//	{
-//		uint16_t* table = xpress_hashes[i];
-//		int j;
-//		for (j = 0; j < MAX_BYTE; ++j)
-//		{
-//#ifdef _MSC_VER
-//#pragma warning(push)
-//#pragma warning(disable:4724) // warning C4724: potential mod by 0
-//#pragma warning(disable:4127) // warning C4127: conditional expression is constant
-//#endif
-//			if (M)	hash = (hash * A + C) % M; // if M == 0, then M is actually max int, no need to do any division
-//			else	hash = (hash * A + C);
-//			table[j] = (hash >> S) & (MAX_HASH - 1);
-//#ifdef _MSC_VER
-//#pragma warning(pop)
-//#endif
-//		}
-//	}
-//	xpress_hashes_initialized = true;
-//}
-// Common LCG parameters:
-//MSVCRT:     inline static void xpress_hashes_init() { xpress_hashes_init_lcg<SEED,      214013ul,    2531011ul, (1ull << 32),    16>(); }
-//RtlUniform: inline static void xpress_hashes_init() { xpress_hashes_init_lcg<SEED, 0x 7FFFFFEDul, 0x7FFFFFC3ul, (1ull << 31)-1,  15>(); }
-//Java:       inline static void xpress_hashes_init() { xpress_hashes_init_lcg<SEED, 0x5DEECE66Dul,         11ul, (1ull << 48), 48-15>(); } // the SEED is processed with (SEED ^ 0x5DEECE66Dul) % (1ull << 48)
-//GLIBC:      inline static void xpress_hashes_init() { xpress_hashes_init_lcg<SEED, 0x 41C64E6Dul,      12345ul, (1ull << 32),    16>(); }
-//CarbonLib:  inline static void xpress_hashes_init() { xpress_hashes_init_lcg<SEED,       16807ul,          0ul, (1ull << 31)-1,  15>(); } // Also called MINSTD
-// The real Microsoft one for XPRESS is similar to a LCG but not quite the same. It uses a seed of 0x13579BDFul. The inside loop of the LCG is changed to:
-//			uint32_t a = 0, b = hash, c = 0x87654321u;
-//			int k;
-//			for (k = 0; k < 32; ++k)
-//			{
-//				uint32_t d;
-//				a -= 0x61C88647u; b += a; c += a;
-//				d = ((c + 0x3B2A1908) ^ (b + 0x43B2A19) ^ (a - 0x789ABCDF)) + hash;
-//				hash = ((a + d) ^ (c + (d >> 5)) ^ (b + (d << 3))) + d;
-//			}
-//			table[j] = (hash -= 0x789ABCDFu) & (MAX_HASH - 1);
-// Different hash tables will not effect compression ratio but may effect speed.
-
-// Initialize using the LCG with constants from GLIBC rand() and a "random" seed
-//// Generic version:
-//#ifdef _MSC_VER
-//#pragma warning(push)
-//#pragma warning(disable:4309) // warning C4309: 'specialization' : truncation of constant value
-//#endif
-//inline static void xpress_hashes_init() { xpress_hashes_init_lcg<0x2a190348ul, 0x41C64E6Du, 12345u, 1ull << 32, 16>(); }
-//#ifdef _MSC_VER
-//#pragma warning(pop)
-//#endif
-static void xpress_hashes_init() {
-	uint32_t hash = 0x2a190348ul;
-	int i;
-	for (i = 0; i < 3; ++i)
-	{
-		uint16_t* table = xpress_hashes[i];
-		int j;
-		for (j = 0; j < MAX_BYTE; ++j)
-		{
-			hash = hash * 0x41C64E6Du + 12345u;
-			table[j] = (hash >> 16) & (MAX_HASH - 1);
-		}
-	}
-	xpress_hashes_initialized = true;
-}
-inline static uint_fast16_t xpress_hash(const const_bytes x) { return xpress_hashes[0][x[0]] ^ xpress_hashes[1][x[1]] ^ xpress_hashes[2][x[2]]; }
-
-typedef struct _XpressLzDictionary // 192 kb (on 32-bit) or 384 kb (on 64-bit)
-{
-	const_bytes start, end, end3;
-	const_bytes table[MAX_HASH];
-	const_bytes window[MAX_OFF_DBL];
-} Dictionary;
-inline static void Dictionary_Init(Dictionary* d, const const_bytes start, const const_bytes end)
-{
-	if (!xpress_hashes_initialized) { xpress_hashes_init(); }
-	d->start = start;
-	d->end = end;
-	d->end3 = end - 3;
-	memset(d->table, 0, sizeof(d->table));
-}
-#define WINDOW_POS(x) (((x)-d->start)&(MAX_OFF_DBL-1))
-inline static const_bytes Dictionary_Fill(Dictionary* d, const_bytes data)
-{
-	uint_fast16_t pos = WINDOW_POS(data); // either 0x0000 or 0x2000
-	const const_bytes end = MIN(data + MAX_OFFSET, d->end3);
-	while (data < end)
-	{
-		const uint_fast16_t hash = xpress_hash(data);
-		d->window[pos++] = d->table[hash];
-		d->table[hash] = data++;
-	}
-	return end;
-}
-inline static uint32_t Dictionary_Find(const Dictionary* d, const const_bytes data, uint_fast16_t* offset)
-{
-	const const_bytes xend = data - MAX_OFFSET;
-#if PNTR_BITS <= 32
-	const const_bytes end = d->end; // with 32-bits and less the data + MAX_LENGTH will always overflow
-#else
-	const const_bytes end = MIN(data + MAX_LENGTH, d->end);
-#endif
-	const_bytes x;
-	uint32_t len = 2;
-	for (x = d->window[WINDOW_POS(data)]; x >= xend; x = d->window[WINDOW_POS(x)])
-	{
-		const uint32_t l = GetMatchLength(x, data, end);
-		if (l > len)
-		{
-			*offset = (uint_fast16_t)(data - x);
-			len = l;
-		}
-	}
-	return len;
-}
 
 
 ////////////////////////////// Compression Functions ///////////////////////////////////////////////
@@ -201,22 +49,20 @@ size_t xpress_compress(const_bytes in, size_t in_len, bytes out, size_t out_len)
 	byte flag_count;
 	byte* half_byte = NULL;
 	
-	Dictionary d;
+	Dictionary d(in, in_end);
 
 	if (in_len == 0) { return 0; }
 	if (out_len < MIN_DATA) { PRINT_ERROR("Xpress Compression Error: Insufficient buffer\n"); errno = E_INSUFFICIENT_BUFFER; return 0; }
 
-	Dictionary_Init(&d, in, in_end); // initialize the dictionary
 	out += 4;		// skip four for flags
 	*out++ = *in++;	// copy the first byte
 	flag_count = 1;
 
 	while (in < in_end3 && out < out_end1)
 	{
-		uint32_t len;
-		uint_fast16_t off;
-		if (filled_to <= in) { filled_to = Dictionary_Fill(&d, filled_to); }
-		if ((len = Dictionary_Find(&d, in, &off)) < 3) { *out++ = *in++; flags <<= 1; } // Copy byte
+		uint32_t len, off;
+		if (filled_to <= in) { filled_to = d.Fill(filled_to); }
+		if ((len = d.Find(in, &off)) < 3) { *out++ = *in++; flags <<= 1; } // Copy byte
 		else // Match found
 		{
 			in += len;
@@ -234,7 +80,7 @@ size_t xpress_compress(const_bytes in, size_t in_len, bytes out, size_t out_len)
 				else
 				{
 					if (out >= out_end) { PRINT_ERROR("Xpress Compression Error: Insufficient buffer\n"); errno = E_INSUFFICIENT_BUFFER; return 0; }
-					*(half_byte=out++) = MIN(len, 0xF) & 0xF;
+					*(half_byte=out++) = MIN(len, 0xF);
 				}
 				if (len >= 0xF)
 				{
@@ -247,7 +93,8 @@ size_t xpress_compress(const_bytes in, size_t in_len, bytes out, size_t out_len)
 						if (len <= 0xFFFF)
 						{
 							if (out + 2 > out_end) { PRINT_ERROR("Xpress Compression Error: Insufficient buffer\n"); errno = E_INSUFFICIENT_BUFFER; return 0; }
-							SET_UINT16(out, len); out += 2;
+							SET_UINT16(out, len);
+							out += 2;
 						}
 						else
 						{
@@ -332,7 +179,7 @@ size_t xpress_decompress(const_bytes in, size_t in_len, bytes out, size_t out_le
 					else           { len = *in & 0xF;       half_byte = in++; }
 					if (len == 0xF)
 					{
-						if (in + 7 > in_endx) goto CHECKED_LENGTH;
+						if (in + 7 > in_endx) { goto CHECKED_LENGTH; }
 						if ((len = *(in++)) == 0xFF)
 						{
 							len = GET_UINT16(in);
@@ -473,7 +320,7 @@ CHECKED_LENGTH:			if (in == in_end) { PRINT_ERROR("Xpress Decompression Error: I
 					len += 0x7;
 				}
 				len += 0x3;
-
+				
 				if (out - off < out_start) { PRINT_ERROR("Xpress Decompression Error: Invalid data: Illegal offset (%p-%u < %p)\n", out, off, out_start); errno = E_INVALID_DATA; return 0; }
 				if (out + len > out_end)   { PRINT_ERROR("Xpress Decompression Error: Insufficient buffer\n"); errno = E_INSUFFICIENT_BUFFER; return 0; }
 

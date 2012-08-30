@@ -33,36 +33,36 @@
     <ClInclude Include="compression.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Dictionary.h">
-      <Filter>Internal</Filter>
-    </ClInclude>
     <ClInclude Include="Bitstream.h">
       <Filter>Internal</Filter>
     </ClInclude>
     <ClInclude Include="compression-api.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="XpressDictionary.h">
+      <Filter>Internal</Filter>
+    </ClInclude>
+    <ClInclude Include="LZNT1Dictionary.h">
+      <Filter>Internal</Filter>
+    </ClInclude>
+    <ClInclude Include="LCG.h">
+      <Filter>Internal</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="xpress_huff.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="lznt1.c">
+    <ClCompile Include="xpress.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Dictionary.c">
-      <Filter>Internal</Filter>
-    </ClCompile>
-    <ClCompile Include="Bitstream.c">
-      <Filter>Internal</Filter>
-    </ClCompile>
-    <ClCompile Include="xpress.c">
+    <ClCompile Include="lznt1.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="lzx.c">
+    <ClCompile Include="compression.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="compression.c">
+    <ClCompile Include="lzx.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

@@ -288,19 +288,19 @@
     <ClInclude Include="Bitstream.h" />
     <ClInclude Include="compression.h" />
     <ClInclude Include="compression-api.h" />
-    <ClInclude Include="Dictionary.h" />
+    <ClInclude Include="LCG.h" />
+    <ClInclude Include="LZNT1Dictionary.h" />
     <ClInclude Include="lznt1.h" />
     <ClInclude Include="lzx.h" />
+    <ClInclude Include="XpressDictionary.h" />
     <ClInclude Include="xpress.h" />
     <ClInclude Include="xpress_huff.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Bitstream.c" />
-    <ClCompile Include="compression.c" />
-    <ClCompile Include="Dictionary.c" />
-    <ClCompile Include="lznt1.c" />
-    <ClCompile Include="lzx.c" />
-    <ClCompile Include="xpress.c" />
+    <ClCompile Include="compression.cpp" />
+    <ClCompile Include="lznt1.cpp" />
+    <ClCompile Include="lzx.cpp" />
+    <ClCompile Include="xpress.cpp" />
     <ClCompile Include="xpress_huff.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

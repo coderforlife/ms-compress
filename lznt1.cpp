@@ -17,7 +17,7 @@
 
 #include "lznt1.h"
 
-#include "Dictionary.h"
+#include "LZNT1Dictionary.h"
 
 #ifdef __cplusplus_cli
 #pragma unmanaged
@@ -37,12 +37,12 @@ size_t lznt1_max_compressed_size(size_t in_len) { return in_len + 3 + 2 * (in_le
 
 
 /////////////////// Compression Functions /////////////////////////////////////
-static uint_fast16_t lznt1_compress_chunk(const_bytes in, uint_fast16_t in_len, bytes out, size_t out_len, Dictionary* d)
+static uint_fast16_t lznt1_compress_chunk(const_bytes in, uint_fast16_t in_len, bytes out, size_t out_len, LZNT1Dictionary* d)
 {
 	uint_fast16_t in_pos = 0, out_pos = 0, rem = in_len, pow2 = 0x10, mask3 = 0x1002, shift = 12, len, off, end;
 	uint16_t sym;
 	byte i, pos, bits, bytes[16]; // if all are special, then it will fill 16 bytes
-	if (!Dictionary_Reset(d)) { return 0; } // errno already set
+	d->Reset();
 
 	while (out_pos < out_len && rem)
 	{
@@ -53,11 +53,11 @@ static uint_fast16_t lznt1_compress_chunk(const_bytes in, uint_fast16_t in_len, 
 
 			while (pow2 < in_pos) { pow2 <<= 1; mask3 = (mask3>>1)+1; --shift; }
 
-			if ((len = Dictionary_Find(d, NULL, in+in_pos, MIN(rem, mask3), in, &off)) > 0)
+			if ((len = d->Find(in+in_pos, MIN(rem, mask3), in, &off)) > 0)
 			{
 				// And new entries
-				for (end = in_pos + len; in_pos < end && Dictionary_Add(d, in+in_pos, rem--); ++in_pos);
-				if (in_pos != end) { return 0; } // errno already set
+				d->Add(in+in_pos, len, rem);
+				in_pos += len; rem -= len;
 
 				// Write symbol that is a combination of offset and length
 				sym = (uint16_t)(((off-1) << shift) | (len-3));
@@ -68,7 +68,7 @@ static uint_fast16_t lznt1_compress_chunk(const_bytes in, uint_fast16_t in_len, 
 			else
 			{
 				// And new entry
-				if (!Dictionary_Add(d, in+in_pos, rem--)) { return 0; } // errno already set
+				d->Add(in+in_pos, rem--);
 
 				// Copy directly
 				bytes[pos++] = in[in_pos++];
@@ -96,14 +96,13 @@ size_t lznt1_compress(const_bytes in, size_t in_len, bytes out, size_t out_len)
 	size_t out_pos = 0, in_pos = 0;
 	uint_fast16_t in_size, out_size, flags;
 	uint16_t header;
-	Dictionary *d = Dictionary_Create();
-	if (d == NULL) { return 0; } // errno already set
+	LZNT1Dictionary d;
 
 	while (out_pos < out_len-1 && in_pos < in_len)
 	{
 		// Compress the next chunk
 		in_size = (uint_fast16_t)MIN(in_len-in_pos, 0x1000);
-		out_size = lznt1_compress_chunk(in+in_pos, in_size, out+out_pos+2, out_len-out_pos-2, d);
+		out_size = lznt1_compress_chunk(in+in_pos, in_size, out+out_pos+2, out_len-out_pos-2, &d);
 		if (out_size == 0) { return 0; } // errno already set
 		if (out_size < in_size) // chunk is compressed
 		{
@@ -125,8 +124,6 @@ size_t lznt1_compress(const_bytes in, size_t in_len, bytes out, size_t out_len)
 		out_pos += out_size+2;
 		in_pos  += in_size;
 	}
-
-	Dictionary_Destroy(d);
 	
 	// Return insufficient buffer or the compressed size
 	if (in_pos < in_len)

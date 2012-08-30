@@ -7,11 +7,22 @@ Open source implementations of Microsoft compression algorithms. The progress is
  * Compression only writes uncompressed blocks. Only support data of uncompressed size up to 32kb (WIM-style limit).
  * Decompression based on 7-zip code.
 * LZNT1:
- * Compression is much faster than RTL (~50x), but takes more memory (avg ~1 MB total), and has a much nicer worst-case upper limit on size
- * Decompression is slightly faster than RTL (~1.4x) and gets faster with better compressed data (RTL is reversed)
+ * Compression:
+  * Much faster than RTL (average ~50x, range 30x to 100x)
+  * Slightly better compression ratio (only when last chunk is better off uncompressed, otherwise identical)
+  * Uses more memory than RTL (average ~1 MB total)
+ * Decompression:
+  * Slightly faster than RTL (average ~1.7x, range 1.01x to 2.25x)
+  * Gets faster with better compressed data (RTL is reversed)
 * XPRESS:
- * Compression is slower than RTL (~0.6x) but has marginally better compression ratio and uses the same amount of memory
+ * Compression:
+  * Slower than RTL (average ~0.4x, range 0.2x to 0.66x)
+  * Has a better compression ratio (average ~0.7% better, range 0.0% to 3.1%)
+  * Uses the same amount of memory
  * Decompression is almost as fast as RTL (~0.9x)
 * XPRESS_HUFF:
- * Compression is slower than RTL (~0.1x) but has better compression ratio and uses about the same amount of memory
- * Decompression time not compared to RTL since decompression is broken
+ * Compression:
+  * Much slower than RTL (average ~0.2x, range 0.07x to 0.99x)
+  * Has a better compression ratio (average ~0.9% better, range -0.1% to 2.6%)
+  * Uses about the same amount of memory
+ * Decompression actually works (RTL Xpress Huffman decompression is broken)

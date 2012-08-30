@@ -17,7 +17,8 @@
 
 #include "xpress_huff.h"
 
-#include "Dictionary.h"
+//#include "LZNT1Dictionary.h"
+#include "XpressDictionary.h"
 #include "Bitstream.h"
 
 #ifdef __cplusplus_cli
@@ -30,11 +31,10 @@
 
 
 ////////////////////////////// General Definitions and Functions ///////////////////////////////////
-#define MAX_LEN			0xFFFF // Technically supports 0x010002, but that is a very rare situation, doesn't really help, and to support it would require a major overhaul to the dictionary system
 #define MAX_OFFSET		0xFFFF
-#define MAX_BYTE		0x100
-#define STREAM_END		0x100
+#define CHUNK_SIZE		0x10000
 
+#define STREAM_END		0x100
 #define STREAM_END_LEN_1	1
 //#define STREAM_END_LEN_1	1<<4 // if STREAM_END&1
 
@@ -43,18 +43,18 @@
 #define INVALID			0xFFFF
 
 #define MIN_DATA		HALF_SYMBOLS + 4 // the 512 Huffman lens + 2 uint16s for minimal bitstream
-#define CHUNK_SIZE		0x10000
 
 #define MIN(a, b) (((a) < (b)) ? (a) : (b)) // Get the minimum of 2
 
+typedef XpressDictionary<MAX_OFFSET, CHUNK_SIZE> Dictionary;
+
 // Merge-sorts syms[l, r) using conditions[syms[x]]
 // Use merge-sort so that it is stable, keeping symbols in increasing order
-#ifdef __cplusplus
 template<typename T> // T is either uint32_t or byte
 static void msort(uint16_t* syms, uint16_t* temp, T* conditions, uint_fast16_t l, uint_fast16_t r)
 {
 	uint_fast16_t len = r - l;
-	if (len <= 1) return;
+	if (len <= 1) { return; }
 	
 	// Not required to do these special in-place sorts, but is a bit more efficient
 	else if (len == 2)
@@ -86,19 +86,6 @@ static void msort(uint16_t* syms, uint16_t* temp, T* conditions, uint_fast16_t l
 		else if (k < r) memcpy(syms+i, temp+k, (r-k)*sizeof(uint16_t));
 	}
 }
-#else
-#error Need to implement non-template version of msort for uint32_t and byte
-static void msort_u8(uint16_t* syms, uint16_t* temp, byte* conditions, uint_fast16_t l, uint_fast16_t r)
-{
-}
-static void msort_u32(uint16_t* syms, uint16_t* temp, uint32_t* conditions, uint_fast16_t l, uint_fast16_t r)
-{
-}
-#define msort(syms, temp, conditions, l, r) \
-	if (sizeof(conditions[0]) == 8) { msort_u8(syms, temp, conditions, l, r); } \
-	else if (sizeof(conditions[0]) == 32) { msort_u32(syms, temp, conditions, l, r); } \
-	else { byte type_size_not_impl[0]; }
-#endif
 
 ////////////////////////////// Compression Functions ///////////////////////////////////////////////
 static const byte Log2Table[256] = 
@@ -116,17 +103,16 @@ static const uint16_t OffsetMasks[16] =
 	0x00FF, 0x01FF, 0x03FF, 0x07FF,
 	0x0FFF, 0x1FFF, 0x3FFF, 0x7FFF,
 };
-inline static byte highbit(uint_fast16_t x) { uint_fast16_t y = x >> 8; return y ? 8 + Log2Table[y] : Log2Table[x]; } // returns 0x0 - 0xF
-static size_t xh_lz77_compress(const_bytes in, uint32_t in_len, const_bytes in_end, bytes out, uint32_t symbol_counts[], Dictionary* d, Dictionary* d2)
+inline static byte highbit(uint32_t x) { uint_fast16_t y = x >> 8; return y ? 8 + Log2Table[y] : Log2Table[x]; } // returns 0x0 - 0xF
+static size_t xh_lz77_compress(const_bytes in, int32_t* in_len, const_bytes in_end, bytes out, uint32_t symbol_counts[], Dictionary* d)
 {
-	uint32_t rem = in_len;
+	int32_t rem = *in_len;
 	uint32_t mask;
 	const const_bytes in_orig = in, out_orig = out;
-	const_bytes end;
-	bytes frag;
+	uint32_t* mask_out;
 	byte i;
 
-	if (!Dictionary_Reset(d)) { return 0; } // errno already set
+	d->Fill(in);
 	memset(symbol_counts, 0, SYMBOLS*sizeof(uint32_t));
 
 	////////// Count the symbols and write the initial LZ77 compressed data //////////
@@ -135,29 +121,37 @@ static size_t xh_lz77_compress(const_bytes in, uint32_t in_len, const_bytes in_e
 	// Offset / length pairs are stored in the following manner:
 	//   Offset: a uint16
 	//   Length: for length-3:
-	//     < 0xFF, a byte
-	//     >=0xFF, a byte of 0xFF then a uint16
-	// The number of bytes between uint32 masks >=32 and <=160 (5*32)
-	while (rem)
+	//     0x0000 <= length <  0x000000FF  length-3 as byte
+	//     0x00FF <= length <= 0x0000FFFF  0xFF + length-3 as uint16
+	//     0xFFFF <  length <= 0xFFFFFFFF  0xFF + 0x0000 + length-3 as uint32
+	// The number of bytes between uint32 masks is >=32 and <=160 (5*32)
+	//   with the exception that the a length > 0x10002 could be found, but this is longer than a chunk and would immediately end the chunk
+	//   if it is the last one, then we need 4 additional bytes, but we don't have to take it into account in any other way
+	while (rem > 0)
 	{
+		mask = 0;
+		mask_out = (uint32_t*)out;
+		out += sizeof(uint32_t);
+
 		// Go through each bit
-		for (i = 0, mask = 0, frag = out+4; i < 32 && rem; ++i)
+		for (i = 0; i < 32 && rem > 0; ++i)
 		{
-			uint_fast16_t len, off;
+			uint32_t len, off;
 			mask >>= 1;
-			if ((len = Dictionary_Find(d, d2, in, rem, d2 ? (in-MAX_OFFSET) : in_orig, &off)) > 0)
+			if (rem >= 3 && (len = d->Find(in, &off)) >= 3)
 			{
-				// Add new entries
-				for (end = in+len; in < end && Dictionary_Add(d, in, in_end-in); ++in);
-				if (in != end) { return 0; } // errno already set
-				rem -= len;
+				// TODO: allow len > rem
+				if (len > rem) { len = rem; }
 
 				// Write offset / length
-				*(uint16_t*)frag = (uint16_t)off;
-				frag += 2;
+				*(uint16_t*)out = (uint16_t)off;
+				out += 2;
+				in += len;
+				rem -= len;
 				len -= 3;
-				if (len >= 0xFF) { *frag = 0xFF; *(uint16_t*)(frag+1) = (uint16_t)len; frag += 3; }
-				else             { *frag = (byte)len; ++frag; }
+				if (len > 0xFFFF) { *out = 0xFF; *(uint16_t*)(out+1) = 0; *(uint32_t*)(out+3) = len; out += 7; }
+				if (len >= 0xFF)  { *out = 0xFF; *(uint16_t*)(out+1) = (uint16_t)len; out += 3; }
+				else              { *out = (byte)len; ++out; }
 				mask |= 0x80000000; // set the highest bit
 
 				// Create a symbol from the offset and length
@@ -165,40 +159,40 @@ static size_t xh_lz77_compress(const_bytes in, uint32_t in_len, const_bytes in_e
 			}
 			else
 			{
-				// Add new entry and write the literal value (which is the symbol)
-				if (!Dictionary_Add(d, in, in_end-in)) { return 0; } // errno already set
-				--rem;
-				++symbol_counts[*frag = *in];
-				++frag;
+				// Write the literal value (which is the symbol)
+				++symbol_counts[*out = *in];
+				++out;
 				++in;
+				--rem;
 			}
 		}
-		if (!rem)
-		{
-			mask >>= (32-i); // finish moving the value over
-			if (in_orig+in_len == in_end)
-			{
-				// Add the end of stream symbol
-				if (i == 32)
-				{
-					// Need to add a new mask since the old one is full with just one bit set
-					*(uint32_t*)frag = 1;
-					frag += 4;
-				}
-				else
-				{
-					// Add to the old mask
-					mask |= 1 << i; // set the highest bit
-				}
-				memset(frag, 0, 3);
-				frag += 3;
-				++symbol_counts[STREAM_END];
-			}
-		}
-		// Save mask, advance output to the end of the fragment
-		*(uint32_t*)out = mask;
-		out = frag;
+
+		// Save mask
+		*mask_out = mask;
 	}
+	
+	// Set the total number of bytes read from in
+	*in_len -= rem;
+	mask >>= (32-i); // finish moving the value over
+	if (in_orig+*in_len == in_end)
+	{
+		// Add the end of stream symbol
+		if (i == 32)
+		{
+			// Need to add a new mask since the old one is full with just one bit set
+			*(uint32_t*)out = 1;
+			out += 4;
+		}
+		else
+		{
+			// Add to the old mask
+			mask |= 1 << i; // set the highest bit
+		}
+		memset(out, 0, 3);
+		out += 3;
+		++symbol_counts[STREAM_END];
+	}
+	*mask_out = mask;
 
 	// Return the number of bytes in the output
 	return out - out_orig;
@@ -307,26 +301,26 @@ static bool xh_create_codes(uint32_t symbol_counts[], uint16_t huffman_codes[], 
 static size_t xh_encode(const_bytes in, size_t in_len, bytes out, size_t out_len, uint16_t codes[], byte lens[])
 {
 	uint_fast16_t i, i2;
-	size_t rem = in_len;
+	ptrdiff_t rem = (ptrdiff_t)in_len;
 	uint32_t mask;
 	const_bytes end;
-	OutputBitstream bstr;
+	OutputBitstream bstr(out+HALF_SYMBOLS, out_len-HALF_SYMBOLS);
 
 	// Write the Huffman prefix codes as lengths
 	for (i = 0, i2 = 0; i < HALF_SYMBOLS; ++i, i2+=2) { out[i] = (lens[i2+1] << 4) | lens[i2]; }
 
 	// Write the encoded compressed data
 	// This involves parsing the LZ77 compressed data and re-writing it with the Huffman code
-	BSWriteInit(&bstr, out+HALF_SYMBOLS, out_len-HALF_SYMBOLS);
-	while (rem)
+	while (rem > 0)
 	{
 		// Handle a fragment
 		// Bit mask tells us how to handle the next 32 symbols, go through each bit
-		for (i = 32, mask = *(uint32_t*)in, in += 4, rem -= 4; mask && rem; --i, mask >>= 1)
+		for (i = 32, mask = *(uint32_t*)in, in += 4, rem -= 4; mask && rem > 0; --i, mask >>= 1)
 		{
 			if (mask & 1) // offset / length symbol
 			{
-				uint_fast16_t len, off, sym;
+				uint_fast16_t off, sym;
+				uint32_t len;
 				byte O;
 
 				// Get the LZ77 offset and length
@@ -337,6 +331,11 @@ static size_t xh_encode(const_bytes in, size_t in_len, bytes out, size_t out_len
 				{
 					len = *(uint16_t*)in;
 					in += 2; rem -= 2;
+					if (len == 0x0000)
+					{
+						len = *(uint32_t*)in;
+						in += 4; rem -= 4;
+					}
 				}
 
 				// Write the Huffman code then extra offset bits and length bytes
@@ -344,40 +343,50 @@ static size_t xh_encode(const_bytes in, size_t in_len, bytes out, size_t out_len
 				// len is already -= 3
 				off &= OffsetMasks[O];
 				sym = (uint_fast16_t)((O << 4) | MIN(0xF, len) | 0x100);
-				if (!BSWriteBits(&bstr, codes[sym], lens[sym]))					{ break; }
-				if (len >= 0x10E)
-				{	// For 0xFF+0xF <= len <= MAX_LEN, write 3 bytes: 0xFF then uint16 with the length
-					if (!BSWriteByte(&bstr, 0xFF) || !BSWriteByte(&bstr, (byte)(len & 0xFF)) || !BSWriteByte(&bstr, (byte)(len >> 8))) { break; }
+				if (!bstr.WriteBits(codes[sym], lens[sym]))					{ break; }
+				if (len >= 0xF)
+				{
+					if (len >= 0xFF + 0xF)
+					{
+						if (!bstr.WriteRawByte(0xFF))						{ break; }
+						if (len > 0xFFFF)
+						{
+							if (!bstr.WriteRawUInt16(0x0000) || !bstr.WriteRawUInt32(len))	{ break; }
+						}
+						else if (!bstr.WriteRawUInt16((uint16_t)len))		{ break; }
+					}
+					else if (!bstr.WriteRawByte((byte)(len - 0xF)))			{ break; }
 				}
-				else if (len >= 0xF && !BSWriteByte(&bstr, (byte)(len - 0xF)))	{ break; }
-				if (!BSWriteBits(&bstr, off, O))								{ break; }
+				if (!bstr.WriteBits(off, O))								{ break; }
 			}
 			else
 			{
 				// Write the literal symbol
-				if (!BSWriteBits(&bstr, codes[*in], lens[*in]))					{ break; }
+				if (!bstr.WriteBits(codes[*in], lens[*in]))					{ break; }
 				++in; --rem;
 			}
 		}
+		if (rem < 0)
+			break;
 		if (rem < i) { i = (byte)rem; }
 
 		// Write the remaining literal symbols
-		for (end = in+i; in != end && BSWriteBits(&bstr, codes[*in], lens[*in]); ++in);
-		if (in != end)															{ break; }
+		for (end = in+i; in != end && bstr.WriteBits(codes[*in], lens[*in]); ++in);
+		if (in != end)														{ break; }
 		rem -= i;
 	}
 
 	// Write end of stream symbol and return insufficient buffer or the compressed size
-	if (rem)
+	if (rem > 0)
 	{
 		PRINT_ERROR("Xpress Huffman Compression Error: Insufficient buffer\n");
 		errno = E_INSUFFICIENT_BUFFER;
 		return 0;
 	}
-	BSWriteFinish(&bstr); // make sure that the write stream is finished writing
-	return bstr.index+HALF_SYMBOLS;
+	bstr.Finish(); // make sure that the write stream is finished writing
+	return bstr.Position()+HALF_SYMBOLS;
 }
-static size_t xpress_huff_compress_chunk(const_bytes in, uint32_t in_len, const_bytes in_end, bytes out, size_t out_len, bytes buf, Dictionary* d, Dictionary* d2)  // 6.5 kb stack
+static size_t xpress_huff_compress_chunk(const_bytes in, int32_t* in_len, const_bytes in_end, bytes out, size_t out_len, bytes buf, Dictionary* d)  // 6.5 kb stack
 {
 	size_t buf_len;
 	uint32_t symbol_counts[SYMBOLS]; // 4*512 = 2 kb
@@ -390,7 +399,7 @@ static size_t xpress_huff_compress_chunk(const_bytes in, uint32_t in_len, const_
 		errno = E_INSUFFICIENT_BUFFER;
 		return 0;
 	}
-	if (in_len == 0) // implies end_of_stream
+	if (*in_len == 0) // implies end_of_stream
 	{
 		memset(out, 0, MIN_DATA);
 		out[STREAM_END>>1] = STREAM_END_LEN_1;
@@ -398,7 +407,7 @@ static size_t xpress_huff_compress_chunk(const_bytes in, uint32_t in_len, const_
 	}
 
 	////////// Perform the initial LZ77 compression //////////
-	if ((buf_len = xh_lz77_compress(in, in_len, in_end, buf, symbol_counts, d, d2)) == 0) { return 0; } // errno already set
+	if ((buf_len = xh_lz77_compress(in, in_len, in_end, buf, symbol_counts, d)) == 0) { return 0; } // errno already set
 
 	////////// Create the Huffman codes/lens //////////
 	if (!xh_create_codes(symbol_counts, huffman_codes, huffman_lens)) { return 0; } // errno already set, 3 kb stack
@@ -410,39 +419,35 @@ size_t xpress_huff_compress(const_bytes in, size_t in_len, bytes out, size_t out
 {
 	size_t done, total = 0;
 	const const_bytes in_end = in+in_len;
+	int32_t chunk_size;
 	bytes buf;
-	Dictionary* d, *d2 = NULL, *temp_d;
+	Dictionary d(in, in_end);
 
 	if (in_len == 0) { return 0; }
-	if ((d = Dictionary_Create()) == NULL) { return 0; } // errno already set
-	buf = (bytes)malloc((in_len > CHUNK_SIZE) ? (in_len / 32 * 36 + 36 + 7) : 73735); // for every 32 bytes in in we need up to 36 bytes in the temp buffer + up to 7 for the EOS
-	if (buf == NULL) { Dictionary_Destroy(d); return 0;  } // errno already set
+	buf = (bytes)malloc((in_len > CHUNK_SIZE) ? 73739 : (in_len / 32 * 36 + 36 + 4 + 7)); // for every 32 bytes in "in" we need up to 36 bytes in the temp buffer + maybe an extra uint32 length symbol + up to 7 for the EOS
+	if (buf == NULL) { return 0;  } // errno already set
 
 	// Go through each chunk except the last
 	while (in_len > CHUNK_SIZE)
 	{
 		// Compress a chunk
-		if ((done = xpress_huff_compress_chunk(in, CHUNK_SIZE, in_end, out, out_len, buf, d, d2)) == 0) { Dictionary_Destroy(d); Dictionary_Destroy(d2); free(buf); return 0; } // errno already set
+		chunk_size = CHUNK_SIZE;
+		if ((done = xpress_huff_compress_chunk(in, &chunk_size, in_end, out, out_len, buf, &d)) == 0) { free(buf); return 0; } // errno already set
 
 		// Update all the positions and lengths
-		in      += CHUNK_SIZE;
-		in_len  -= CHUNK_SIZE;
+		in      += chunk_size;
+		in_len  -= chunk_size;
 		out     += done;
 		out_len -= done;
 		total   += done;
-
-		// Swap dictionaries
-		if (d2 == NULL && (d2 = Dictionary_Create()) == NULL) { Dictionary_Destroy(d); free(buf); return 0; }
-		temp_d = d; d = d2; d2 = temp_d;
 	}
 
 	// Do the last chunk
-	if ((done = xpress_huff_compress_chunk(in, (uint32_t)in_len, in_end, out, out_len, buf, d, d2)) == 0) { total = 0; }
+	chunk_size = (int32_t)in_len;
+	if ((done = xpress_huff_compress_chunk(in, &chunk_size, in_end, out, out_len, buf, &d)) == 0) { total = 0; }
 	total += done;
 
 	// Cleanup
-	Dictionary_Destroy(d);
-	if (d2) { Dictionary_Destroy(d2); }
 	free(buf);
 
 	// Return the total number of compressed bytes
@@ -496,7 +501,7 @@ inline static void xh_build_prefix_code_tree(const_bytes in, XH_NODE n[]) // 2.5
 inline static uint_fast16_t xh_decode_symbol(InputBitstream* bstr, XH_NODE* n)
 {
 	do {
-		byte bit = BSReadBit(bstr);
+		byte bit = bstr->ReadBit();
 		if (bit > 1) return INVALID;
 		n = n->child[bit];
 	} while (n->symbol == INVALID);
@@ -506,7 +511,7 @@ static bool xpress_huff_decompress_chunk(const_bytes in, size_t in_len, size_t* 
 {
 	size_t i = 0;
 	XH_NODE codes[2*SYMBOLS-1]; // the maximum number of nodes in the Huffman code tree is 2*SYMBOLS-1 = 1023, overall this is ~10kb or ~20kb (64-bit)
-	InputBitstream bstr;
+	InputBitstream bstr(in+HALF_SYMBOLS, in_len-HALF_SYMBOLS);
 
 	if (in_len < MIN_DATA)
 	{
@@ -515,21 +520,20 @@ static bool xpress_huff_decompress_chunk(const_bytes in, size_t in_len, size_t* 
 	}
 
 	xh_build_prefix_code_tree(in, codes);
-	BSReadInit(&bstr, in+HALF_SYMBOLS, in_len-HALF_SYMBOLS);
 	
 	do
 	{
 		uint_fast16_t sym = xh_decode_symbol(&bstr, codes);
 		if (sym == INVALID)													{ PRINT_ERROR("Xpress Huffman Decompression Error: Invalid data: Unable to read enough bits for symbol\n"); errno = E_INVALID_DATA; return false; }
-		else if (sym == STREAM_END && (bstr.mask>>(32-bstr.bits)) == 0)		{ *end_of_stream = true; break; }
-		else if (sym < MAX_BYTE)
+		else if (sym == STREAM_END && bstr.MaskIsZero())					{ *end_of_stream = true; break; }
+		else if (sym < 0x100)
 		{
 			if (i == out_len)												{ PRINT_ERROR("Xpress Huffman Decompression Error: Insufficient buffer\n"); errno = E_INSUFFICIENT_BUFFER; return false; }
 			out[i++] = (byte)sym;
 		}
 		else
 		{
-			uint32_t len = sym & 0xF, off = BSPeek(&bstr, (byte)(sym = ((sym>>4) & 0xF)));
+			uint32_t len = sym & 0xF, off = bstr.Peek((byte)(sym = ((sym>>4) & 0xF)));
 #ifdef PRINT_ERRORS
 			if (off == 0xFFFFFFFF)											{ PRINT_ERROR("Xpress Huffman Decompression Error: Invalid data: Unable to read %u bits for offset\n", sym); errno = E_INVALID_DATA; return false; }
 			if ((out+i-(off+=1<<sym)) < out_origin)							{ PRINT_ERROR("Xpress Huffman Decompression Error: Invalid data: Illegal offset (%p-%u < %p)\n", out+i, off, out_origin); errno = E_INVALID_DATA; return false; }
@@ -538,17 +542,14 @@ static bool xpress_huff_decompress_chunk(const_bytes in, size_t in_len, size_t* 
 #endif
 			if (len == 0xF)
 			{
-				if (bstr.index >= bstr.len)									{ PRINT_ERROR("Xpress Huffman Decompression Error: Invalid data: Unable to read extra byte for length\n"); errno = E_INVALID_DATA; return false; }
-				if ((len = bstr.data.in[bstr.index++]) == 0xFF)
+				if (bstr.RemainingBytes() < 1)								{ PRINT_ERROR("Xpress Huffman Decompression Error: Invalid data: Unable to read extra byte for length\n"); errno = E_INVALID_DATA; return false; }
+				else if ((len = bstr.ReadRawByte()) == 0xFF)
 				{
-					if (bstr.index + 2 > bstr.len)							{ PRINT_ERROR("Xpress Huffman Decompression Error: Invalid data: Unable to read two bytes for length\n"); errno = E_INVALID_DATA; return false; }
-					len = GET_UINT16(bstr.data.in+bstr.index);
-					bstr.index += 2;
-					if (len == 0)
+					if (bstr.RemainingBytes() < 2)							{ PRINT_ERROR("Xpress Huffman Decompression Error: Invalid data: Unable to read two bytes for length\n"); errno = E_INVALID_DATA; return false; }
+					if ((len = bstr.ReadRawUInt16()) == 0)
 					{
-						if (bstr.index + 4 > bstr.len)						{ PRINT_ERROR("Xpress Huffman Decompression Error: Invalid data: Unable to read four bytes for length\n"); errno = E_INVALID_DATA; return false; }
-						len = GET_UINT32(bstr.data.in+bstr.index);
-						bstr.index += 4;
+						if (bstr.RemainingBytes() < 4)						{ PRINT_ERROR("Xpress Huffman Decompression Error: Invalid data: Unable to read four bytes for length\n"); errno = E_INVALID_DATA; return false; }
+						len = bstr.ReadRawUInt32();
 					}
 					if (len < 0xF)											{ PRINT_ERROR("Xpress Huffman Decompression Error: Invalid data: Invalid length specified\n"); errno = E_INVALID_DATA; return false; }
 					len -= 0xF;
@@ -556,7 +557,7 @@ static bool xpress_huff_decompress_chunk(const_bytes in, size_t in_len, size_t* 
 				len += 0xF;
 			}
 			len += 3;
-			BSSkip(&bstr, (byte)sym);
+			bstr.Skip((byte)sym);
 
 			if (i + len > out_len)											{ PRINT_ERROR("Xpress Huffman Decompression Error: Insufficient buffer\n"); errno = E_INSUFFICIENT_BUFFER; return false; }
 
@@ -571,8 +572,8 @@ static bool xpress_huff_decompress_chunk(const_bytes in, size_t in_len, size_t* 
 				for (end = i + len; i < end; ++i) { out[i] = out[i-off]; }
 			}
 		}
-	} while (i < CHUNK_SIZE || (bstr.mask>>(32-bstr.bits)) != 0); /* end of chunk, not stream */
-	*in_pos = bstr.index+HALF_SYMBOLS;
+	} while (i < CHUNK_SIZE || !bstr.MaskIsZero()); /* end of chunk, not stream */
+	*in_pos = bstr.Position()+HALF_SYMBOLS;
 	*out_pos = i;
 	return true;
 }

@@ -126,14 +126,6 @@
 	#define PRINT_ERROR(...)
 #endif
 
-// If compiling as C than make sure we have access to some C++ keywords
-#ifndef __cplusplus
-	typedef uint_fast8_t bool;
-	#define true  1
-	#define false 0
-	#define inline __inline
-#endif
-
 // DLL linkage
 #ifdef COMPRESSION_API_DLL
 	#define COMPAPI __declspec(dllexport)

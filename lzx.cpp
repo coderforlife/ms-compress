@@ -79,12 +79,12 @@ static bool lzx_set_code_lengths(Decoder *decoder, uint32_t n, const_bytes codeL
 
 static uint32_t lzx_decode_symbol(const Decoder *decoder, InputBitstream *bits) {
 	byte n;
-	uint32_t value = BSPeek(bits, 16), index;
+	uint32_t value = bits->Peek(16), index;
 	if (value < decoder->limits[9])
 		n = decoder->lengths[value >> 7];
 	else
 		for (n = 10; value >= decoder->limits[n]; n++);
-	BSSkip(bits, n);
+	bits->Skip(n);
 	index = decoder->positions[n] + ((value - decoder->limits[n - 1]) >> (16 - n));
 	if (index >= decoder->numSymbols)
 		return 0xFFFFFFFF;
@@ -96,7 +96,7 @@ static bool lzx_read_table(InputBitstream *in, bytes newLevels, uint32_t numSymb
 	byte levelLevels[20], symbol = 0;
 	uint32_t i, num = 0;
 	for (i = 0; i < ARRAYSIZE(levelLevels); i++)
-		levelLevels[i] = (byte)BSReadBits(in, 4);
+		levelLevels[i] = (byte)in->ReadBits(4);
 	lzx_set_code_lengths(&LevelDecoder, 20, levelLevels);
 	for (i = 0; i < numSymbols;) {
 		uint32_t number;
@@ -107,10 +107,10 @@ static bool lzx_read_table(InputBitstream *in, bytes newLevels, uint32_t numSymb
 		}
 		number = lzx_decode_symbol(&LevelDecoder, in);
 		if (number == 17) {
-			num = 4 + BSReadBits(in, 4);
+			num = 4 + in->ReadBits(4);
 			symbol = 0;
 		} else if (number == 18) {
-			num = 20 + BSReadBits(in, 5);
+			num = 20 + in->ReadBits(5);
 			symbol = 0;
 		} else {
 			if (number <= 16) {
@@ -119,7 +119,7 @@ static bool lzx_read_table(InputBitstream *in, bytes newLevels, uint32_t numSymb
 				number = lzx_decode_symbol(&LevelDecoder, in);
 				if (number > 16)
 					return false;
-				num = 4 + BSReadBit(in);
+				num = 4 + in->ReadBit();
 			} else {
 				return false;
 			}
@@ -163,13 +163,13 @@ static bool lzx_decompress_block(InputBitstream *in, bytes out, size_t out_len, 
 				}
 				if (AlignDecoder && n >= 3) {
 					uint32_t alignTemp;
-					dist += BSReadBits(in, n - 3) << 3;
+					dist += in->ReadBits(n - 3) << 3;
 					alignTemp = lzx_decode_symbol(AlignDecoder, in);
 					if (alignTemp >= 8)
 						return false;
 					dist += alignTemp;
 				} else
-					dist += BSReadBits(in, n);
+					dist += in->ReadBits(n);
 				repDists[2] = repDists[1];
 				repDists[1] = repDists[0];
 				repDists[0] = dist - 3;
@@ -202,18 +202,16 @@ static void lzx_decompress_translation(bytes out, size_t out_len) {
 }
 
 size_t lzx_decompress(const_bytes in, size_t in_len, bytes out, size_t out_len) { // approximately 11 kb of memory on stack
-	InputBitstream bits;
+	InputBitstream bits(in, in_len);
 	byte type;
 	bool isAlignType;
 	uint32_t uncompressedSize;
 
 	if (!in_len) { return 0; }
 	
-	BSReadInit(&bits, in, in_len);
-
-	type = (byte)BSReadBits(&bits, 3);
+	type = (byte)bits.ReadBits(3);
 	isAlignType = type == ALIGNED_OFFSET_BLOCK;
-	uncompressedSize = (BSReadBits(&bits, 1) & 0x8) ? 0x8000 : BSReadBits(&bits, 16);
+	uncompressedSize = (bits.ReadBits(1) & 0x8) ? 0x8000 : bits.ReadBits(16);
 	if (uncompressedSize > out_len || uncompressedSize == 0) { return 0; }
 
 	if (type == UNCOMPRESSED_BLOCK && uncompressedSize + 20 <= in_len) {
@@ -228,7 +226,7 @@ size_t lzx_decompress(const_bytes in, size_t in_len, bytes out, size_t out_len) 
 		if (isAlignType) {
 			int i;
 			for (i = 0; i < 8; i++)
-				newLevels[i] = (byte)BSReadBits(&bits, 3);
+				newLevels[i] = (byte)bits.ReadBits(3);
 			if (!lzx_set_code_lengths(&AlignDecoder, 8, newLevels)) { return false; }
 		}
 
@@ -259,19 +257,17 @@ size_t lzx_uncompressed_size(const_bytes in, size_t in_len) {
 }
 
 size_t lzx_compress(const_bytes in, size_t in_len, bytes out, size_t out_len) {
-	OutputBitstream bits;
+	OutputBitstream bits(out, out_len);
 
 	if (in_len > 0x8000 || out_len < 3) { return 0; }
-
-	BSWriteInit(&bits, out, out_len);
 	
 	// Write header
-	BSWriteBits(&bits, UNCOMPRESSED_BLOCK, 3);
+	bits.WriteBits(UNCOMPRESSED_BLOCK, 3);
 	if (in_len == 0x8000) {
-		BSWriteBits(&bits, 1, 1);
+		bits.WriteBits(1, 1);
 	} else {
-		BSWriteBits(&bits, 0, 1);
-		BSWriteBits(&bits, (uint32_t)in_len, 16);
+		bits.WriteBits(0, 1);
+		bits.WriteBits((uint32_t)in_len, 16);
 	}
 
 	// Write block
