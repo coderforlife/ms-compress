@@ -44,7 +44,7 @@ typedef size_t (*compress_func)(const_bytes in, size_t in_len, bytes out, size_t
 static compress_func compressors[] =
 {
 	copy_data,
-	lzx_compress,
+	NULL, //lzx_compress,
 	lznt1_compress,
 	xpress_compress,
 	xpress_huff_compress,
@@ -53,7 +53,7 @@ static compress_func compressors[] =
 static compress_func decompressors[] =
 {
 	copy_data,
-	lzx_decompress,
+	NULL, //lzx_decompress,
 	lznt1_decompress,
 	xpress_decompress,
 	xpress_huff_decompress,
