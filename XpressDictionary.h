@@ -37,6 +37,9 @@
 template<uint32_t MaxOffset, uint32_t ChunkSize = MaxOffset, uint32_t MaxHash = 0x8000>
 class XpressDictionary // 192 kb (on 32-bit) or 384 kb (on 64-bit)
 {
+	//TODO: CASSERT(IS_POW2(ChunkSize));
+	CASSERT(MaxOffset <= ChunkSize);
+
 private:
 	// Define a LCG-generate hash table
 #ifdef _MSC_VER

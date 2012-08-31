@@ -104,6 +104,16 @@
 	#define ARRAYSIZE(x) sizeof(x)/sizeof(x[0])
 #endif
 
+// Compile-time assert
+#ifdef _DEBUG
+#define CASSERT(expr)		char _UNIQUE_NAME[expr]
+#define _UNIQUE_NAME		_MAKE_NAME(__LINE__)
+#define _MAKE_NAME(line)	_MAKE_NAME2(line)
+#define _MAKE_NAME2(line)	cassert_##line
+#else
+#define CASSERT(expr)
+#endif
+
 // Error message system (mainly for debugging)
 #ifdef _DEBUG
 	//#define PRINT_WARNINGS
