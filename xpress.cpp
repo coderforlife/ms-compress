@@ -80,7 +80,7 @@ size_t xpress_compress(const_bytes in, size_t in_len, bytes out, size_t out_len)
 				else
 				{
 					if (out >= out_end) { PRINT_ERROR("Xpress Compression Error: Insufficient buffer\n"); errno = E_INSUFFICIENT_BUFFER; return 0; }
-					*(half_byte=out++) = MIN(len, 0xF);
+					*(half_byte=out++) = (byte)(MIN(len, 0xF));
 				}
 				if (len >= 0xF)
 				{

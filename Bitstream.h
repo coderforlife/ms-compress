@@ -37,7 +37,7 @@ protected:
 	byte bits;			// The number of bits in mask that are valid
 	inline Bitstream(size_t len, uint32_t mask, byte bits) : len(len), index(4), mask(mask), bits(bits) { assert(4 < len); }
 public:
-	inline size_t Position() { return this->index; }
+	inline size_t RawPosition() { return this->index; }
 };
 
 // Reading functions:
@@ -47,7 +47,7 @@ private:
 	const const_bytes in;
 public:
 	inline InputBitstream(const_bytes in, size_t len) : Bitstream(len, (GET_UINT16(in) << 16) | GET_UINT16(in+2), 32), in(in) { assert(in); }
-	inline uint32_t Peek(byte n) const { return (n > this->bits) ? 0xFFFFFFFF : ((n == 0) ? 0 : (this->mask >> (32 - n))); }
+	inline uint32_t Peek(byte n) const { assert(n <= 16); return (n > this->bits) ? 0xFFFFFFFF : ((n == 0) ? 0 : (this->mask >> (32 - n))); }
 	inline void Skip(byte n)
 	{
 		this->mask <<= n;
@@ -60,9 +60,27 @@ public:
 		}
 	}
 	inline byte ReadBit() { byte x = 0xFF; if (this->bits) { x = (byte)(this->mask >> 31); this->Skip(1); } return x; }
-	inline uint32_t ReadBits(byte n) { uint32_t x = this->Peek(n); if (x != 0xFFFFFFFF) { this->Skip(n); } return x; }
+	inline uint32_t ReadBits(byte n) { assert(n <= 16); uint32_t x = this->Peek(n); if (x != 0xFFFFFFFF) { this->Skip(n); } return x; }
+	inline uint32_t ReadManyBits(byte n) { assert(n > 16); return this->ReadBits(16) | this->ReadBits(n - 16) << 16; }
+	inline uint32_t ReadUInt32() { return this->ReadBits(16) | this->ReadBits(16) << 16; }
 
-	inline size_t RemainingBytes() { return this->len - this->index; }
+	inline const_bytes Get16BitAlignedByteStream(size_t nBytes)
+	{
+		size_t start = this->index;
+		     if (this->bits == 32) { start -= 4; }
+		else if (this->bits >= 16) { start -= 2; }
+		if (start + nBytes > this->len) { return NULL; }
+		this->bits = 0;
+		this->index = start + nBytes;
+		if (nBytes & 1) { ++this->index; } // make sure the end is also 16-bit aligned
+		this->Skip(0);
+		return this->in + start;
+	}
+
+	inline byte RemainingBits() { return this->bits; }
+	inline size_t RemainingBytes() { return this->len - this->index + this->bits / 8; } // rounds down, but bits is typically between 16 and 32, adding 2 to 4 bytes
+	inline size_t RemainingRawBytes() { return this->len - this->index; }
+
 	// Assume that you have already checked for necessary room
 	inline byte     ReadRawByte()   { assert(this->index + 1 <= this->len); return this->in[this->index++]; }
 	inline uint16_t ReadRawUInt16() { assert(this->index + 2 <= this->len); uint16_t x = GET_UINT16(this->in+this->index); this->index += 2; return x; }
