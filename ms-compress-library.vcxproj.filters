@@ -48,6 +48,21 @@
     <ClInclude Include="LCG.h">
       <Filter>Internal</Filter>
     </ClInclude>
+    <ClInclude Include="HuffmanDecoder.h">
+      <Filter>Internal</Filter>
+    </ClInclude>
+    <ClInclude Include="HuffmanEncoder.h">
+      <Filter>Internal</Filter>
+    </ClInclude>
+    <ClInclude Include="LZXConstants.h">
+      <Filter>Internal</Filter>
+    </ClInclude>
+    <ClInclude Include="LZXDecompressionCore.h">
+      <Filter>Internal</Filter>
+    </ClInclude>
+    <ClInclude Include="LZXCompressionCore.h">
+      <Filter>Internal</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="xpress_huff.cpp">
@@ -64,6 +79,12 @@
     </ClCompile>
     <ClCompile Include="lzx.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="LZXDecompressionCore.cpp">
+      <Filter>Internal</Filter>
+    </ClCompile>
+    <ClCompile Include="LZXCompressionCore.cpp">
+      <Filter>Internal</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

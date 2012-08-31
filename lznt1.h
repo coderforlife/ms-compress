@@ -44,7 +44,7 @@ COMPAPI size_t lznt1_compress(const_bytes in, size_t in_len, bytes out, size_t o
 #ifdef COMPRESSION_API_EXPORT
 COMPAPI size_t lznt1_max_compressed_size(size_t in_len);
 #else
-#define lznt1_max_compressed_size(in_len) (((size_t)(in_len)) + 3 + 2 * (((size_t)(in_len)) / 4096))
+#define lznt1_max_compressed_size(in_len) (((size_t)(in_len)) + 3 + 2 * (((size_t)(in_len) + 4095) / 4096))
 #endif
 
 COMPAPI size_t lznt1_decompress(const_bytes in, size_t in_len, bytes out, size_t out_len);

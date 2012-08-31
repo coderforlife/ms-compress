@@ -32,7 +32,7 @@
 
 
 #ifdef COMPRESSION_API_EXPORT
-size_t lznt1_max_compressed_size(size_t in_len) { return in_len + 3 + 2 * (in_len / 4096); }
+size_t lznt1_max_compressed_size(size_t in_len) { return in_len + 3 + 2 * ((in_len + 4095) / 4096); }
 #endif
 
 
