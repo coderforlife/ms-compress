@@ -25,7 +25,7 @@ Used for NTFS file compression, Windows 2000 hibernation file, Active Directory,
  * Slightly faster than RTL (average ~1.7x, range 1.01x to 2.25x)
  * Gets faster with better compressed data (RTL is reversed)
 
-XPRESS
+Xpress
 ------
 The LZ version of the Xpress algorithm, used for Windows XP and newer hibernation file, Directory Replication Service (LDAP/RPC/AD), Windows Update Services, and Windows CE.
 
@@ -39,8 +39,8 @@ and [Decompression](http://msdn.microsoft.com/library/hh536411%28v=PROT.10%29.as
  * Uses the same amount of memory
 * Decompression is almost as fast as RTL (~0.9x)
 
-XPRESS_HUFF
------------
+Xpress Huffman
+--------------
 Xpress algorithm with Huffman encoding, used in WIM files, Distributed File System Replication, Windows 7 SuperFetch, and Windows 8 bootmgr.
 
 MSDN article [MS-XCA]: http://msdn.microsoft.com/library/hh554002(v=prot.10).aspx  
