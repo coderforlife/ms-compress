@@ -47,45 +47,9 @@
 #define MIN(a, b) (((a) < (b)) ? (a) : (b)) // Get the minimum of 2
 
 typedef XpressDictionary<MAX_OFFSET, CHUNK_SIZE> Dictionary;
+typedef HuffmanEncoder<15, SYMBOLS> Encoder;
+typedef HuffmanDecoder<15, SYMBOLS> Decoder;
 
-// Merge-sorts syms[l, r) using conditions[syms[x]]
-// Use merge-sort so that it is stable, keeping symbols in increasing order
-template<typename T> // T is either uint32_t or byte
-static void msort(uint16_t* syms, uint16_t* temp, T* conditions, uint_fast16_t l, uint_fast16_t r)
-{
-	uint_fast16_t len = r - l;
-	if (len <= 1) { return; }
-	
-	// Not required to do these special in-place sorts, but is a bit more efficient
-	else if (len == 2)
-	{
-		if (conditions[syms[l+1]] < conditions[syms[ l ]]) { uint16_t t = syms[l+1]; syms[l+1] = syms[ l ]; syms[ l ] = t; }
-		return;
-	}
-	else if (len == 3)
-	{
-		if (conditions[syms[l+1]] < conditions[syms[ l ]]) { uint16_t t = syms[l+1]; syms[l+1] = syms[ l ]; syms[ l ] = t; }
-		if (conditions[syms[l+2]] < conditions[syms[l+1]]) { uint16_t t = syms[l+2]; syms[l+2] = syms[l+1]; syms[l+1] = t;
-			if (conditions[syms[l+1]]<conditions[syms[l]]) { uint16_t t = syms[l+1]; syms[l+1] = syms[ l ]; syms[ l ] = t; } }
-		return;
-	}
-	
-	// Merge-Sort
-	else
-	{
-		uint_fast16_t m = l + (len >> 1), i = l, j = l, k = m;
-		
-		// Divide and Conquer
-		msort(syms, temp, conditions, l, m);
-		msort(syms, temp, conditions, m, r);
-		memcpy(temp+l, syms+l, len*sizeof(uint16_t));
-		
-		// Merge
-		while (j < m && k < r) syms[i++] = (conditions[temp[k]] < conditions[temp[j]]) ? temp[k++] : temp[j++]; // if == then does j which is from the lower half, keeping stable
-			 if (j < m) memcpy(syms+i, temp+j, (m-j)*sizeof(uint16_t));
-		else if (k < r) memcpy(syms+i, temp+k, (r-k)*sizeof(uint16_t));
-	}
-}
 
 ////////////////////////////// Compression Functions ///////////////////////////////////////////////
 static const byte Log2Table[256] = 
@@ -197,7 +161,7 @@ static size_t xh_lz77_compress(const_bytes in, int32_t* in_len, const_bytes in_e
 	// Return the number of bytes in the output
 	return out - out_orig;
 }
-static size_t xh_encode(const_bytes in, size_t in_len, bytes out, size_t out_len, HuffmanEncoder<16, SYMBOLS> *encoder)
+static size_t xh_encode(const_bytes in, size_t in_len, bytes out, size_t out_len, uint32_t symbol_counts[], Encoder *encoder)
 {
 	uint_fast16_t i, i2;
 	ptrdiff_t rem = (ptrdiff_t)in_len;
@@ -205,8 +169,9 @@ static size_t xh_encode(const_bytes in, size_t in_len, bytes out, size_t out_len
 	const_bytes end;
 	OutputBitstream bstr(out+HALF_SYMBOLS, out_len-HALF_SYMBOLS);
 
-	// Write the Huffman prefix codes as lengths
-	const_bytes lens = encoder->HuffmanCodeLengths();
+	// Create the Huffman codes/lens and write the Huffman prefix codes as lengths
+	const_bytes lens = encoder->CreateCodes(symbol_counts);
+	if (lens == NULL) { return 0; } // errno already set
 	for (i = 0, i2 = 0; i < HALF_SYMBOLS; ++i, i2+=2) { out[i] = (lens[i2+1] << 4) | lens[i2]; }
 
 	// Write the encoded compressed data
@@ -286,11 +251,10 @@ static size_t xh_encode(const_bytes in, size_t in_len, bytes out, size_t out_len
 	bstr.Finish(); // make sure that the write stream is finished writing
 	return bstr.RawPosition()+HALF_SYMBOLS;
 }
-static size_t xpress_huff_compress_chunk(const_bytes in, int32_t* in_len, const_bytes in_end, bytes out, size_t out_len, bytes buf, Dictionary* d)  // 6.5 kb stack
+static size_t xpress_huff_compress_chunk(const_bytes in, int32_t* in_len, const_bytes in_end, bytes out, size_t out_len, bytes buf, Dictionary* d, Encoder *encoder)  // 6.5 kb stack
 {
 	size_t buf_len;
 	uint32_t symbol_counts[SYMBOLS]; // 4*512 = 2 kb
-	HuffmanEncoder<16, SYMBOLS> encoder;
 
 	if (out_len < MIN_DATA)
 	{
@@ -307,12 +271,9 @@ static size_t xpress_huff_compress_chunk(const_bytes in, int32_t* in_len, const_
 
 	////////// Perform the initial LZ77 compression //////////
 	if ((buf_len = xh_lz77_compress(in, in_len, in_end, buf, symbol_counts, d)) == 0) { return 0; } // errno already set
-
-	////////// Create the Huffman codes/lens //////////
-	if (!encoder.CreateCodes(symbol_counts)) { return 0; } // errno already set, 3 kb stack
 	
-	////////// Write compressed data //////////
-	return xh_encode(buf, buf_len, out, out_len, &encoder);
+	////////// Encode compressed data //////////
+	return xh_encode(buf, buf_len, out, out_len, symbol_counts, encoder);
 }
 size_t xpress_huff_compress(const_bytes in, size_t in_len, bytes out, size_t out_len)
 {
@@ -321,6 +282,7 @@ size_t xpress_huff_compress(const_bytes in, size_t in_len, bytes out, size_t out
 	int32_t chunk_size;
 	bytes buf;
 	Dictionary d(in, in_end);
+	Encoder encoder;
 
 	if (in_len == 0) { return 0; }
 	buf = (bytes)malloc((in_len > CHUNK_SIZE) ? 73739 : (in_len / 32 * 36 + 36 + 4 + 7)); // for every 32 bytes in "in" we need up to 36 bytes in the temp buffer + maybe an extra uint32 length symbol + up to 7 for the EOS
@@ -331,7 +293,7 @@ size_t xpress_huff_compress(const_bytes in, size_t in_len, bytes out, size_t out
 	{
 		// Compress a chunk
 		chunk_size = CHUNK_SIZE;
-		if ((done = xpress_huff_compress_chunk(in, &chunk_size, in_end, out, out_len, buf, &d)) == 0) { free(buf); return 0; } // errno already set
+		if ((done = xpress_huff_compress_chunk(in, &chunk_size, in_end, out, out_len, buf, &d, &encoder)) == 0) { free(buf); return 0; } // errno already set
 
 		// Update all the positions and lengths
 		in      += chunk_size;
@@ -355,7 +317,7 @@ size_t xpress_huff_compress(const_bytes in, size_t in_len, bytes out, size_t out
 
 
 ////////////////////////////// Decompression Functions /////////////////////////////////////////////
-static bool xpress_huff_decompress_chunk(const_bytes in, size_t in_len, size_t* in_pos, bytes out, size_t out_len, size_t* out_pos, const const_bytes out_origin, bool* end_of_stream)
+static bool xpress_huff_decompress_chunk(const_bytes in, size_t in_len, size_t* in_pos, bytes out, size_t out_len, size_t* out_pos, const const_bytes out_origin, bool* end_of_stream, Decoder *decoder)
 {
 	if (in_len < MIN_DATA)
 	{
@@ -363,20 +325,19 @@ static bool xpress_huff_decompress_chunk(const_bytes in, size_t in_len, size_t* 
 		return false;
 	}
 	
-	HuffmanDecoder<16, SYMBOLS> decoder;
 	byte codeLengths[SYMBOLS];
 	for (uint_fast16_t i = 0, i2 = 0; i < HALF_SYMBOLS; ++i)
 	{
 		codeLengths[i2++] = (in[i] & 0xF);
 		codeLengths[i2++] = (in[i] >>  4);
 	}
-	if (!decoder.SetCodeLengths(codeLengths)) { PRINT_ERROR("Xpress Huffman Decompression Error: Invalid Data: Unable to resolve Huffman codes\n", MIN_DATA); errno = E_INVALID_DATA; return false; }
+	if (!decoder->SetCodeLengths(codeLengths)) { PRINT_ERROR("Xpress Huffman Decompression Error: Invalid Data: Unable to resolve Huffman codes\n", MIN_DATA); errno = E_INVALID_DATA; return false; }
 
 	size_t i = 0;
 	InputBitstream bstr(in+HALF_SYMBOLS, in_len-HALF_SYMBOLS);
 	do
 	{
-		uint_fast16_t sym = decoder.DecodeSymbol(&bstr);
+		uint_fast16_t sym = decoder->DecodeSymbol(&bstr);
 		if (sym == INVALID_SYMBOL)											{ PRINT_ERROR("Xpress Huffman Decompression Error: Invalid data: Unable to read enough bits for symbol\n"); errno = E_INVALID_DATA; return false; }
 		else if (sym == STREAM_END && bstr.MaskIsZero())					{ *end_of_stream = true; break; }
 		else if (sym < 0x100)
@@ -432,12 +393,13 @@ static bool xpress_huff_decompress_chunk(const_bytes in, size_t in_len, size_t* 
 }
 size_t xpress_huff_decompress(const_bytes in, size_t in_len, bytes out, size_t out_len)
 {
+	Decoder decoder;
 	const const_bytes out_start = out;
 	size_t in_pos = 0, out_pos = 0;
 	bool end_of_stream = false;
 	do
 	{
-		if (!xpress_huff_decompress_chunk(in, in_len, &in_pos, out, out_len, &out_pos, out_start, &end_of_stream)) { return 0; } // errno already set
+		if (!xpress_huff_decompress_chunk(in, in_len, &in_pos, out, out_len, &out_pos, out_start, &end_of_stream, &decoder)) { return 0; } // errno already set
 		in  += in_pos;  in_len  -= in_pos;
 		out += out_pos; out_len -= out_pos;
 	} while (!end_of_stream);

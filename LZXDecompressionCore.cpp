@@ -171,23 +171,33 @@ static bool lzx_decompress_chunk(InputBitstream *bits, bytes out, size_t out_len
 	return true;
 }
 
-static void lzx_decompress_translate(bytes out, size_t out_len, int32_t translation_size)
+static void lzx_decompress_translate_block(const const_bytes start, bytes buf, const const_bytes end, const int32_t translation_size)
 {
-	if (out_len >= 6)
+	while ((buf = (bytes)memchr(buf, 0xE8, end - buf)) != NULL)
 	{
-		const_bytes start = out, end = out + MIN(out_len, 0x3FFFFFFF) - 6;
-		while ((out = (bytes)memchr(out, 0xE8, end - out)) != NULL)
+		int32_t pos = (int32_t)(buf++ - start);
+		int32_t absValue = GET_UINT32(buf);
+		if (absValue >= -pos && absValue < translation_size)
 		{
-			int32_t pos = (int32_t)(out++ - start);
-			int32_t absValue = GET_UINT32(out);
-			if (absValue >= -pos && absValue < translation_size)
-			{
-				uint32_t relValue = (absValue >= 0) ? absValue - pos : absValue + translation_size;
-				SET_UINT32(out, relValue);
-			}
-			out += 4;
+			uint32_t relValue = (absValue >= 0) ? absValue - pos : absValue + translation_size;
+			SET_UINT32(buf, relValue);
 		}
+		buf += 4;
 	}
+}
+
+static void lzx_decompress_translate(bytes buf, size_t len, const int32_t translation_size)
+{
+	const const_bytes start = buf;;
+	if (len > 0x40000000) { len = 0x40000000; }
+	while (len > (1 << 15))
+	{
+		lzx_decompress_translate_block(start, buf, buf + 0x8000 - 6, translation_size);
+		len -= 1 << 15;
+		buf += 1 << 15;
+	}
+	if (len >= 6)
+		lzx_decompress_translate_block(start, buf, buf + len - 6, translation_size);
 }
 
 size_t lzx_decompress_core(const_bytes in, size_t in_len, bytes out, size_t out_len, bool wimMode, uint32_t numPosLenSlots)

@@ -102,7 +102,7 @@ public:
 
 // The Huffman Decoder I originally wrote
 // Does not use kNumBitsMax and does not perform data checks during SetCodeLengths (always returns true)
-// It requires msort() from xpress_huff to work.
+// It requires msort() from HuffmanEncoder to work.
 //
 // The 7-zip one is about twice as fast.
 //

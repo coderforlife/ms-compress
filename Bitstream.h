@@ -102,31 +102,36 @@ public:
 		this->pntr[0] = (uint16_t*)out;
 		this->pntr[1] = (uint16_t*)(out+2);
 	}
+	inline bool WriteBit(byte b)
+	{
+		this->WriteBits(b, 1);
+	}
 	inline bool WriteBits(uint32_t b, byte n)
 	{
+		assert(n <= 16);
+		this->mask |= b << (32 - (this->bits += n));
+		if (this->bits > 16)
 		{
-			this->mask |= b << (32 - (this->bits += n));
-			if (this->bits > 16)
+			if (this->pntr[1] == NULL) return false; // only 16 bits can fit into pntr[0]!
+			SET_UINT16(this->pntr[0], this->mask >> 16);
+			this->mask <<= 16;
+			this->bits &= 0xF; //this->bits -= 16;
+			this->pntr[0] = this->pntr[1];
+			if (this->index + 2 > this->len)
 			{
-				if (this->pntr[1] == NULL) return false; // only 16 bits can fit into pntr[0]!
-				SET_UINT16(this->pntr[0], this->mask >> 16);
-				this->mask <<= 16;
-				this->bits &= 0xF; //this->bits -= 16;
-				this->pntr[0] = this->pntr[1];
-				if (this->index + 2 > this->len)
-				{
-					// No more uint16s are available, however we can still write 16 more bits to pntr[0]
-					this->pntr[1] = NULL;
-				}
-				else
-				{
-					this->pntr[1] = (uint16_t*)(this->out+this->index);
-					this->index += 2;
-				}
+				// No more uint16s are available, however we can still write 16 more bits to pntr[0]
+				this->pntr[1] = NULL;
 			}
-			return true;
+			else
+			{
+				this->pntr[1] = (uint16_t*)(this->out+this->index);
+				this->index += 2;
+			}
 		}
+		return true;
 	}
+	inline bool WriteManyBits(uint32_t x, byte n) { assert(n > 16); return this->WriteBits(x & 0xFFFF, 16) | this->WriteBits(x >> 16, n - 16); }
+	inline bool WriteUInt32(uint32_t x)    { return this->WriteBits(x & 0xFFFF, 16) && this->WriteBits(x >> 16, 16); }
 	inline bool WriteRawByte(byte x)       { if (this->index + 1 > this->len) { return false; } this->out[this->index++] = x; return true; }
 	inline bool WriteRawUInt16(uint16_t x) { if (this->index + 2 > this->len) { return false; } SET_UINT16(this->out + this->index, x); this->index += 2; return true; }
 	inline bool WriteRawUInt32(uint32_t x) { if (this->index + 4 > this->len) { return false; } SET_UINT32(this->out + this->index, x); this->index += 4; return true; }

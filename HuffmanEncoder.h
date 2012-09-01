@@ -22,7 +22,6 @@
 
 #define INVALID_SYMBOL 0xFFFF
 
-// TODO: use kNumBitsMax
 template <byte kNumBitsMax, uint16_t NumSymbols>
 class HuffmanEncoder
 {
@@ -30,8 +29,47 @@ private:
 	uint16_t codes[NumSymbols];
 	byte lens[NumSymbols];
 
+	// Merge-sorts syms[l, r) using conditions[syms[x]]
+	// Use merge-sort so that it is stable, keeping symbols in increasing order
+	template<typename T> // T is either uint32_t or byte
+	static void msort(uint16_t* syms, uint16_t* temp, T* conditions, uint_fast16_t l, uint_fast16_t r)
+	{
+		uint_fast16_t len = r - l;
+		if (len <= 1) { return; }
+	
+		// Not required to do these special in-place sorts, but is a bit more efficient
+		else if (len == 2)
+		{
+			if (conditions[syms[l+1]] < conditions[syms[ l ]]) { uint16_t t = syms[l+1]; syms[l+1] = syms[ l ]; syms[ l ] = t; }
+			return;
+		}
+		else if (len == 3)
+		{
+			if (conditions[syms[l+1]] < conditions[syms[ l ]]) { uint16_t t = syms[l+1]; syms[l+1] = syms[ l ]; syms[ l ] = t; }
+			if (conditions[syms[l+2]] < conditions[syms[l+1]]) { uint16_t t = syms[l+2]; syms[l+2] = syms[l+1]; syms[l+1] = t;
+				if (conditions[syms[l+1]]<conditions[syms[l]]) { uint16_t t = syms[l+1]; syms[l+1] = syms[ l ]; syms[ l ] = t; } }
+			return;
+		}
+	
+		// Merge-Sort
+		else
+		{
+			uint_fast16_t m = l + (len >> 1), i = l, j = l, k = m;
+		
+			// Divide and Conquer
+			msort(syms, temp, conditions, l, m);
+			msort(syms, temp, conditions, m, r);
+			memcpy(temp+l, syms+l, len*sizeof(uint16_t));
+		
+			// Merge
+			while (j < m && k < r) syms[i++] = (conditions[temp[k]] < conditions[temp[j]]) ? temp[k++] : temp[j++]; // if == then does j which is from the lower half, keeping stable
+				 if (j < m) memcpy(syms+i, temp+j, (m-j)*sizeof(uint16_t));
+			else if (k < r) memcpy(syms+i, temp+k, (r-k)*sizeof(uint16_t));
+		}
+	}
+
 public:
-	inline bool CreateCodes(uint32_t symbol_counts[]) // 3 kb stack
+	inline const const_bytes CreateCodes(uint32_t symbol_counts[]) // 3 kb stack
 	{
 		uint16_t* syms, syms_by_count[NumSymbols], syms_by_len[NumSymbols], temp[NumSymbols]; // 3*2*512 = 3 kb
 		uint_fast16_t i, j, len, pos, s;
@@ -44,9 +82,10 @@ public:
 
 
 		////////// Get the Huffman lengths //////////
+		msort(syms = syms_by_count, temp, symbol_counts, 0, len); // sort by the counts
 		if (len == 1)
 		{
-			this->lens[syms_by_count[0]] = 1; // never going to happen, but the code below would probably assign a length of 0 which is not right
+			this->lens[syms[0]] = 1; // never going to happen, but the code below would probably assign a length of 0 which is not right
 		}
 		else
 		{
@@ -59,12 +98,10 @@ public:
 			collection* cols = (collection*)malloc(32*sizeof(collection)), *next_cols = (collection*)malloc(32*sizeof(collection)), *temp_cols; // 32.25 kb initial allocation
 			uint_fast16_t cols_cap = 32, cols_len = 0, cols_pos, next_cols_len = 0;
 		
-			if (!cols || !next_cols) { PRINT_ERROR("Xpress Huffman Compression Error: malloc failed\n"); free(cols); free(next_cols); return false; }
-
-			msort(syms = syms_by_count, temp, symbol_counts, 0, len); // sort by the counts
+			if (!cols || !next_cols) { PRINT_ERROR("Xpress Huffman Compression Error: malloc failed\n"); free(cols); free(next_cols); return NULL; }
 
 			// Start at the lowest value row, adding new collection
-			for (j = 0; j < 0xF; ++j)
+			for (j = 0; j < kNumBitsMax; ++j)
 			{
 				cols_pos = 0;
 				pos = 0;
@@ -77,11 +114,11 @@ public:
 						cols_cap <<= 1;
 
 						temp_cols = (collection*)realloc(cols,      cols_cap*sizeof(collection));
-						if (temp_cols == NULL) { PRINT_ERROR("Xpress Huffman Compression Error: realloc failed\n"); free(cols); free(next_cols); return false; }
+						if (temp_cols == NULL) { PRINT_ERROR("Xpress Huffman Compression Error: realloc failed\n"); free(cols); free(next_cols); return NULL; }
 						cols      = temp_cols;
 
 						temp_cols = (collection*)realloc(next_cols, cols_cap*sizeof(collection));
-						if (temp_cols == NULL) { PRINT_ERROR("Xpress Huffman Compression Error: realloc failed\n"); free(cols); free(next_cols); return false; }
+						if (temp_cols == NULL) { PRINT_ERROR("Xpress Huffman Compression Error: realloc failed\n"); free(cols); free(next_cols); return NULL; }
 						next_cols = temp_cols;
 					}
 					memset(next_cols+next_cols_len, 0, sizeof(collection));
@@ -130,11 +167,12 @@ public:
 				this->codes[syms[i]] = (this->codes[syms[i-1]] + 1) << (this->lens[syms[i]] - this->lens[syms[i-1]]);
 			}
 		}
-		return true;
+
+
+		return this->lens;
 	}
 
 	inline bool EncodeSymbol(uint_fast16_t sym, OutputBitstream *bits) const { return bits->WriteBits(this->codes[sym], this->lens[sym]); }
-	inline const const_bytes HuffmanCodeLengths() const { return this->lens; }
 };
 
 #endif
