@@ -51,3 +51,12 @@ The psuedo-code is found in that document, mostly referencing the LZ version of 
  * Has a better compression ratio (average ~0.9% better, range -0.1% to 2.6%)
  * Uses about the same amount of memory
 * Decompression actually works (RTL Xpress Huffman decompression is broken)
+
+Todo
+====
+* LZX Compression: Create
+* LZX Decompression: Check (so far checked one example) and test speed
+* LZX Decompression: Add error messages and set errno
+* Xpress Huffman Compression: Allow matches to cross chunk boundaries
+* Xpress Huffman Compression: Improve speed
+* Xpress Compression: Improve speed
