@@ -119,18 +119,17 @@ public:
 #endif
 		const const_bytes xend = data - MaxOffset, end4 = end - 4;
 		const_bytes x;
-		//uint32_t len = 2;
+		uint32_t len = 2;
 		for (x = this->window[WindowPos(data)]; x >= xend; x = this->window[WindowPos(x)])
 		{
 			const uint32_t l = GetMatchLength(x, data, end, end4);
-			if (l > 3) // len)
+			if (l > len)
 			{
 				*offset = (uint32_t)(data - x);
-				return l; // len = l;
+				len = l;
 			}
 		}
-		//return len;
-		return 0;
+		return len;
 	}
 };
 

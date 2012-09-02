@@ -68,9 +68,9 @@ static const uint16_t OffsetMasks[16] =
 	0x0FFF, 0x1FFF, 0x3FFF, 0x7FFF,
 };
 inline static byte highbit(uint32_t x) { uint_fast16_t y = x >> 8; return y ? 8 + Log2Table[y] : Log2Table[x]; } // returns 0x0 - 0xF
-static size_t xh_lz77_compress(const_bytes in, int32_t* in_len, const_bytes in_end, bytes out, uint32_t symbol_counts[], Dictionary* d)
+static size_t xh_lz77_compress(const_bytes in, int32_t /* * */ in_len, const_bytes in_end, bytes out, uint32_t symbol_counts[], Dictionary* d)
 {
-	int32_t rem = *in_len;
+	int32_t rem = /* * */ in_len;
 	uint32_t mask;
 	const const_bytes in_orig = in, out_orig = out;
 	uint32_t* mask_out;
@@ -124,9 +124,7 @@ static size_t xh_lz77_compress(const_bytes in, int32_t* in_len, const_bytes in_e
 			else
 			{
 				// Write the literal value (which is the symbol)
-				++symbol_counts[*out = *in];
-				++out;
-				++in;
+				++symbol_counts[*out++ = *in++];
 				--rem;
 			}
 		}
@@ -136,9 +134,9 @@ static size_t xh_lz77_compress(const_bytes in, int32_t* in_len, const_bytes in_e
 	}
 	
 	// Set the total number of bytes read from in
-	*in_len -= rem;
+	/* *in_len -= rem; */
 	mask >>= (32-i); // finish moving the value over
-	if (in_orig+*in_len == in_end)
+	if (in_orig+ /* * */ in_len == in_end)
 	{
 		// Add the end of stream symbol
 		if (i == 32)
@@ -161,18 +159,13 @@ static size_t xh_lz77_compress(const_bytes in, int32_t* in_len, const_bytes in_e
 	// Return the number of bytes in the output
 	return out - out_orig;
 }
-static size_t xh_encode(const_bytes in, size_t in_len, bytes out, size_t out_len, uint32_t symbol_counts[], Encoder *encoder)
+static size_t xh_encode(const_bytes in, size_t in_len, bytes out, size_t out_len, Encoder *encoder)
 {
-	uint_fast16_t i, i2;
+	uint_fast16_t i;
 	ptrdiff_t rem = (ptrdiff_t)in_len;
 	uint32_t mask;
 	const_bytes end;
-	OutputBitstream bstr(out+HALF_SYMBOLS, out_len-HALF_SYMBOLS);
-
-	// Create the Huffman codes/lens and write the Huffman prefix codes as lengths
-	const_bytes lens = encoder->CreateCodes(symbol_counts);
-	if (lens == NULL) { return 0; } // errno already set
-	for (i = 0, i2 = 0; i < HALF_SYMBOLS; ++i, i2+=2) { out[i] = (lens[i2+1] << 4) | lens[i2]; }
+	OutputBitstream bstr(out, out_len);
 
 	// Write the encoded compressed data
 	// This involves parsing the LZ77 compressed data and re-writing it with the Huffman code
@@ -231,8 +224,7 @@ static size_t xh_encode(const_bytes in, size_t in_len, bytes out, size_t out_len
 				++in; --rem;
 			}
 		}
-		if (rem < 0)
-			break;
+		if (rem < 0) { break; }
 		if (rem < i) { i = (byte)rem; }
 
 		// Write the remaining literal symbols
@@ -242,99 +234,85 @@ static size_t xh_encode(const_bytes in, size_t in_len, bytes out, size_t out_len
 	}
 
 	// Write end of stream symbol and return insufficient buffer or the compressed size
-	if (rem > 0)
-	{
-		PRINT_ERROR("Xpress Huffman Compression Error: Insufficient buffer\n");
-		errno = E_INSUFFICIENT_BUFFER;
-		return 0;
-	}
+	if (rem > 0) { PRINT_ERROR("Xpress Huffman Compression Error: Insufficient buffer\n"); errno = E_INSUFFICIENT_BUFFER; return 0; }
 	bstr.Finish(); // make sure that the write stream is finished writing
-	return bstr.RawPosition()+HALF_SYMBOLS;
-}
-static size_t xpress_huff_compress_chunk(const_bytes in, int32_t* in_len, const_bytes in_end, bytes out, size_t out_len, bytes buf, Dictionary* d, Encoder *encoder)  // 6.5 kb stack
-{
-	size_t buf_len;
-	uint32_t symbol_counts[SYMBOLS]; // 4*512 = 2 kb
-
-	if (out_len < MIN_DATA)
-	{
-		PRINT_ERROR("Xpress Huffman Compression Error: Insufficient buffer\n");
-		errno = E_INSUFFICIENT_BUFFER;
-		return 0;
-	}
-	if (*in_len == 0) // implies end_of_stream
-	{
-		memset(out, 0, MIN_DATA);
-		out[STREAM_END>>1] = STREAM_END_LEN_1;
-		return MIN_DATA;
-	}
-
-	////////// Perform the initial LZ77 compression //////////
-	if ((buf_len = xh_lz77_compress(in, in_len, in_end, buf, symbol_counts, d)) == 0) { return 0; } // errno already set
-	
-	////////// Encode compressed data //////////
-	return xh_encode(buf, buf_len, out, out_len, symbol_counts, encoder);
+	return bstr.RawPosition();
 }
 size_t xpress_huff_compress(const_bytes in, size_t in_len, bytes out, size_t out_len)
 {
-	size_t done, total = 0;
+	if (in_len == 0) { return 0; }
+
+	bytes buf = (bytes)malloc((in_len > CHUNK_SIZE) ? 73739 : (in_len / 32 * 36 + 36 + 4 + 7)); // for every 32 bytes in "in" we need up to 36 bytes in the temp buffer + maybe an extra uint32 length symbol + up to 7 for the EOS
+	if (buf == NULL) { return 0;  } // errno already set
+
+	const bytes out_orig = out;
 	const const_bytes in_end = in+in_len;
-	int32_t chunk_size;
-	bytes buf;
 	Dictionary d(in, in_end);
 	Encoder encoder;
-
-	if (in_len == 0) { return 0; }
-	buf = (bytes)malloc((in_len > CHUNK_SIZE) ? 73739 : (in_len / 32 * 36 + 36 + 4 + 7)); // for every 32 bytes in "in" we need up to 36 bytes in the temp buffer + maybe an extra uint32 length symbol + up to 7 for the EOS
-	if (buf == NULL) { return 0;  } // errno already set
 
 	// Go through each chunk except the last
 	while (in_len > CHUNK_SIZE)
 	{
-		// Compress a chunk
-		chunk_size = CHUNK_SIZE;
-		if ((done = xpress_huff_compress_chunk(in, &chunk_size, in_end, out, out_len, buf, &d, &encoder)) == 0) { free(buf); return 0; } // errno already set
+		if (out_len < MIN_DATA) { PRINT_ERROR("Xpress Huffman Compression Error: Insufficient buffer\n"); errno = E_INSUFFICIENT_BUFFER; free(buf); return 0; }
+
+		////////// Perform the initial LZ77 compression //////////
+		uint32_t symbol_counts[SYMBOLS]; // 4*512 = 2 kb
+		size_t buf_len = xh_lz77_compress(in, CHUNK_SIZE, in_end, buf, symbol_counts, &d);
+		if (buf_len == 0) { free(buf); return 0; } // errno already set
+	
+		////////// Create the Huffman codes/lens and write the Huffman prefix codes as lengths //////////
+		const_bytes lens = encoder.CreateCodes(symbol_counts);
+		if (lens == NULL) { free(buf); return 0; } // errno already set
+		for (uint_fast16_t i = 0, i2 = 0; i < HALF_SYMBOLS; ++i, i2+=2) { out[i] = (lens[i2+1] << 4) | lens[i2]; }
+
+		////////// Encode compressed data //////////
+		size_t done = xh_encode(buf, buf_len, out+=HALF_SYMBOLS, out_len-=HALF_SYMBOLS, &encoder);
+		if (done == 0) { free(buf); return 0; } // errno already set
 
 		// Update all the positions and lengths
-		in      += chunk_size;
-		in_len  -= chunk_size;
-		out     += done;
-		out_len -= done;
-		total   += done;
+		in     += CHUNK_SIZE; out     += done;
+		in_len -= CHUNK_SIZE; out_len -= done;
 	}
 
 	// Do the last chunk
-	chunk_size = (int32_t)in_len;
-	if ((done = xpress_huff_compress_chunk(in, &chunk_size, in_end, out, out_len, buf, &d)) == 0) { total = 0; }
-	total += done;
+	if (out_len < MIN_DATA) { PRINT_ERROR("Xpress Huffman Compression Error: Insufficient buffer\n"); errno = E_INSUFFICIENT_BUFFER; out = out_orig; }
+	else if (in_len == 0) // implies end_of_stream
+	{
+		memset(out, 0, MIN_DATA);
+		out[STREAM_END>>1] = STREAM_END_LEN_1;
+		out += MIN_DATA;
+	}
+	else
+	{
+		////////// Perform the initial LZ77 compression //////////
+		uint32_t symbol_counts[SYMBOLS]; // 4*512 = 2 kb
+		size_t buf_len = xh_lz77_compress(in, (int32_t)in_len, in_end, buf, symbol_counts, &d);
+		if (buf_len == 0) { free(buf); return 0; } // errno already set
+
+		////////// Create the Huffman codes/lens and write the Huffman prefix codes as lengths //////////
+		const_bytes lens = encoder.CreateCodes(symbol_counts);
+		if (lens == NULL) { free(buf); return 0; } // errno already set
+		for (uint_fast16_t i = 0, i2 = 0; i < HALF_SYMBOLS; ++i, i2+=2) { out[i] = (lens[i2+1] << 4) | lens[i2]; }
+
+		////////// Encode compressed data //////////
+		size_t done = xh_encode(buf, buf_len, out+=HALF_SYMBOLS, out_len-=HALF_SYMBOLS, &encoder);
+		if (done == 0) { out = out_orig; } // errno already set
+		out += done;
+	}
 
 	// Cleanup
 	free(buf);
 
 	// Return the total number of compressed bytes
-	return total;
+	return out - out_orig;
 }
 
 
 ////////////////////////////// Decompression Functions /////////////////////////////////////////////
 static bool xpress_huff_decompress_chunk(const_bytes in, size_t in_len, size_t* in_pos, bytes out, size_t out_len, size_t* out_pos, const const_bytes out_origin, bool* end_of_stream, Decoder *decoder)
 {
-	if (in_len < MIN_DATA)
-	{
-		if (in_len) { PRINT_ERROR("Xpress Huffman Decompression Error: Invalid Data: Less than %d input bytes\n", MIN_DATA); errno = E_INVALID_DATA; }
-		return false;
-	}
-	
-	byte codeLengths[SYMBOLS];
-	for (uint_fast16_t i = 0, i2 = 0; i < HALF_SYMBOLS; ++i)
-	{
-		codeLengths[i2++] = (in[i] & 0xF);
-		codeLengths[i2++] = (in[i] >>  4);
-	}
-	if (!decoder->SetCodeLengths(codeLengths)) { PRINT_ERROR("Xpress Huffman Decompression Error: Invalid Data: Unable to resolve Huffman codes\n", MIN_DATA); errno = E_INVALID_DATA; return false; }
-
 	size_t i = 0;
-	InputBitstream bstr(in+HALF_SYMBOLS, in_len-HALF_SYMBOLS);
+	InputBitstream bstr(in, in_len);
 	do
 	{
 		uint_fast16_t sym = decoder->DecodeSymbol(&bstr);
@@ -387,19 +365,31 @@ static bool xpress_huff_decompress_chunk(const_bytes in, size_t in_len, size_t* 
 			}
 		}
 	} while (i < CHUNK_SIZE || !bstr.MaskIsZero()); /* end of chunk, not stream */
-	*in_pos = bstr.RawPosition()+HALF_SYMBOLS;
+	*in_pos = bstr.RawPosition();
 	*out_pos = i;
 	return true;
 }
 size_t xpress_huff_decompress(const_bytes in, size_t in_len, bytes out, size_t out_len)
 {
-	Decoder decoder;
 	const const_bytes out_start = out;
 	size_t in_pos = 0, out_pos = 0;
 	bool end_of_stream = false;
+	Decoder decoder;
+	byte codeLengths[SYMBOLS];
 	do
 	{
-		if (!xpress_huff_decompress_chunk(in, in_len, &in_pos, out, out_len, &out_pos, out_start, &end_of_stream, &decoder)) { return 0; } // errno already set
+		if (in_len < MIN_DATA)
+		{
+			if (in_len) { PRINT_ERROR("Xpress Huffman Decompression Error: Invalid Data: Less than %d input bytes\n", MIN_DATA); errno = E_INVALID_DATA; }
+			return 0;
+		}
+		for (uint_fast16_t i = 0, i2 = 0; i < HALF_SYMBOLS; ++i)
+		{
+			codeLengths[i2++] = (in[i] & 0xF);
+			codeLengths[i2++] = (in[i] >>  4);
+		}
+		if (!decoder.SetCodeLengths(codeLengths)) { PRINT_ERROR("Xpress Huffman Decompression Error: Invalid Data: Unable to resolve Huffman codes\n", MIN_DATA); errno = E_INVALID_DATA; return 0; }
+		if (!xpress_huff_decompress_chunk(in+=HALF_SYMBOLS, in_len-=HALF_SYMBOLS, &in_pos, out, out_len, &out_pos, out_start, &end_of_stream, &decoder)) { return 0; } // errno already set
 		in  += in_pos;  in_len  -= in_pos;
 		out += out_pos; out_len -= out_pos;
 	} while (!end_of_stream);
