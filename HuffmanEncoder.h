@@ -78,7 +78,7 @@ public:
 		memset(this->lens,  0, NumSymbols*sizeof(byte));
 
 		// Fill the syms_by_count, syms_by_length, and huffman_lens with the symbols that were found
-		for (i = 0, len = 0; i < NumSymbols; ++i) { if (symbol_counts[i]) { syms_by_count[len] = (uint16_t)i; syms_by_len[len++] = (uint16_t)i; this->lens[i] = 0xF; } }
+		for (i = 0, len = 0; i < NumSymbols; ++i) { if (symbol_counts[i]) { syms_by_count[len] = (uint16_t)i; syms_by_len[len++] = (uint16_t)i; this->lens[i] = kNumBitsMax; } }
 
 
 		////////// Get the Huffman lengths //////////

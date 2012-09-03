@@ -16,12 +16,12 @@
 
 
 /////////////////// Dictionary /////////////////////////////////////////////////
-// The dictionary system used for Xpress compression.
+// The dictionary system used for LZX compression.
 //
 // TODO: ? Most of the compression time is spent in the dictionary - particularly Find and Add.
 
-#ifndef XPRESS_DICTIONARY_H
-#define XPRESS_DICTIONARY_H
+#ifndef LZX_DICTIONARY_H
+#define LZX_DICTIONARY_H
 #include "compression-api.h"
 
 #ifdef __cplusplus_cli
@@ -32,15 +32,19 @@
 #pragma optimize("t", on)
 #endif
 
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable:4512) // warning C4512: assignment operator could not be generated
+#endif
+
 #include "LCG.h"
+#include "LZXConstants.h"
 
-template<uint32_t MaxOffset, uint32_t ChunkSize = MaxOffset, uint32_t MaxHash = 0x8000>
-class XpressDictionary // 192 kb (on 32-bit) or 384 kb (on 64-bit)
+class LZXDictionary
 {
-	//TODO: CASSERT(IS_POW2(ChunkSize));
-	CASSERT(MaxOffset <= ChunkSize);
-
 private:
+	static const uint16_t MaxHash = 0x8000;
+
 	// Define a LCG-generate hash table
 #ifdef _MSC_VER
 #pragma warning(push)
@@ -51,16 +55,16 @@ private:
 #pragma warning(pop)
 #endif
 
+	const uint32_t windowSize;
 	const_bytes start, end, end3;
 #ifdef LARGE_STACK
 	const_bytes table[MaxHash];
-	const_bytes window[ChunkSize*2];
 #else
 	const_bytes* table;
-	const_bytes* window;
 #endif
-	
-	inline uint32_t WindowPos(const_bytes x) const { return (uint32_t)((x - this->start) & ((ChunkSize << 1) - 1)); } // { return (uint32_t)((x - this->start) % (2 * ChunkSize)); }
+	const_bytes* window;
+
+	inline uint32_t WindowPos(const_bytes x) const { return (uint32_t)((x - this->start) & (windowSize - 1)); } // { return (uint32_t)((x - this->start) % (2 * settings->WindowSize)); }
 	inline static uint32_t GetMatchLength(const_bytes a, const_bytes b, const const_bytes end, const const_bytes end4)
 	{
 		// like memcmp but tells you the length of the match and optimized
@@ -81,45 +85,41 @@ private:
 	}
 
 public:
-	inline XpressDictionary(const const_bytes start, const const_bytes end) : start(start), end(end), end3(end - 3)
+	inline LZXDictionary(const const_bytes start, const uint32_t windowSize) : start(start), end(start + windowSize), end3(end - 3), windowSize(windowSize)
 	{
 #ifndef LARGE_STACK
-		this->table  = (const_bytes*)malloc(MaxHash    *sizeof(const_bytes));
-		this->window = (const_bytes*)malloc(ChunkSize*2*sizeof(const_bytes));
+		this->table  = (const_bytes*)malloc(MaxHash     *sizeof(const_bytes));
 #endif
-		memset(this->table, 0, MaxHash*sizeof(const_bytes));
+		this->window = (const_bytes*)malloc(windowSize*2*sizeof(const_bytes));
+		memset(this->table,  0, MaxHash     *sizeof(const_bytes));
+		memset(this->window, 0, windowSize*2*sizeof(const_bytes));
 	}
-#ifndef LARGE_STACK
-	inline ~XpressDictionary()
+	inline ~LZXDictionary()
 	{
+#ifndef LARGE_STACK
 		free(this->table);
+#endif
 		free(this->window);
 	}
-#endif
 
-	inline const_bytes Fill(const_bytes data)
+	inline void Add(const_bytes data, size_t len)
 	{
-		uint32_t pos = WindowPos(data); // either 0x00000 or 0x02000 / 0x10000
-		const const_bytes end = ((data + ChunkSize) < this->end3) ? data + ChunkSize : this->end3;
+		uint32_t pos = WindowPos(data);
+		const const_bytes end = ((data + len) < this->end3) ? data + len : this->end3;
 		while (data < end)
 		{
 			const uint32_t hash = lcg::Hash(data);
 			this->window[pos++] = this->table[hash];
 			this->table[hash] = data++;
 		}
-		return end;
 	}
 
 	inline uint32_t Find(const const_bytes data, uint32_t* offset) const
 	{
-#if PNTR_BITS <= 32
-		const const_bytes end = this->end; // on 32-bit, + UINT32_MAX will always overflow
-#else
-		const const_bytes end = ((data + UINT32_MAX) < data || (data + UINT32_MAX) >= this->end) ? this->end : data + UINT32_MAX; // if overflow or past end use the end
-#endif
-		const const_bytes xend = data - MaxOffset, end4 = end - 4;
+		const const_bytes end = ((data + 257) >= this->end) ? this->end : data + 257; // if overflow or past end use the end, otherwise go MaxLength away
+		const const_bytes xend = data - windowSize - 3, end4 = end - 4;
 		const_bytes x;
-		uint32_t len = 2;
+		uint32_t len = 1;
 		for (x = this->window[WindowPos(data)]; x >= xend; x = this->window[WindowPos(x)])
 		{
 			const uint32_t l = GetMatchLength(x, data, end, end4);
@@ -130,6 +130,7 @@ public:
 			}
 		}
 		return len;
+
 	}
 };
 

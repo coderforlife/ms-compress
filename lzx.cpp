@@ -33,13 +33,15 @@
 size_t lzx_wim_max_compressed_size(size_t in_len) { return in_len + 20; }
 #endif
 
+static LZXSettings lzx_wim_settings;
+
 size_t lzx_wim_compress(const_bytes in, size_t in_len, bytes out, size_t out_len)
 {
-	return in_len > 0x8000 ? 0 : lzx_compress_core(in, in_len, out, out_len, true, 30 * kNumLenSlots);
+	return in_len > 0x8000 ? 0 : lzx_compress_core(in, in_len, out, out_len, &lzx_wim_settings);
 }
 size_t lzx_wim_decompress(const_bytes in, size_t in_len, bytes out, size_t out_len)
 {
-	return lzx_decompress_core(in, in_len, out, out_len, true, 30 * kNumLenSlots);
+	return lzx_decompress_core(in, in_len, out, out_len, &lzx_wim_settings);
 }
 size_t lzx_wim_uncompressed_size(const_bytes in, size_t in_len)
 {
@@ -53,32 +55,21 @@ size_t lzx_wim_uncompressed_size(const_bytes in, size_t in_len)
 
 
 #ifdef COMPRESSION_API_EXPORT
-#ifdef _WIN64
-size_t lzx_cab_max_compressed_size(size_t in_len, unsigned int numDictBits) { return in_len + 4 + 16 * ((in_len + (1ull << numDictBits) - 1) / (1ull << numDictBits)); }
-#else
-size_t lzx_cab_max_compressed_size(size_t in_len, unsigned int numDictBits) { return in_len + 4 + 16 * ((in_len + (1u << numDictBits) - 1) / (1u << numDictBits)); }
+size_t lzx_cab_max_compressed_size(size_t in_len, unsigned int numDictBits) { return in_len + 4 + ((in_len + 0x7FFF) >> 11); } // TODO: use numDictBits
 #endif
-#endif
-
-static inline uint32_t lzx_cab_num_pos_slots(unsigned int numDictBits)
-{
-	if (numDictBits < kNumDictionaryBitsMin || numDictBits > kNumDictionaryBitsMax)	{ return 0; }
-	if (numDictBits < 20) { return 30 + (numDictBits - 15) * 2; }
-	else                  { return (numDictBits == 20) ? 42: 50; }
-}
 
 size_t lzx_cab_compress(const_bytes in, size_t in_len, bytes out, size_t out_len, unsigned int numDictBits)
 {
-	uint32_t numPosSlots = lzx_cab_num_pos_slots(numDictBits);
-	return (numPosSlots == 0) ? 0 : lzx_compress_core(in, in_len, out, out_len, false, numPosSlots * kNumLenSlots);
+	LZXSettings settings(numDictBits);
+	return (settings.NumPosLenSlots == 0) ? 0 : lzx_compress_core(in, in_len, out, out_len, &settings);
 }
 size_t lzx_cab_decompress(const_bytes in, size_t in_len, bytes out, size_t out_len, unsigned int numDictBits)
 {
-	uint32_t numPosSlots = lzx_cab_num_pos_slots(numDictBits);
-	return (numPosSlots == 0) ? 0 : lzx_decompress_core(in, in_len, out, out_len, false, numPosSlots * kNumLenSlots);
+	LZXSettings settings(numDictBits);
+	return (settings.NumPosLenSlots == 0) ? 0 : lzx_decompress_core(in, in_len, out, out_len, &settings);
 }
 size_t lzx_cab_uncompressed_size(const_bytes in, size_t in_len, unsigned int numDictBits)
 {
-	uint32_t numPosSlots = lzx_cab_num_pos_slots(numDictBits);
-	return (numPosSlots == 0) ? 0 : lzx_decompress_dry_run_core(in, in_len, numPosSlots * kNumLenSlots);
+	LZXSettings settings(numDictBits);
+	return (settings.NumPosLenSlots == 0) ? 0 : lzx_decompress_dry_run_core(in, in_len, &settings);
 }

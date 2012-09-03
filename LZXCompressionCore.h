@@ -17,9 +17,8 @@
 #ifndef LZX_COMPRESSION_CORE_H
 #define LZX_COMPRESSION_CORE_H
 #include "compression-api.h"
-
 #include "LZXConstants.h"
 
-size_t lzx_compress_core(const_bytes in, size_t in_len, bytes out, size_t out_len, bool wimMode, uint32_t numPosLenSlots);
+size_t lzx_compress_core(const_bytes in, size_t in_len, bytes out, size_t out_len, LZXSettings *settings);
 
 #endif

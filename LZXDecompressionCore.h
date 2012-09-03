@@ -17,10 +17,9 @@
 #ifndef LZX_DECOMPRESSION_CORE_H
 #define LZX_DECOMPRESSION_CORE_H
 #include "compression-api.h"
-
 #include "LZXConstants.h"
 
-size_t lzx_decompress_core(const_bytes in, size_t in_len, bytes out, size_t out_len, bool wimMode, uint32_t numPosLenSlots);
-size_t lzx_decompress_dry_run_core(const_bytes in, size_t in_len, uint32_t numPosLenSlots);
+size_t lzx_decompress_core(const_bytes in, size_t in_len, bytes out, size_t out_len, LZXSettings *settings);
+size_t lzx_decompress_dry_run_core(const_bytes in, size_t in_len, LZXSettings *settings);
 
 #endif

@@ -70,4 +70,26 @@ const uint32_t kDictionarySizeMax = (1 << kNumDictionaryBitsMax);
 const unsigned kNumLinearPosSlotBits = 17;
 const uint32_t kNumPowerPosSlots = 0x26;
 
+struct LZXSettings
+{
+	bool WIMMode;
+	bool UseAlignOffsetBlocks;
+	bool TranslationMode;
+	uint32_t TranslationSize;
+	uint32_t WindowSize;
+	unsigned int NumPosLenSlots;
+
+	static inline uint32_t numPosSlots(unsigned int numDictBits)
+	{
+		if (numDictBits < kNumDictionaryBitsMin || numDictBits > kNumDictionaryBitsMax)	{ return 0; }
+		if (numDictBits < 20) { return 30 + (numDictBits - 15) * 2; }
+		else                  { return (numDictBits == 20) ? 42: 50; }
+	}
+
+	LZXSettings() : WIMMode(true), UseAlignOffsetBlocks(false), TranslationMode(true), TranslationSize(12000000), WindowSize(0x8000), NumPosLenSlots(30 * kNumLenSlots) { }
+	LZXSettings(unsigned int NumDictBits, bool TranslationMode = true, uint32_t TranslationSize = 12000000) :
+		WIMMode(false), UseAlignOffsetBlocks(false), TranslationMode(TranslationMode), TranslationSize(TranslationSize),
+			WindowSize(1u << NumDictBits), NumPosLenSlots(numPosSlots(NumDictBits) * kNumLenSlots) { }
+};
+
 #endif

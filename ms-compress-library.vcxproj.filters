@@ -63,6 +63,9 @@
     <ClInclude Include="LZXCompressionCore.h">
       <Filter>Internal</Filter>
     </ClInclude>
+    <ClInclude Include="LZXDictionary.h">
+      <Filter>Internal</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="xpress_huff.cpp">

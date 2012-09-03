@@ -29,7 +29,7 @@ typedef HuffmanDecoder<kNumHuffmanBits, kAlignTableSize> AlignDecoder;
 typedef HuffmanDecoder<kNumHuffmanBits, kLevelTableSize> LevelDecoder;
 
 ////////////////////////////// Decompression Functions /////////////////////////////////////////////
-static bool lzx_read_table(InputBitstream *bits, byte *lastLevels, byte *newLevels, uint32_t numSymbols)
+static bool lzx_read_table(InputBitstream *bits, bytes levels, uint32_t numSymbols)
 {
 	LevelDecoder levelDecoder;
 	byte levelLevels[kLevelTableSize];
@@ -37,68 +37,50 @@ static bool lzx_read_table(InputBitstream *bits, byte *lastLevels, byte *newLeve
 		levelLevels[i] = (byte)bits->ReadBits(kNumBitsForPreTreeLevel);
 	if (!levelDecoder.SetCodeLengths(levelLevels)) { return false; }
 
-	uint32_t num = 0;
-	byte symbol = 0;
-	for (uint32_t i = 0; i < numSymbols;)
+	for (uint32_t i = 0, count; i < numSymbols; i += count)
 	{
-		if (num != 0) { lastLevels[i] = newLevels[i] = symbol; i++; num--; continue; }
-
+		byte symbol;
 		uint32_t number = levelDecoder.DecodeSymbol(bits);
-
-			 if (number == kLevelSymbolZeros   ) { num = kLevelSymbolZerosStartValue    + bits->ReadBits(kLevelSymbolZerosNumBits   ); symbol = 0; }
-		else if (number == kLevelSymbolZerosBig) { num = kLevelSymbolZerosBigStartValue + bits->ReadBits(kLevelSymbolZerosBigNumBits); symbol = 0; }
+			 if (number == kLevelSymbolZeros   ) { count = kLevelSymbolZerosStartValue    + bits->ReadBits(kLevelSymbolZerosNumBits   ); symbol = 0; }
+		else if (number == kLevelSymbolZerosBig) { count = kLevelSymbolZerosBigStartValue + bits->ReadBits(kLevelSymbolZerosBigNumBits); symbol = 0; }
 		else if (number == kLevelSymbolSame || number <= kNumHuffmanBits)
 		{
-			if (number <= kNumHuffmanBits) { num = 1; }
+			if (number <= kNumHuffmanBits) { count = 1; }
 			else
 			{
-				num = kLevelSymbolSameStartValue + bits->ReadBits(kLevelSymbolSameNumBits);
+				count = kLevelSymbolSameStartValue + bits->ReadBits(kLevelSymbolSameNumBits);
 				number = levelDecoder.DecodeSymbol(bits);
 				if (number > kNumHuffmanBits) { return false; }
 			}
-			symbol = (byte)((17 + lastLevels[i] - number) % (kNumHuffmanBits + 1)); // (byte)((number==0) ? 0 : (17 - number))
+			symbol = (byte)((17 + levels[i] - number) % (kNumHuffmanBits + 1)); // (byte)((number==0) ? 0 : (17 - number))
 		}
 		else { return false; }
+		memset(levels + i, symbol, count);
 	}
-	return true;
-}
-
-static bool lzx_copy_uncompressed(InputBitstream *bits, bytes out, size_t out_len, uint32_t repDistances[kNumRepDistances])
-{
-	const_bytes in = bits->Get16BitAlignedByteStream(kNumRepDistances * sizeof(uint32_t) + out_len);
-	if (!in) { PRINT_ERROR("LZX Decompression Error: Invalid Data: Uncompressed block size doesn't have enough bytes\n"); errno = E_INVALID_DATA; return false; }
-
-	for (uint32_t i = 1; i < kNumRepDistances; i++)
-	{
-		repDistances[i] = GET_UINT32(in) - 1;
-		in += sizeof(uint32_t);
-	}
-	memcpy(out, in, out_len); // TODO: multi-byte copy
 
 	return true;
 }
 
 static bool lzx_decompress_chunk(InputBitstream *bits, bytes out, size_t out_len,
-	uint32_t repDistances[kNumRepDistances], byte lastMainLevels[kMainTableSize], byte lastLenLevels[kNumLenSymbols], uint32_t numPosLenSlots, bool isAlignBlock)
+	uint32_t repDistances[kNumRepDistances], byte mainLevels[kMainTableSize], byte lenLevels[kNumLenSymbols], LZXSettings *settings)
 {
 	MainDecoder mainDecoder;
 	LenDecoder lenDecoder;
 	AlignDecoder alignDecoder;
 
-	byte newLevels[kMaxTableSize];
-	if (isAlignBlock)
+	if (settings->UseAlignOffsetBlocks)
 	{
+		byte alignLevels[kAlignTableSize];
 		for (uint32_t i = 0; i < kAlignTableSize; i++)
-			newLevels[i] = (byte)bits->ReadBits(kNumBitsForAlignLevel);
-		if (!alignDecoder.SetCodeLengths(newLevels))
-			return false;
+			alignLevels[i] = (byte)bits->ReadBits(kNumBitsForAlignLevel);
+		if (!alignDecoder.SetCodeLengths(alignLevels)) { return false; }
 	}
-	if (!lzx_read_table(bits, lastMainLevels, newLevels, 256) ||
-		!lzx_read_table(bits, lastMainLevels + 256, newLevels + 256, numPosLenSlots)) { return false; }
-	memset(newLevels + 256 + numPosLenSlots, 0, kMainTableSize - (256 + numPosLenSlots));
-	if (!mainDecoder.SetCodeLengths(newLevels) ||
-		!lzx_read_table(bits, lastLenLevels, newLevels, kNumLenSymbols) ||
-		!lenDecoder.SetCodeLengths(newLevels)) { return false; }
+	if (!lzx_read_table(bits, mainLevels, 0x100) ||
+		!lzx_read_table(bits, mainLevels + 0x100, settings->NumPosLenSlots)) { return false; }
+	memset(mainLevels + 256 + settings->NumPosLenSlots, 0, kMainTableSize - (0x100 + settings->NumPosLenSlots));
+	if (!mainDecoder.SetCodeLengths(mainLevels) ||
+		!lzx_read_table(bits, lenLevels, kNumLenSymbols) ||
+		!lenDecoder.SetCodeLengths(lenLevels)) { return false; }
 
 	bytes end = out + out_len;
 	while (out < end)
@@ -111,15 +93,16 @@ static bool lzx_decompress_chunk(InputBitstream *bits, bytes out, size_t out_len
 		else
 		{
 			sym -= 0x100;
-			if (sym >= numPosLenSlots) { return false; }
-			uint32_t len = kMatchMinLen + sym % kNumLenSlots, off = sym / kNumLenSlots;
+			if (sym >= settings->NumPosLenSlots) { return false; }
+			uint32_t len = sym % kNumLenSlots, off = sym / kNumLenSlots;
 
-			if (len == kMatchMinLen + kNumLenSlots - 1)
+			if (len == kNumLenSlots - 1)
 			{
 				uint_fast16_t l = lenDecoder.DecodeSymbol(bits);
 				if (l >= kNumLenSymbols) { return false; }
-				len = l + kMatchMinLen + kNumLenSlots - 1;
+				len = l + kNumLenSlots - 1;
 			}
+			len += kMatchMinLen;
 
 			if (off < kNumRepDistances)
 			{
@@ -140,7 +123,7 @@ static bool lzx_decompress_chunk(InputBitstream *bits, bytes out, size_t out_len
 					n = kNumLinearPosSlotBits;
 					off = (off - 0x22) << kNumLinearPosSlotBits;
 				}
-				if (isAlignBlock && n >= kNumAlignBits)
+				if (settings->UseAlignOffsetBlocks && n >= kNumAlignBits)
 				{
 					off += bits->ReadBits(n - kNumAlignBits) << kNumAlignBits;
 					uint32_t a = alignDecoder.DecodeSymbol(bits);
@@ -171,7 +154,22 @@ static bool lzx_decompress_chunk(InputBitstream *bits, bytes out, size_t out_len
 	return true;
 }
 
-static void lzx_decompress_translate_block(const const_bytes start, bytes buf, const const_bytes end, const int32_t translation_size)
+static bool lzx_copy_uncompressed(InputBitstream *bits, bytes out, size_t out_len, uint32_t repDistances[kNumRepDistances])
+{
+	const_bytes in = bits->Get16BitAlignedByteStream(kNumRepDistances * sizeof(uint32_t) + out_len);
+	if (!in) { PRINT_ERROR("LZX Decompression Error: Invalid Data: Uncompressed block size doesn't have enough bytes\n"); errno = E_INVALID_DATA; return false; }
+
+	for (uint32_t i = 0; i < kNumRepDistances; i++)
+	{
+		repDistances[i] = GET_UINT32(in) - 1;
+		in += sizeof(uint32_t);
+	}
+	memcpy(out, in, out_len); // TODO: multi-byte copy
+
+	return true;
+}
+
+inline static void lzx_decompress_translate_block(const const_bytes start, bytes buf, const const_bytes end, const int32_t translation_size)
 {
 	while ((buf = (bytes)memchr(buf, 0xE8, end - buf)) != NULL)
 	{
@@ -200,7 +198,7 @@ static void lzx_decompress_translate(bytes buf, size_t len, const int32_t transl
 		lzx_decompress_translate_block(start, buf, buf + len - 6, translation_size);
 }
 
-size_t lzx_decompress_core(const_bytes in, size_t in_len, bytes out, size_t out_len, bool wimMode, uint32_t numPosLenSlots)
+size_t lzx_decompress_core(const_bytes in, size_t in_len, bytes out, size_t out_len, LZXSettings *settings)
 {
 	if (in_len < 2)
 	{
@@ -212,63 +210,71 @@ size_t lzx_decompress_core(const_bytes in, size_t in_len, bytes out, size_t out_
 
 	InputBitstream bits(in, in_len);
 
-	uint32_t translation_size;
-	if (wimMode) { translation_size = 12000000; }
-	else if (!bits.ReadBit()) { translation_size = 0; }
-	else
+	settings->TranslationMode = settings->WIMMode || bits.ReadBit();
+	if (!settings->WIMMode)
 	{
-		if (bits.RemainingBytes() < sizeof(uint32_t)) { PRINT_ERROR("LZX Decompression Error: Invalid Data: Unable to read translation size\n"); errno = E_INVALID_DATA; return 0; }
-		translation_size = bits.ReadUInt32();
+		if (!settings->TranslationMode) { settings->TranslationSize = 0; }
+		else
+		{
+			if (bits.RemainingBytes() < sizeof(uint32_t)) { PRINT_ERROR("LZX Decompression Error: Invalid Data: Unable to read translation size\n"); errno = E_INVALID_DATA; return 0; }
+			settings->TranslationSize = bits.ReadUInt32();
+		}
 	}
-	
-	byte lastMainLevels[kMainTableSize];
-	byte lastLenLevels[kNumLenSymbols];
+
+	byte mainLevels[kMainTableSize];
+	byte lenLevels[kNumLenSymbols];
 	uint32_t repDistances[kNumRepDistances] = { 0, 0, 0 };
-	memset(lastMainLevels, 0, sizeof(lastMainLevels));
-	memset(lastLenLevels,  0, sizeof(lastLenLevels ));
+	memset(mainLevels, 0, sizeof(mainLevels));
+	memset(lenLevels,  0, sizeof(lenLevels ));
 
 	while (bits.RemainingRawBytes())
 	{
 		uint32_t blockType = bits.ReadBits(kNumBlockTypeBits);
 		if (blockType == 0 || blockType > kBlockTypeUncompressed) { PRINT_ERROR("LZX Decompression Error: Invalid Data: Illegal block type\n"); errno = E_INVALID_DATA; return 0; }
 		uint32_t size;
-		if (wimMode) { size = bits.ReadBit() ? 0x8000 : bits.ReadBits(16); }
-		else         { size = bits.ReadManyBits(kUncompressedBlockSizeNumBits); }
+		if (settings->WIMMode) { size = bits.ReadBit() ? 0x8000 : bits.ReadBits(16); }
+		else                   { size = bits.ReadManyBits(kUncompressedBlockSizeNumBits); }
 		if (out_len < size) { PRINT_ERROR("LZX Decompression Error: Insufficient buffer\n"); errno = E_INSUFFICIENT_BUFFER; return 0; }
-		if (size == 0 || 
-			blockType == kBlockTypeUncompressed && !lzx_copy_uncompressed(&bits, out, size, repDistances) ||
-			!lzx_decompress_chunk(&bits, out, size, repDistances, lastMainLevels, lastLenLevels, numPosLenSlots, blockType == kBlockTypeAligned)) { errno = E_INVALID_DATA; return 0; }
+		if (size == 0) { errno = E_INVALID_DATA; return 0; }
+		if (blockType == kBlockTypeUncompressed)
+		{
+			if (!lzx_copy_uncompressed(&bits, out, size, repDistances)) { errno = E_INVALID_DATA; return 0; }
+		}
+		else
+		{
+			settings->UseAlignOffsetBlocks = blockType == kBlockTypeAligned;
+			if (!lzx_decompress_chunk(&bits, out, size, repDistances, mainLevels, lenLevels, settings)) { errno = E_INVALID_DATA; return 0; }
+		}
 		out += size;
 		out_len -= size;
 	}
 
-	if (translation_size)
-		lzx_decompress_translate(out_orig, out - out_orig, translation_size);
+	if (settings->TranslationMode)
+		lzx_decompress_translate(out_orig, out - out_orig, settings->TranslationSize);
 	return out - out_orig;
 }
 
 
 /////////////////// Decompression Dry-run Functions ////////////////////////////
-static bool lzx_decompress_chunk_dry_run(InputBitstream *bits, size_t out_len, uint32_t repDistances[kNumRepDistances], byte lastMainLevels[kMainTableSize], byte lastLenLevels[kNumLenSymbols], uint32_t numPosLenSlots, bool isAlignBlock)
+static bool lzx_decompress_chunk_dry_run(InputBitstream *bits, size_t out_len, uint32_t repDistances[kNumRepDistances], byte mainLevels[kMainTableSize], byte lenLevels[kNumLenSymbols], uint32_t numPosLenSlots, bool isAlignBlock)
 {
 	MainDecoder mainDecoder;
 	LenDecoder lenDecoder;
 	AlignDecoder alignDecoder;
 
-	byte newLevels[kMaxTableSize];
 	if (isAlignBlock)
 	{
+		byte alignLevels[kMaxTableSize];
 		for (uint32_t i = 0; i < kAlignTableSize; i++)
-			newLevels[i] = (byte)bits->ReadBits(kNumBitsForAlignLevel);
-		if (!alignDecoder.SetCodeLengths(newLevels))
-			return false;
+			alignLevels[i] = (byte)bits->ReadBits(kNumBitsForAlignLevel);
+		if (!alignDecoder.SetCodeLengths(alignLevels)) { return false; }
 	}
-	if (!lzx_read_table(bits, lastMainLevels, newLevels, 256) ||
-		!lzx_read_table(bits, lastMainLevels + 256, newLevels + 256, numPosLenSlots)) { return false; }
-	memset(newLevels + 256 + numPosLenSlots, 0, kMainTableSize - (256 + numPosLenSlots));
-	if (!mainDecoder.SetCodeLengths(newLevels) ||
-		!lzx_read_table(bits, lastLenLevels, newLevels, kNumLenSymbols) ||
-		!lenDecoder.SetCodeLengths(newLevels)) { return false; }
+	if (!lzx_read_table(bits, mainLevels, 256) ||
+		!lzx_read_table(bits, mainLevels + 256, numPosLenSlots)) { return false; }
+	memset(mainLevels + 256 + numPosLenSlots, 0, kMainTableSize - (256 + numPosLenSlots));
+	if (!mainDecoder.SetCodeLengths(mainLevels) ||
+		!lzx_read_table(bits, lenLevels, kNumLenSymbols) ||
+		!lenDecoder.SetCodeLengths(lenLevels)) { return false; }
 
 	while (out_len)
 	{
@@ -319,7 +325,7 @@ static bool lzx_decompress_chunk_dry_run(InputBitstream *bits, size_t out_len, u
 	}
 	return true;
 }
-size_t lzx_decompress_dry_run_core(const_bytes in, size_t in_len, uint32_t numPosLenSlots)
+size_t lzx_decompress_dry_run_core(const_bytes in, size_t in_len, LZXSettings *settings)
 {
 	if (in_len < 2)
 	{
@@ -330,24 +336,24 @@ size_t lzx_decompress_dry_run_core(const_bytes in, size_t in_len, uint32_t numPo
 	InputBitstream bits(in, in_len);
 	size_t out_pos = 0;
 
-	if (bits.ReadBit())
+	if (!settings->WIMMode && bits.ReadBit())
 	{
 		if (bits.RemainingBytes() < sizeof(uint32_t)) { errno = E_INVALID_DATA; return 0; }
 		bits.ReadUInt32();
 	}
 	
-	byte lastMainLevels[kMainTableSize];
-	byte lastLenLevels[kNumLenSymbols];
+	byte mainLevels[kMainTableSize];
+	byte lenLevels[kNumLenSymbols];
 	uint32_t repDistances[kNumRepDistances] = { 0, 0, 0 };
-	memset(lastMainLevels, 0, sizeof(lastMainLevels));
-	memset(lastLenLevels,  0, sizeof(lastLenLevels ));
+	memset(mainLevels, 0, sizeof(mainLevels));
+	memset(lenLevels,  0, sizeof(lenLevels ));
 
 	while (bits.RemainingRawBytes())
 	{
 		uint32_t blockType = bits.ReadBits(kNumBlockTypeBits);
 		if (blockType == 0 || blockType > kBlockTypeUncompressed) { errno = E_INVALID_DATA; return 0; }
 		uint32_t size = bits.ReadManyBits(kUncompressedBlockSizeNumBits);
-		if (size == 0 || blockType != kBlockTypeUncompressed && !lzx_decompress_chunk_dry_run(&bits, size, repDistances, lastMainLevels, lastLenLevels, numPosLenSlots, blockType == kBlockTypeAligned)) { errno = E_INVALID_DATA; return 0; }
+		if (size == 0 || blockType != kBlockTypeUncompressed && !lzx_decompress_chunk_dry_run(&bits, size, repDistances, mainLevels, lenLevels, settings->NumPosLenSlots, blockType == kBlockTypeAligned)) { errno = E_INVALID_DATA; return 0; }
 		out_pos += size;
 	}
 

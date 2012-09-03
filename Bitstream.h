@@ -32,12 +32,13 @@ class Bitstream
 {
 protected:
 	size_t index;	    // The current position of the stream
-	const size_t len;	// The length of the stream
+	/*const*/ size_t len;	// The length of the stream
 	uint32_t mask;		// The next bits to be read/written in the bitstream
 	byte bits;			// The number of bits in mask that are valid
 	inline Bitstream(size_t len, uint32_t mask, byte bits) : len(len), index(4), mask(mask), bits(bits) { assert(4 < len); }
 public:
 	inline size_t RawPosition() { return this->index; }
+	inline byte RemainingBits() { return this->bits; }
 };
 
 // Reading functions:
@@ -71,13 +72,11 @@ public:
 		else if (this->bits >= 16) { start -= 2; }
 		if (start + nBytes > this->len) { return NULL; }
 		this->bits = 0;
-		this->index = start + nBytes;
-		if (nBytes & 1) { ++this->index; } // make sure the end is also 16-bit aligned
+		this->index = start + nBytes + nBytes & 1; // make sure the end is also 16-bit aligned
 		this->Skip(0);
 		return this->in + start;
 	}
 
-	inline byte RemainingBits() { return this->bits; }
 	inline size_t RemainingBytes() { return this->len - this->index + this->bits / 8; } // rounds down, but bits is typically between 16 and 32, adding 2 to 4 bytes
 	inline size_t RemainingRawBytes() { return this->len - this->index; }
 
@@ -102,10 +101,7 @@ public:
 		this->pntr[0] = (uint16_t*)out;
 		this->pntr[1] = (uint16_t*)(out+2);
 	}
-	inline bool WriteBit(byte b)
-	{
-		this->WriteBits(b, 1);
-	}
+	inline bool WriteBit(byte b) { return this->WriteBits(b, 1); }
 	inline bool WriteBits(uint32_t b, byte n)
 	{
 		assert(n <= 16);
@@ -132,13 +128,33 @@ public:
 	}
 	inline bool WriteManyBits(uint32_t x, byte n) { assert(n > 16); return this->WriteBits(x & 0xFFFF, 16) | this->WriteBits(x >> 16, n - 16); }
 	inline bool WriteUInt32(uint32_t x)    { return this->WriteBits(x & 0xFFFF, 16) && this->WriteBits(x >> 16, 16); }
+
+	inline bytes Get16BitAlignedByteStream(size_t nBytes)
+	{
+		// Flush, aligning to 16 bit boundary [ add 1 - 16 bits ]
+		this->WriteBit(1);
+		this->WriteBits(0, 16 - this->bits);
+		// now (this->bits == 16)
+		SET_UINT16(this->pntr[0], this->mask >> 16);
+		if (this->index + nBytes - 2 > this->len) { return NULL; }
+		this->bits = 0;
+		bytes out = this->out + this->index - 2;
+		this->index += 2 + nBytes + nBytes & 1;
+		// TODO: some additional checks for going over the end should be done here
+		this->pntr[0] = (uint16_t*)(this->out + this->index - 4);
+		this->pntr[1] = (uint16_t*)(this->out + this->index - 2);
+		return out;
+	}
+
 	inline bool WriteRawByte(byte x)       { if (this->index + 1 > this->len) { return false; } this->out[this->index++] = x; return true; }
 	inline bool WriteRawUInt16(uint16_t x) { if (this->index + 2 > this->len) { return false; } SET_UINT16(this->out + this->index, x); this->index += 2; return true; }
 	inline bool WriteRawUInt32(uint32_t x) { if (this->index + 4 > this->len) { return false; } SET_UINT32(this->out + this->index, x); this->index += 4; return true; }
-	inline void Finish()
+	inline bool Flush() { return !this->bits || this->WriteBits(0, 16 - this->bits); } // aligns to a 16 bit boundary
+	inline size_t Finish()
 	{
 		SET_UINT16(this->pntr[0], this->mask >> 16); // if !bits then mask is 0 anyways
 		if (this->pntr[1]) *this->pntr[1] = 0;
+		return this->index;
 	}
 };
 

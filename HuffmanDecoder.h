@@ -38,7 +38,7 @@ private:
 	byte     lengths  [1 << kNumTableBits]; // Table oh length for short codes.
 
 public:
-	inline bool SetCodeLengths(const bytes codeLengths)
+	inline bool SetCodeLengths(const const_bytes codeLengths)
 	{
 		memset(symbols, INVALID_SYMBOL, sizeof(symbols));
 
@@ -94,9 +94,7 @@ public:
 			for (numBits = kNumTableBits + 1; value >= this->limits[numBits]; numBits++);
 		bits->Skip(numBits);
 		uint32_t index = this->positions[numBits] + ((value - this->limits[numBits - 1]) >> (kNumBitsMax - numBits));
-		if (index >= NumSymbols)
-			return INVALID_SYMBOL;
-		return this->symbols[index];
+		return (index >= NumSymbols) ? INVALID_SYMBOL : this->symbols[index];
 	}
 };
 

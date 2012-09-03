@@ -297,6 +297,7 @@
     <ClInclude Include="LZXCompressionCore.h" />
     <ClInclude Include="LZXConstants.h" />
     <ClInclude Include="LZXDecompressionCore.h" />
+    <ClInclude Include="LZXDictionary.h" />
     <ClInclude Include="XpressDictionary.h" />
     <ClInclude Include="xpress.h" />
     <ClInclude Include="xpress_huff.h" />
