@@ -42,19 +42,20 @@ inline static void lzx_compress_translate_block(const const_bytes start, bytes b
 	}
 }
 
-//static void lzx_compress_translate(bytes buf, size_t len) // const int32_t translation_size
-//{
-//	const const_bytes start = buf;
-//	if (len > 0x40000000) { len = 0x40000000; }
-//	while (len > (1 << 15))
-//	{
-//		lzx_compress_translate_block(start, buf, buf + 0x8000 - 6); // translation_size
-//		len -= 1 << 15;
-//		buf += 1 << 15;
-//	}
-//	if (len >= 6)
-//		lzx_compress_translate_block(start, buf, buf + len - 6); // translation_size
-//}
+static void lzx_compress_translate(const const_bytes start, bytes buf, size_t len, const int32_t translation_size)
+{
+	//const const_bytes start = buf;
+	//if (len > 0x40000000) { len = 0x40000000; }
+	if (buf - start + len > 0x40000000) { len = 0x40000000 + start - buf; }
+	while (len > (1 << 15))
+	{
+		lzx_compress_translate_block(start, buf, buf + 0x8000 - 6, translation_size);
+		len -= 1 << 15;
+		buf += 1 << 15;
+	}
+	if (len >= 6)
+		lzx_compress_translate_block(start, buf, buf + len - 6, translation_size);
+}
 
 static const byte Log2Table[256] = 
 {
@@ -94,12 +95,13 @@ static size_t lzx_compress_lz77(const_bytes in, size_t in_len, bytes out, uint32
 		{
 			uint32_t len, off;
 			mask >>= 1;
+			d->Add(in, 1);
 			// TODO: actually get Find to work
 			if (in_len >= 2 && (len = d->Find(in, &off)) >= 2)
 			{
 				if (len > in_len) { len = (uint32_t)in_len; }
 
-				d->Add(in, len);
+				d->Add(in + 1, len - 1);
 
 				in += len;
 				in_len -= len;
@@ -130,12 +132,11 @@ static size_t lzx_compress_lz77(const_bytes in, size_t in_len, bytes out, uint32
 					byte log2 = highbit(off);
 					off = 2*log2 + ((off & (1 << (log2 - 1))) != 0); // TODO: maybe find faster equation // doesn't work for 0 and 1
 				}
-				++symbol_counts[(off << 3) | len | 0x100];
+				++symbol_counts[((off << 3) | len) + 0x100];
 			}
 			else
 			{
 				// Write the literal value (which is the symbol)
-				d->Add(in, 1);
 				++symbol_counts[*out++ = *in++];
 				--in_len;
 			}
@@ -273,7 +274,7 @@ static bool lzx_compress_encode(const_bytes in, size_t in_len, OutputBitstream *
 					off = 0;
 				}
 				// len is already -= 2
-				sym = (uint_fast16_t)((O << 3) | MIN(7, len) | 0x100);
+				sym = (uint_fast16_t)(((O << 3) | MIN(7, len)) + 0x100);
 				if (!mainEncoder->EncodeSymbol(sym, bits))					{ break; }
 				if (len > 7 && !lenEncoder->EncodeSymbol(len - 7, bits))	{ break; }
 				if (!bits->WriteBits(off, n))								{ break; }
@@ -294,7 +295,7 @@ static bool lzx_compress_encode(const_bytes in, size_t in_len, OutputBitstream *
 	}
 
 	// Write end of stream symbol and return insufficient buffer or the compressed size
-	if (in_len > 0) { PRINT_ERROR("LZX Compression Error: Insufficient buffer\n"); errno = E_INSUFFICIENT_BUFFER; return 0; }
+	if (in_len > 0) { PRINT_ERROR("LZX Compression Error: Insufficient buffer\n"); errno = E_INSUFFICIENT_BUFFER; return false; }
 	return bits->Flush(); // make sure that the write stream is finished writing
 }
 
@@ -328,7 +329,7 @@ size_t lzx_compress_core(const_bytes in, size_t in_len, bytes out, size_t out_le
 		uint32_t len = (uint32_t)MIN(in_len - in_pos, settings->WindowSize);
 		memcpy(in_buf, in + in_pos, len);
 		if (settings->TranslationMode)
-			lzx_compress_translate_block(in_buf - in_pos, in_buf, in_buf + len, settings->TranslationSize);
+			lzx_compress_translate(in_buf - in_pos, in_buf, len, settings->TranslationSize);
 		size_t buf_len = lzx_compress_lz77(in_buf, len, out_buf, repDistances, symbol_counts, length_counts, &d);
 		
 		//// Write header

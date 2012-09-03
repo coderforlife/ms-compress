@@ -130,7 +130,6 @@ public:
 			}
 		}
 		return len;
-
 	}
 };
 
