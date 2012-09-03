@@ -96,7 +96,6 @@ static size_t lzx_compress_lz77(const_bytes in, size_t in_len, bytes out, uint32
 			uint32_t len, off;
 			mask >>= 1;
 			d->Add(in, 1);
-			// TODO: actually get Find to work
 			if (in_len >= 2 && (len = d->Find(in, &off)) >= 2)
 			{
 				if (len > in_len) { len = (uint32_t)in_len; }
@@ -107,15 +106,10 @@ static size_t lzx_compress_lz77(const_bytes in, size_t in_len, bytes out, uint32
 				in_len -= len;
 				mask |= 0x80000000; // set the highest bit
 
-				// TODO: repeated offset
-				//if (off is a repeated offset)
-				//{
-				//	off = 0, 1, or 2
-				//}
-				//else
-				{
-					off += 2;
-				}
+				     if (repDistances[0] == off) { off = 0; } // X = R0, No Swap
+				else if (repDistances[1] == off) { repDistances[1] = repDistances[0]; repDistances[0] = off; off = 1; } // X = R1, Swap R0 <=> R1
+				else if (repDistances[2] == off) { repDistances[2] = repDistances[0]; repDistances[0] = off; off = 2; } // X = R2, Swap R0 <=> R2
+				else { repDistances[2] = repDistances[1]; repDistances[1] = repDistances[0]; repDistances[0] = off; off += 2; } // R2 <- R1, R1 <- R0, R0 <- X
 
 				// Write length and offset
 				*(uint32_t*)out = (off << 8) | (len -= 2);
@@ -155,7 +149,7 @@ static size_t lzx_compress_lz77(const_bytes in, size_t in_len, bytes out, uint32
 
 static bool lzx_write_table(OutputBitstream *bits, const_bytes lastLevels, const_bytes levels, uint32_t numSymbols)
 {
-	// Calculate pre-tree counts and the run length encoded tree
+	// Calculate run length encoded tree while getting pre-tree counts
 	LevelEncoder levelEncoder;
 	uint32_t pre_tree_counts[kLevelTableSize];
 	memset(pre_tree_counts, 0, sizeof(pre_tree_counts));

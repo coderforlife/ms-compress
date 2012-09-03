@@ -56,7 +56,7 @@ private:
 #endif
 
 	const uint32_t windowSize;
-	const_bytes start, end, end3;
+	const_bytes start, end, end2;
 #ifdef LARGE_STACK
 	const_bytes table[MaxHash];
 #else
@@ -85,7 +85,7 @@ private:
 	}
 
 public:
-	inline LZXDictionary(const const_bytes start, const uint32_t windowSize) : start(start), end(start + windowSize), end3(end - 3), windowSize(windowSize)
+	inline LZXDictionary(const const_bytes start, const uint32_t windowSize) : start(start), end(start + windowSize), end2(end - 2), windowSize(windowSize)
 	{
 #ifndef LARGE_STACK
 		this->table  = (const_bytes*)malloc(MaxHash     *sizeof(const_bytes));
@@ -101,11 +101,22 @@ public:
 #endif
 		free(this->window);
 	}
+	
+	inline void Add(const_bytes data)
+	{
+		uint32_t pos = WindowPos(data);
+		if (data < this->end2)
+		{
+			const uint32_t hash = lcg::Hash(data);
+			this->window[pos] = this->table[hash];
+			this->table[hash] = data;
+		}
+	}
 
 	inline void Add(const_bytes data, size_t len)
 	{
 		uint32_t pos = WindowPos(data);
-		const const_bytes end = ((data + len) < this->end3) ? data + len : this->end3;
+		const const_bytes end = ((data + len) < this->end2) ? data + len : this->end2;
 		while (data < end)
 		{
 			const uint32_t hash = lcg::Hash(data);
