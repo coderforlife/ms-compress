@@ -4,16 +4,16 @@ Open source implementations of Microsoft compression algorithms. The progress is
 
 LZX
 ---
-LZX compression used in CAB and WIM files with some minor differences between them.
+LZX compression used in WIM and CAB files with some minor differences between them.
 
 Microsoft document about the CAB LZX format: http://msdn.microsoft.com/en-us/library/bb417343.aspx#lzxdatacompressionformat
 
 Untested for accuracy. Untested against native Windows functions.
 
-* Compression very "rough" but works in at least one example
- * Does not support creation of align offset blocks
+* Compression very "rough" but works for one example
+ * Does not support creation of aligned offset blocks but all other features implemented
 * Decompression based on 7-zip code
- * Should work for WIM and CAB compressed data (WIM data limited to 32kb uncompressed)
+ * Should work for WIM and CAB compressed data
 
 LZNT1
 -----
@@ -61,9 +61,10 @@ Todo
  * Input data larger than a single window (CAB only)
  * Output not large enough
 * LZX Compression: Add error messages and set errno
-* LZX Compression: Add align offset blocks
+* LZX Compression: Add aligned offset blocks
 * LZX Decompression: Check (so far checked one example) and test speed
 * LZX Decompression: Add error messages and set errno
 * Xpress Huffman Compression: Allow matches to cross chunk boundaries
 * Xpress Huffman Compression: Improve speed
 * Xpress Compression: Improve speed
+* Check all for edge cases (invalid compressed data, output buffer not large enough)
