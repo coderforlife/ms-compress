@@ -95,7 +95,7 @@ static size_t lzx_compress_lz77(const_bytes in, size_t in_len, bytes out, uint32
 		{
 			uint32_t len, off;
 			mask >>= 1;
-			d->Add(in, 1);
+			d->Add(in);
 			if (in_len >= 2 && (len = d->Find(in, &off)) >= 2)
 			{
 				if (len > in_len) { len = (uint32_t)in_len; }

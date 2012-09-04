@@ -103,7 +103,7 @@ public:
 		const const_bytes end = ((data + ChunkSize) < this->end3) ? data + ChunkSize : this->end3;
 		while (data < end)
 		{
-			const uint32_t hash = lcg::Hash(data);
+			const uint_fast16_t hash = lcg::Hash(data);
 			this->window[pos++] = this->table[hash];
 			this->table[hash] = data++;
 		}

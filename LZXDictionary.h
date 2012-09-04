@@ -37,23 +37,12 @@
 #pragma warning(disable:4512) // warning C4512: assignment operator could not be generated
 #endif
 
-#include "LCG.h"
 #include "LZXConstants.h"
 
 class LZXDictionary
 {
 private:
-	static const uint16_t MaxHash = 0x8000;
-
-	// Define a LCG-generate hash table
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable:4309) // warning C4309: 'specialization' : truncation of constant value
-#endif
-	typedef LCG<0x2a190348ul, 0x41C64E6Du, 12345u, 1ull << 32, 16, MaxHash> lcg;
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif
+	static const unsigned int MaxHash = 0x8000;
 
 	const uint32_t windowSize;
 	const_bytes start, end, end2;
@@ -64,6 +53,7 @@ private:
 #endif
 	const_bytes* window;
 
+	inline static uint_fast16_t Hash(const const_bytes x) { return (x[0] | (x[1] << 8)) & (MaxHash - 1); }
 	inline uint32_t WindowPos(const_bytes x) const { return (uint32_t)((x - this->start) & (windowSize - 1)); } // { return (uint32_t)((x - this->start) % (2 * settings->WindowSize)); }
 	inline static uint32_t GetMatchLength(const_bytes a, const_bytes b, const const_bytes end, const const_bytes end4)
 	{
@@ -104,11 +94,10 @@ public:
 	
 	inline void Add(const_bytes data)
 	{
-		uint32_t pos = WindowPos(data);
 		if (data < this->end2)
 		{
-			const uint32_t hash = lcg::Hash(data);
-			this->window[pos] = this->table[hash];
+			const uint32_t hash = Hash(data);
+			this->window[WindowPos(data)] = this->table[hash];
 			this->table[hash] = data;
 		}
 	}
@@ -119,7 +108,7 @@ public:
 		const const_bytes end = ((data + len) < this->end2) ? data + len : this->end2;
 		while (data < end)
 		{
-			const uint32_t hash = lcg::Hash(data);
+			const uint32_t hash = Hash(data);
 			this->window[pos++] = this->table[hash];
 			this->table[hash] = data++;
 		}
