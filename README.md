@@ -2,16 +2,18 @@ ms-compress
 ===========
 Open source implementations of Microsoft compression algorithms. The progress is listed below. "RTL" refers to the native RtlCompressBuffer and RtlUncompressBuffer functions.
 
-LZX (WIM)
----------
-Very similar to LZX decompression for CAB files with some minor differences (all in the headers).
+LZX
+---
+LZX compression used in CAB and WIM files with some minor differences between them.
 
 Microsoft document about the CAB LZX format: http://msdn.microsoft.com/en-us/library/bb417343.aspx#lzxdatacompressionformat
 
 Untested for accuracy. Untested against native Windows functions.
 
-* Compression only writes uncompressed blocks. Only support data of uncompressed size up to 32kb (WIM-style limit).
-* Decompression based on 7-zip code.
+* Compression very "rough" but works in at least one example
+ * Does not support creation of align offset blocks
+* Decompression based on 7-zip code
+ * Should work for WIM and CAB compressed data (WIM data limited to 32kb uncompressed)
 
 LZNT1
 -----
@@ -54,7 +56,12 @@ The psuedo-code is found in that document, mostly referencing the LZ version of 
 
 Todo
 ====
-* LZX Compression: Create
+* LZX Compression: Check (so far checked one example) and test speed, things that are already an issue:
+ * Window size != 0x8000 (CAB only)
+ * Input data larger than a single window (CAB only)
+ * Output not large enough
+* LZX Compression: Add error messages and set errno
+* LZX Compression: Add align offset blocks
 * LZX Decompression: Check (so far checked one example) and test speed
 * LZX Decompression: Add error messages and set errno
 * Xpress Huffman Compression: Allow matches to cross chunk boundaries
