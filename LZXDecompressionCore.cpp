@@ -21,6 +21,11 @@
 #include "Bitstream.h"
 #include "HuffmanDecoder.h"
 
+#ifdef VERBOSE_DECOMPRESSION
+#include <stdio.h>
+#include <ctype.h>
+#endif
+
 #define MIN(a, b) (((a) < (b)) ? (a) : (b)) // Get the minimum of 2
 
 typedef HuffmanDecoder<kNumHuffmanBits, kMainTableSize> MainDecoder;
@@ -83,11 +88,32 @@ static bool lzx_decompress_chunk(InputBitstream *bits, bytes out, size_t out_len
 		!lenDecoder.SetCodeLengths(lenLevels)) { return false; }
 
 	bytes end = out + out_len;
+#ifdef VERBOSE_DECOMPRESSION
+	bool last_literal = false;
+#endif
 	while (out < end)
 	{
 		uint32_t sym = mainDecoder.DecodeSymbol(bits);
 		if (sym < 0x100)
 		{
+#ifdef VERBOSE_DECOMPRESSION
+			if (!last_literal)
+			{
+				printf("\nLiterals: ");
+				last_literal = true;
+			}
+			if (isprint(sym)) { printf("%c", (char)sym); }
+			else if (sym == '\0') { printf("\\0"); }
+			else if (sym == '\a') { printf("\\a"); }
+			else if (sym == '\b') { printf("\\b"); }
+			else if (sym == '\t') { printf("\\t"); }
+			else if (sym == '\n') { printf("\\n"); }
+			else if (sym == '\v') { printf("\\v"); }
+			else if (sym == '\f') { printf("\\f"); }
+			else if (sym == '\r') { printf("\\r"); }
+			else if (sym == '\\') { printf("\\\\"); }
+			else { printf("\\x%02X", sym); }
+#endif
 			*out++ = (byte)sym;
 		}
 		else
@@ -147,10 +173,18 @@ static bool lzx_decompress_chunk(InputBitstream *bits, bytes out, size_t out_len
 			//else
 			//	memset(out, out[-1], len);
 			//out += len;
-				
+			
+#ifdef VERBOSE_DECOMPRESSION
+			printf("\nMatch: %d @ %d", len, off);
+			last_literal = false;
+#endif
+
 			for (const_bytes end = out + len; out < end; ++out) { *out = *(out-off); }
 		}
 	}
+#ifdef VERBOSE_DECOMPRESSION
+	printf("\n");
+#endif
 	return true;
 }
 

@@ -22,6 +22,11 @@
 #include "HuffmanDecoder.h"
 #include "HuffmanEncoder.h"
 
+#ifdef VERBOSE_DECOMPRESSION
+#include <stdio.h>
+#include <ctype.h>
+#endif
+
 #ifdef __cplusplus_cli
 #pragma unmanaged
 #endif
@@ -310,6 +315,9 @@ size_t xpress_huff_compress(const_bytes in, size_t in_len, bytes out, size_t out
 ////////////////////////////// Decompression Functions /////////////////////////////////////////////
 static bool xpress_huff_decompress_chunk(const_bytes in, size_t in_len, size_t* in_pos, bytes out, size_t out_len, size_t* out_pos, const const_bytes out_origin, bool* end_of_stream, Decoder *decoder)
 {
+#ifdef VERBOSE_DECOMPRESSION
+	bool last_literal = false;
+#endif
 	size_t i = 0;
 	InputBitstream bstr(in, in_len);
 	do
@@ -320,6 +328,24 @@ static bool xpress_huff_decompress_chunk(const_bytes in, size_t in_len, size_t* 
 		else if (sym < 0x100)
 		{
 			if (i == out_len)												{ PRINT_ERROR("Xpress Huffman Decompression Error: Insufficient buffer\n"); errno = E_INSUFFICIENT_BUFFER; return false; }
+#ifdef VERBOSE_DECOMPRESSION
+			if (!last_literal)
+			{
+				printf("\nLiterals: ");
+				last_literal = true;
+			}
+			if (isprint(sym)) { printf("%c", (char)sym); }
+			else if (sym == '\0') { printf("\\0"); }
+			else if (sym == '\a') { printf("\\a"); }
+			else if (sym == '\b') { printf("\\b"); }
+			else if (sym == '\t') { printf("\\t"); }
+			else if (sym == '\n') { printf("\\n"); }
+			else if (sym == '\v') { printf("\\v"); }
+			else if (sym == '\f') { printf("\\f"); }
+			else if (sym == '\r') { printf("\\r"); }
+			else if (sym == '\\') { printf("\\\\"); }
+			else { printf("\\x%02X", sym); }
+#endif
 			out[i++] = (byte)sym;
 		}
 		else
@@ -352,6 +378,11 @@ static bool xpress_huff_decompress_chunk(const_bytes in, size_t in_len, size_t* 
 
 			if (i + len > out_len)											{ PRINT_ERROR("Xpress Huffman Decompression Error: Insufficient buffer\n"); errno = E_INSUFFICIENT_BUFFER; return false; }
 
+#ifdef VERBOSE_DECOMPRESSION
+			printf("\nMatch: %d @ %d", len, off);
+			last_literal = false;
+#endif
+
 			if (off == 1)
 			{
 				memset(out+i, out[i-1], len);
@@ -366,6 +397,10 @@ static bool xpress_huff_decompress_chunk(const_bytes in, size_t in_len, size_t* 
 	} while (i < CHUNK_SIZE || !bstr.MaskIsZero()); /* end of chunk, not stream */
 	*in_pos = bstr.RawPosition();
 	*out_pos = i;
+
+#ifdef VERBOSE_DECOMPRESSION
+	printf("\n");
+#endif
 	return true;
 }
 size_t xpress_huff_decompress(const_bytes in, size_t in_len, bytes out, size_t out_len)
