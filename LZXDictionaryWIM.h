@@ -16,12 +16,12 @@
 
 
 /////////////////// Dictionary /////////////////////////////////////////////////
-// The dictionary system used for LZX compression.
+// The dictionary system used for LZX compression (WIM style).
 //
 // TODO: ? Most of the compression time is spent in the dictionary - particularly Find and Add.
 
-#ifndef LZX_DICTIONARY_H
-#define LZX_DICTIONARY_H
+#ifndef LZX_DICTIONARY_WIM_H
+#define LZX_DICTIONARY_WIM_H
 #include "compression-api.h"
 
 #ifdef __cplusplus_cli
@@ -32,29 +32,24 @@
 #pragma optimize("t", on)
 #endif
 
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable:4512) // warning C4512: assignment operator could not be generated
-#endif
-
 #include "LZXConstants.h"
 
-class LZXDictionary
+class LZXDictionaryWIM
 {
 private:
 	static const unsigned int MaxHash = 0x8000;
 
-	const uint32_t windowSize;
 	const_bytes start, end, end2;
 #ifdef LARGE_STACK
 	const_bytes table[MaxHash];
+	const_bytes window[0x8000*2];
 #else
 	const_bytes* table;
-#endif
 	const_bytes* window;
+#endif
 
 	inline static uint_fast16_t Hash(const const_bytes x) { return (x[0] | (x[1] << 8)) & (MaxHash - 1); }
-	inline uint32_t WindowPos(const_bytes x) const { return (uint32_t)((x - this->start) & (windowSize - 1)); } // { return (uint32_t)((x - this->start) % (2 * settings->WindowSize)); }
+	inline uint32_t WindowPos(const_bytes x) const { return (uint32_t)(x - this->start); }
 	inline static uint32_t GetMatchLength(const_bytes a, const_bytes b, const const_bytes end, const const_bytes end4)
 	{
 		// like memcmp but tells you the length of the match and optimized
@@ -75,22 +70,22 @@ private:
 	}
 
 public:
-	inline LZXDictionary(const const_bytes start, const uint32_t windowSize) : start(start), end(start + windowSize), end2(end - 2), windowSize(windowSize)
+	inline LZXDictionaryWIM(const const_bytes start) : start(start), end(start + 0x8000), end2(end - 2)
 	{
 #ifndef LARGE_STACK
-		this->table  = (const_bytes*)malloc(MaxHash     *sizeof(const_bytes));
+		this->table  = (const_bytes*)malloc(MaxHash *sizeof(const_bytes));
+		this->window = (const_bytes*)malloc(0x8000*2*sizeof(const_bytes));
 #endif
-		this->window = (const_bytes*)malloc(windowSize*2*sizeof(const_bytes));
-		memset(this->table,  0, MaxHash     *sizeof(const_bytes));
-		memset(this->window, 0, windowSize*2*sizeof(const_bytes));
+		memset(this->table,  0, MaxHash *sizeof(const_bytes));
+		memset(this->window, 0, 0x8000*2*sizeof(const_bytes));
 	}
-	inline ~LZXDictionary()
-	{
 #ifndef LARGE_STACK
+	inline ~LZXDictionaryWIM()
+	{
 		free(this->table);
-#endif
 		free(this->window);
 	}
+#endif
 	
 	inline void Add(const_bytes data)
 	{
@@ -117,7 +112,7 @@ public:
 	inline uint32_t Find(const const_bytes data, uint32_t* offset) const
 	{
 		const const_bytes end = ((data + 257) >= this->end) ? this->end : data + 257; // if overflow or past end use the end, otherwise go MaxLength away
-		const const_bytes xend = data - windowSize - 3, end4 = end - 4;
+		const const_bytes xend = data - 0x8000 - 3, end4 = end - 4;
 		const_bytes x;
 		uint32_t len = 1;
 		for (x = this->window[WindowPos(data)]; x >= xend; x = this->window[WindowPos(x)])

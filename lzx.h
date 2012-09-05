@@ -49,14 +49,11 @@ COMPAPI size_t lzx_wim_uncompressed_size(const_bytes in, size_t in_len); // inst
 
 // CAB style
 COMPAPI size_t lzx_cab_compress(const_bytes in, size_t in_len, bytes out, size_t out_len, unsigned int numDictBits);
+COMPAPI size_t lzx_cab_compress2(const_bytes in, size_t in_len, bytes out, size_t out_len, unsigned int numDictBits, uint32_t translation_size);
 #ifdef COMPRESSION_API_EXPORT
 COMPAPI size_t lzx_cab_max_compressed_size(size_t in_len, unsigned int numDictBits);
 #else
-#ifdef _WIN64
-#define lzx_cab_max_compressed_size(in_len, numDictBits) ((size_t)(in_len)) + 4 + 16 * ((((size_t)(in_len)) + (1ull << (numDictBits)) - 1) / (1ull << (numDictBits)))
-#else
-#define lzx_cab_max_compressed_size(in_len, numDictBits) ((size_t)(in_len)) + 4 + 16 * ((((size_t)(in_len)) + (1u << (numDictBits)) - 1) / (1u << (numDictBits)))
-#endif
+#define lzx_cab_max_compressed_size(in_len, numDictBits) ((size_t)(in_len) + 4 + ((size_t)(in_len) + ((1u << (numDictBits)) - 1) >> ((numDictBits) - 4)))
 #endif
 
 COMPAPI size_t lzx_cab_decompress(const_bytes in, size_t in_len, bytes out, size_t out_len, unsigned int numDictBits);

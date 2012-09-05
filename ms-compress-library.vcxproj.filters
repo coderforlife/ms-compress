@@ -63,7 +63,10 @@
     <ClInclude Include="LZXCompressionCore.h">
       <Filter>Internal</Filter>
     </ClInclude>
-    <ClInclude Include="LZXDictionary.h">
+    <ClInclude Include="LZXDictionaryWIM.h">
+      <Filter>Internal</Filter>
+    </ClInclude>
+    <ClInclude Include="LZXDictionaryCAB.h">
       <Filter>Internal</Filter>
     </ClInclude>
   </ItemGroup>
@@ -82,12 +85,6 @@
     </ClCompile>
     <ClCompile Include="lzx.cpp">
       <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="LZXDecompressionCore.cpp">
-      <Filter>Internal</Filter>
-    </ClCompile>
-    <ClCompile Include="LZXCompressionCore.cpp">
-      <Filter>Internal</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

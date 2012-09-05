@@ -60,7 +60,7 @@ public:
 			this->index += 2;
 		}
 	}
-	inline byte ReadBit() { byte x = 0xFF; if (this->bits) { x = (byte)(this->mask >> 31); this->Skip(1); } return x; }
+	inline bool ReadBit() { byte x = 0xFF; if (this->bits) { x = (byte)(this->mask >> 31); this->Skip(1); } return x != 0; }
 	inline uint32_t ReadBits(byte n) { assert(n <= 16); uint32_t x = this->Peek(n); if (x != 0xFFFFFFFF) { this->Skip(n); } return x; }
 	inline uint32_t ReadManyBits(byte n) { assert(n > 16); return this->ReadBits(16) | this->ReadBits(n - 16) << 16; }
 	inline uint32_t ReadUInt32() { return this->ReadBits(16) | this->ReadBits(16) << 16; }

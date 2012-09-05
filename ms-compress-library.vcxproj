@@ -297,7 +297,8 @@
     <ClInclude Include="LZXCompressionCore.h" />
     <ClInclude Include="LZXConstants.h" />
     <ClInclude Include="LZXDecompressionCore.h" />
-    <ClInclude Include="LZXDictionary.h" />
+    <ClInclude Include="LZXDictionaryCAB.h" />
+    <ClInclude Include="LZXDictionaryWIM.h" />
     <ClInclude Include="XpressDictionary.h" />
     <ClInclude Include="xpress.h" />
     <ClInclude Include="xpress_huff.h" />
@@ -306,8 +307,6 @@
     <ClCompile Include="compression.cpp" />
     <ClCompile Include="lznt1.cpp" />
     <ClCompile Include="lzx.cpp" />
-    <ClCompile Include="LZXCompressionCore.cpp" />
-    <ClCompile Include="LZXDecompressionCore.cpp" />
     <ClCompile Include="xpress.cpp" />
     <ClCompile Include="xpress_huff.cpp" />
   </ItemGroup>
