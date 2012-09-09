@@ -110,7 +110,7 @@ inline static size_t lzx_compress_lz77(const_bytes in, size_t in_len, bytes out,
 				in_len -= len;
 				mask |= 0x80000000; // set the highest bit
 
-				     if (repDistances[0] == off) { off = 0; } // X = R0, No Swap
+					 if (repDistances[0] == off) { off = 0; } // X = R0, No Swap
 				else if (repDistances[1] == off) { repDistances[1] = repDistances[0]; repDistances[0] = off; off = 1; } // X = R1, Swap R0 <=> R1
 				else if (repDistances[2] == off) { repDistances[2] = repDistances[0]; repDistances[0] = off; off = 2; } // X = R2, Swap R0 <=> R2
 				else { repDistances[2] = repDistances[1]; repDistances[1] = repDistances[0]; repDistances[0] = off; off += 2; } // R2 <- R1, R1 <- R0, R0 <- X
@@ -120,8 +120,8 @@ inline static size_t lzx_compress_lz77(const_bytes in, size_t in_len, bytes out,
 				out += 4;
 
 				// Create a symbol from the offset and length
-				if (len > 7) { ++length_counts[len - 7]; len = 7; }
-				if (off >= 0x80000)
+				if (len >= 7) { ++length_counts[len - 7]; len = 7; }
+				if (off >= 0x80000) // Branch not necessary for WIM
 				{
 					off = (off >> kNumLinearPosSlotBits) + 0x22;
 				}
@@ -179,6 +179,7 @@ static bool lzx_write_table(OutputBitstream *bits, const_bytes lastLevels, const
 		}
 		else
 		{
+			// lastLevels is all 0s in WIMs
 			byte s = (byte)((17 + lastLevels[i] - levels[i]) % (kNumHuffmanBits + 1));
 			uint32_t j;
 			for (j = 1; i + j < numSymbols && levels[i+j] == levels[i]; ++j);
@@ -208,7 +209,7 @@ static bool lzx_write_table(OutputBitstream *bits, const_bytes lastLevels, const
 	for (uint32_t i = 0; i < tree_pos; ++i)
 	{
 		if (!levelEncoder.EncodeSymbol(tree[i], bits)) { return false; }
-		     if (tree[i] == kLevelSymbolZeros)    { if (!bits->WriteBits(tree[++i] - kLevelSymbolZerosStartValue,    kLevelSymbolZerosNumBits   )) { return false; } }
+			 if (tree[i] == kLevelSymbolZeros)    { if (!bits->WriteBits(tree[++i] - kLevelSymbolZerosStartValue,    kLevelSymbolZerosNumBits   )) { return false; } }
 		else if (tree[i] == kLevelSymbolZerosBig) { if (!bits->WriteBits(tree[++i] - kLevelSymbolZerosBigStartValue, kLevelSymbolZerosBigNumBits)) { return false; } }
 		else if (tree[i] == kLevelSymbolSame)
 		{
@@ -250,7 +251,7 @@ static bool lzx_compress_encode(const_bytes in, size_t in_len, OutputBitstream *
 
 				// Write the Huffman code then extra offset bits and length symbol
 				byte O, n;
-				if (off >= 0x80000)
+				if (off >= 0x80000) // Branch not necessary for WIM
 				{
 					O = (byte)((off >> kNumLinearPosSlotBits) + 0x22);
 					n = kNumLinearPosSlotBits;
@@ -270,10 +271,13 @@ static bool lzx_compress_encode(const_bytes in, size_t in_len, OutputBitstream *
 					off = 0;
 				}
 				// len is already -= 2
-				sym = (uint_fast16_t)(((O << 3) | (len < 7 ? len : 7)) + 0x100);
-				if (!mainEncoder->EncodeSymbol(sym, bits))					{ break; }
-				if (len > 7 && !lenEncoder->EncodeSymbol(len - 7, bits))	{ break; }
-				if (!bits->WriteBits(off, n))								{ break; }
+				if (len < 7)
+				{
+					if (!mainEncoder->EncodeSymbol((((O << 3) | len) + 0x100), bits))	{ break; }
+				}
+				else if (!mainEncoder->EncodeSymbol(((O << 3) + 0x107), bits) ||
+						!lenEncoder->EncodeSymbol(len - 7, bits))						{ break; }
+				if (n > 0 && !bits->WriteBits(off, n))									{ break; }
 			}
 			else
 			{

@@ -24,6 +24,8 @@
 #include "LZXDictionaryWIM.h"
 #include "LZXDictionaryCAB.h"
 
+#include <malloc.h>
+
 #ifdef __cplusplus_cli
 #pragma unmanaged
 #endif
@@ -46,19 +48,24 @@ size_t lzx_wim_compress(const_bytes in, size_t in_len, bytes out, size_t out_len
 	LZX_COMPRESSION_INIT();
 	uint32_t len = (uint32_t)in_len;
 	uint32_t uncomp_len = len + (len == 0x8000 ? 14 : (16 + (len & 1)));
-	byte in_buf[0x8000], out_buf[0x10800];
-	LZXDictionaryWIM d(in_buf);
+	byte buf[0x10800];
 
 	// Write header
 	if (!bits.WriteBits(kBlockTypeVerbatim, kNumBlockTypeBits)) { PRINT_ERROR("LZX Compression Error: Insufficient buffer\n"); errno = E_INSUFFICIENT_BUFFER; return 0; }
 	if (len == 0x8000) { if (!bits.WriteBit(1)) { PRINT_ERROR("LZX Compression Error: Insufficient buffer\n"); errno = E_INSUFFICIENT_BUFFER; return 0; } }
 	else if (!bits.WriteBit(0) || !bits.WriteBits(len, 16)) { PRINT_ERROR("LZX Compression Error: Insufficient buffer\n"); errno = E_INSUFFICIENT_BUFFER; return 0; }
 
-	memcpy(in_buf, in, len);
-	if (len >= 6) { lzx_compress_translate_block(in_buf, in_buf, in_buf + len - 6, 12000000); }
+	if (len >= 6)
+	{
+		bytes in_buf = (bytes)_alloca(len);
+		memcpy(in_buf, in, len);
+		lzx_compress_translate_block(in_buf, in_buf, in_buf + len - 6, 12000000);
+		in = in_buf;
+	}
+	LZXDictionaryWIM d(in);
 
 	// Compress the chunk
-	if (!lzx_compress_chunk(in_buf, len, out_buf, &bits, 30 * kNumLenSlots, &d, repDistances, last_symbol_lens, last_length_lens, &symbol_lens, &length_lens) ||
+	if (!lzx_compress_chunk(in, len, buf, &bits, 30 * kNumLenSlots, &d, repDistances, last_symbol_lens, last_length_lens, &symbol_lens, &length_lens) ||
 		bits.RawPosition() >= uncomp_len)
 	{
 		if (uncomp_len > out_len) { PRINT_ERROR("LZX Compression Error: Insufficient buffer\n"); errno = E_INSUFFICIENT_BUFFER; return 0; }
@@ -78,7 +85,7 @@ size_t lzx_wim_compress(const_bytes in, size_t in_len, bytes out, size_t out_len
 		}
 		memset(out, 0, kNumRepDistances * sizeof(uint32_t));
 		out += kNumRepDistances * sizeof(uint32_t);
-		memcpy(out, in_buf, len);
+		memcpy(out, in, len);
 		if ((len & 1) != 0) { out[len] = 0; }
 		return uncomp_len;
 	}
@@ -232,6 +239,7 @@ size_t lzx_cab_compress2(const_bytes in, size_t in_len, bytes out, size_t out_le
 	if (in_pos < in_len) { PRINT_ERROR("LZX Compression Error: Insufficient buffer\n"); errno = E_INSUFFICIENT_BUFFER; return 0; }
 	return bits.Finish();
 }
+
 size_t lzx_cab_decompress(const_bytes in, size_t in_len, bytes out, size_t out_len, unsigned int numDictBits)
 {
 	LZX_DECOMPRESS_INIT();
