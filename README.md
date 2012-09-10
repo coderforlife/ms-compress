@@ -8,12 +8,16 @@ LZX compression used in WIM and CAB files with some minor differences between th
 
 Microsoft document about the CAB LZX format: http://msdn.microsoft.com/en-us/library/bb417343.aspx#lzxdatacompressionformat
 
-Untested for accuracy. Untested against native Windows functions.
+Partially tested for accuracy. Untested against native Windows functions.
 
-* Compression very "rough" but works for one example
+* Compression very "rough" but works
+ * Potentially has issues with non-32k window sized
+ * CAB compressed data may not actually be CAB compliant
  * Does not support creation of aligned offset blocks but all other features implemented
+ * Compression ratio significantly worse than Microsoft WIM LZX compression, so much so that it chooses to use uncompressed blocks in all but one of the tested files
+ * Speed untested
 * Decompression based on 7-zip code
- * Should work for WIM and CAB compressed data
+ * Should work for all valid WIM and CAB compressed data
 
 LZNT1
 -----
@@ -56,14 +60,11 @@ The psuedo-code is found in that document, mostly referencing the LZ version of 
 
 Todo
 ====
-* LZX Compression: Check (so far checked one example) and test speed, things that are already an issue:
+* LZX Compression: Check and test speed, things that are already an issue:
  * Window size != 0x8000 (CAB only)
  * Input data larger than a single window (CAB only)
- * Output not large enough
-* LZX Compression: Add error messages and set errno
 * LZX Compression: Add aligned offset blocks
-* LZX Decompression: Check (so far checked one example) and test speed
-* LZX Decompression: Add error messages and set errno
+* LZX Decompression: Check and test speed
 * Xpress Huffman Compression: Allow matches to cross chunk boundaries
 * Xpress Huffman Compression: Improve speed
 * Xpress Compression: Improve speed
