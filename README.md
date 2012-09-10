@@ -14,7 +14,7 @@ Partially tested for accuracy. Untested against native Windows functions.
  * Potentially has issues with non-32k window sized
  * CAB compressed data may not actually be CAB compliant
  * Does not support creation of aligned offset blocks but all other features implemented
- * Compression ratio significantly worse than Microsoft WIM LZX compression, so much so that it chooses to use uncompressed blocks in all but one of the tested files
+ * Compression ratio is worse than Microsoft WIM LZX compression (in most cases, in a few cases it is slightly better)
  * Speed untested
 * Decompression based on 7-zip code
  * Should work for all valid WIM and CAB compressed data
