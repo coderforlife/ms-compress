@@ -22,17 +22,6 @@
 #include "HuffmanEncoder.h"
 #include "LZXConstants.h"
 
-#define LZX_COMPRESSION_INIT() \
-	if (in_len == 0) { return 0; } \
-	if (out_len < 4) { PRINT_ERROR("LZX Compression Error: Insufficient buffer\n"); errno = E_INSUFFICIENT_BUFFER; return 0; } \
-	OutputBitstream bits(out, out_len); \
-	uint32_t repDistances[kNumRepDistances] = { 1, 1, 1 }; \
-	byte last_symbol_lens[kMainTableSize], last_length_lens[kNumLenSymbols]; \
-	const_bytes symbol_lens, length_lens; \
-	memset(last_symbol_lens, 0, kMainTableSize); \
-	memset(last_length_lens, 0, kNumLenSymbols);
-
-
 inline static void lzx_compress_translate_block(const const_bytes start, bytes buf, const const_bytes end, const int32_t translation_size)
 {
 	while ((buf = (bytes)memchr(buf, 0xE8, end - buf)) != NULL)

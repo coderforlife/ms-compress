@@ -41,60 +41,67 @@
 size_t lzx_wim_max_compressed_size(size_t in_len) { return in_len + (in_len == 0x8000 ? 2 : 4) + kNumRepDistances * sizeof(uint32_t); }
 #endif
 
-size_t lzx_wim_compress(const_bytes in, size_t in_len, bytes out, size_t out_len)
+uint32_t lzx_wim_compress(const_bytes in, uint32_t in_len, bytes out, uint32_t out_len)
 {
 	if (in_len > 0x8000) { PRINT_ERROR("LZX Compression Error: Illegal argument: WIM-style maximum input size is 0x8000 bytes\n"); errno = EINVAL; return 0; }
 	
-	LZX_COMPRESSION_INIT();
-	uint32_t len = (uint32_t)in_len;
-	uint32_t uncomp_len = len + (len == 0x8000 ? 14 : (16 + (len & 1)));
+	if (in_len == 0) { return 0; }
+	if (out_len < 4) { PRINT_ERROR("LZX Compression Error: Insufficient buffer\n"); errno = E_INSUFFICIENT_BUFFER; return 0; }
+	OutputBitstream bits(out, out_len);
+	uint32_t repDistances[kNumRepDistances] = { 1, 1, 1 };
+	byte last_symbol_lens[kMainTableSize], last_length_lens[kNumLenSymbols];
+	const_bytes symbol_lens, length_lens;
+	memset(last_symbol_lens, 0, kMainTableSize);
+	memset(last_length_lens, 0, kNumLenSymbols);
+
+	uint32_t uncomp_len = in_len + (in_len == 0x8000 ? 14 : (16 + (in_len & 1)));
 	byte buf[0x10800];
 
 	// Write header
 	if (!bits.WriteBits(kBlockTypeVerbatim, kNumBlockTypeBits)) { PRINT_ERROR("LZX Compression Error: Insufficient buffer\n"); errno = E_INSUFFICIENT_BUFFER; return 0; }
-	if (len == 0x8000) { if (!bits.WriteBit(1)) { PRINT_ERROR("LZX Compression Error: Insufficient buffer\n"); errno = E_INSUFFICIENT_BUFFER; return 0; } }
-	else if (!bits.WriteBit(0) || !bits.WriteBits(len, 16)) { PRINT_ERROR("LZX Compression Error: Insufficient buffer\n"); errno = E_INSUFFICIENT_BUFFER; return 0; }
+	if (in_len == 0x8000) { if (!bits.WriteBit(1)) { PRINT_ERROR("LZX Compression Error: Insufficient buffer\n"); errno = E_INSUFFICIENT_BUFFER; return 0; } }
+	else if (!bits.WriteBit(0) || !bits.WriteBits(in_len, 16)) { PRINT_ERROR("LZX Compression Error: Insufficient buffer\n"); errno = E_INSUFFICIENT_BUFFER; return 0; }
 
-	if (len >= 6)
+	if (in_len >= 6)
 	{
-		bytes in_buf = (bytes)_alloca(len);
-		memcpy(in_buf, in, len);
-		lzx_compress_translate_block(in_buf, in_buf, in_buf + len - 6, 12000000);
+		bytes in_buf = (bytes)_alloca(in_len);
+		memcpy(in_buf, in, in_len);
+		lzx_compress_translate_block(in_buf, in_buf, in_buf + in_len - 6, 12000000);
 		in = in_buf;
 	}
 	LZXDictionaryWIM d(in);
 
 	// Compress the chunk
-	if (!lzx_compress_chunk(in, len, buf, &bits, 30 * kNumLenSlots, &d, repDistances, last_symbol_lens, last_length_lens, &symbol_lens, &length_lens) ||
+	if (!lzx_compress_chunk(in, in_len, buf, &bits, 30 * kNumLenSlots, &d, repDistances, last_symbol_lens, last_length_lens, &symbol_lens, &length_lens) ||
 		bits.RawPosition() >= uncomp_len)
 	{
 		if (uncomp_len > out_len) { PRINT_ERROR("LZX Compression Error: Insufficient buffer\n"); errno = E_INSUFFICIENT_BUFFER; return 0; }
 		
 		// Write uncompressed when data is better off uncompressed
-		if (len == 0x8000)
+		if (in_len == 0x8000)
 		{
 			*(uint16_t*)out = (1 << kNumBlockTypeBits) | kBlockTypeUncompressed;
 			out += sizeof(uint16_t);
 		}
 		else
 		{
-			*(uint16_t*)out = (uint16_t)((len << (1 + kNumBlockTypeBits)) | kBlockTypeUncompressed);
+			*(uint16_t*)out = (uint16_t)((in_len << (1 + kNumBlockTypeBits)) | kBlockTypeUncompressed);
 			out += sizeof(uint16_t);
-			*(uint16_t*)out = (uint16_t)(len >> (16 - (1 + kNumBlockTypeBits)));
+			*(uint16_t*)out = (uint16_t)(in_len >> (16 - (1 + kNumBlockTypeBits)));
 			out += sizeof(uint16_t);
 		}
 		memset(out, 0, kNumRepDistances * sizeof(uint32_t));
 		out += kNumRepDistances * sizeof(uint32_t);
-		memcpy(out, in, len);
-		if ((len & 1) != 0) { out[len] = 0; }
+		memcpy(out, in, in_len);
+		if ((in_len & 1) != 0) { out[in_len] = 0; }
 		return uncomp_len;
 	}
 	else
 	{
-		return bits.Finish();
+		return (uint32_t)bits.Finish();
 	}
 }
-size_t lzx_wim_decompress(const_bytes in, size_t in_len, bytes out, size_t out_len)
+uint32_t lzx_wim_decompress(const_bytes in, uint32_t in_len, bytes out, uint32_t out_len)
 {
 	LZX_DECOMPRESS_INIT();
 	LZX_DECOMPRESS_READ_BLOCK_TYPE();
@@ -111,7 +118,7 @@ size_t lzx_wim_decompress(const_bytes in, size_t in_len, bytes out, size_t out_l
 	if (size >= 6) { lzx_decompress_translate_block(out, out, out + size - 6, 12000000); }
 	return size;
 }
-size_t lzx_wim_uncompressed_size(const_bytes in, size_t in_len)
+uint32_t lzx_wim_uncompressed_size(const_bytes in, uint32_t in_len)
 {
 	if (!in_len) { return 0; }
 	byte type = *in & 0x7;
@@ -122,123 +129,111 @@ size_t lzx_wim_uncompressed_size(const_bytes in, size_t in_len)
 
 
 /////////////////// CAB Functions ////////////////////////////
+struct _lzx_cab_state
+{
+	const bool translate;
+	const uint32_t translation_size;
+	const uint32_t num_pos_len_slots, window_size;
+
+	bool first_block;
+	size_t pos;
+
+	uint32_t repDistances[kNumRepDistances];
+	byte last_symbol_lens[kMainTableSize], last_length_lens[kNumLenSymbols];
+
+	LZXDictionaryCAB d;
+	bytes in_buf;
+	byte out_buf[0x10800]; // for every 32 bytes in "in" we need up to 36 bytes in the temp buffer [completely uncompressed] or
+						   // for every 32 bytes in "in/2" we need 132 bytes [everything compressed with length 2]
+
+	_lzx_cab_state(unsigned int num_dict_bits, bool translate = false, uint32_t translation_size = 0)
+		: translate(translate), translation_size(translation_size), first_block(true), pos(0),
+		num_pos_len_slots(GetNumPosSlots(num_dict_bits) * kNumLenSlots), window_size(1u << num_dict_bits), in_buf((bytes)malloc(2*window_size)), d(in_buf, window_size)
+	{
+		this->repDistances[0] = 1;
+		this->repDistances[1] = 1;
+		this->repDistances[2] = 1;
+		memset(this->last_symbol_lens, 0, kMainTableSize);
+		memset(this->last_length_lens, 0, kNumLenSymbols);
+	}
+	~_lzx_cab_state() { free(this->in_buf); }
+};
+
 #ifdef COMPRESSION_API_EXPORT
-size_t lzx_cab_max_compressed_size(size_t in_len, unsigned int numDictBits) { return in_len + 4 + ((in_len + (1u << numDictBits) - 1) >> (numDictBits - 4)); }
+size_t lzx_cab_max_compressed_size(size_t in_len, unsigned int num_dict_bits) { return in_len + 4 + ((in_len + (1u << num_dict_bits) - 1) >> (num_dict_bits - 4)); }
 #endif
 
-size_t lzx_cab_compress(const_bytes in, size_t in_len, bytes out, size_t out_len, unsigned int numDictBits)
+lzx_cab_state* lzx_cab_compress_start(unsigned int num_dict_bits)
 {
-	LZX_COMPRESSION_INIT();
-	const_bytes in_end = in + in_len;
-	const uint32_t numPosLenSlots = GetNumPosSlots(numDictBits) * kNumLenSlots, windowSize = 1u << numDictBits;
-	if (numPosLenSlots == 0) { PRINT_ERROR("LZX Compression Error: Invalid Argument: Invalid number of dictionary bytes\n"); errno = EINVAL; }
+	lzx_cab_state* state = new lzx_cab_state(num_dict_bits);
+	if (state->num_pos_len_slots == 0) { PRINT_ERROR("LZX Compression Error: Invalid Argument: Invalid number of dictionary bytes\n"); errno = EINVAL; delete state; return NULL; }
+	return state;
+}
+lzx_cab_state* lzx_cab_compress_start(unsigned int num_dict_bits, uint32_t translation_size)
+{
+	lzx_cab_state* state = new lzx_cab_state(num_dict_bits, true, translation_size);
+	if (state->num_pos_len_slots == 0) { PRINT_ERROR("LZX Compression Error: Invalid Argument: Invalid number of dictionary bytes\n"); errno = EINVAL; delete state; return NULL; }
+	return state;
+}
+uint32_t lzx_cab_compress_block(const_bytes in, uint32_t in_len, bytes out, uint32_t out_len, lzx_cab_state* state)
+{
+	if (in_len > 0x8000) { PRINT_ERROR("LZX Compression Error: Illegal argument: in_len\n"); errno = EINVAL; return 0; }
 
-	// Write translation header
-	if (!bits.WriteBit(0)) { PRINT_ERROR("LZX Compression Error: Insufficient buffer\n"); errno = E_INSUFFICIENT_BUFFER; return 0; }
+	size_t window_pos = state->pos & ((state->window_size << 1) - 1);
 
-	bytes out_buf = (bytes)malloc(((((MIN(windowSize, in_len) + 1) >> 1) + 31) >> 5) * 132);	// for every 32 bytes in "in" we need up to 36 bytes in the temp buffer [completely uncompressed] or
-																								// for every 32 bytes in "in/2" we need 132 bytes [everything compressed with length 2]
-	LZXDictionaryCAB d(in, windowSize);
+	OutputBitstream bits(out, out_len);
 
-	while (in < in_end)
+	if (state->first_block)
 	{
-		uint32_t len = (uint32_t)MIN(in_end - in, windowSize);
-		uint32_t uncomp_len = 16 + len + (len & 1);
+		// Write translation header
+		if (state->translate)
+		{
+			if (!bits.WriteBit(1) || !bits.WriteUInt32(state->translation_size)) { PRINT_ERROR("LZX Compression Error: Insufficient buffer\n"); errno = E_INSUFFICIENT_BUFFER; return 0; };
+		}
+		else if (!bits.WriteBit(0)) { PRINT_ERROR("LZX Compression Error: Insufficient buffer\n"); errno = E_INSUFFICIENT_BUFFER; return 0; }
+	}
 		
-		// Write header
-		OutputBitstream bits2 = bits;
-		if (!bits.WriteBits(kBlockTypeVerbatim, kNumBlockTypeBits)) { break; }
-		if (!bits.WriteManyBits(len, kUncompressedBlockSizeNumBits)) { break; }
+	// Fill buffer
+	bytes in_buf = state->in_buf + window_pos;
+	memcpy(in_buf, in, in_len);
 
-		// Compress the chunk
-		if (!lzx_compress_chunk(in, len, out_buf, &bits, numPosLenSlots, &d, repDistances, last_symbol_lens, last_length_lens, &symbol_lens, &length_lens) ||
-			(bits.RawPosition() - bits2.RawPosition()) >= uncomp_len)
-		{
-			// Write uncompressed when data is better off uncompressed
-			bits = bits2;
-			if (!bits.WriteBits(kBlockTypeUncompressed, kNumBlockTypeBits)) { break; }
-			if (!bits.WriteManyBits(len, kUncompressedBlockSizeNumBits)) { break; }
-			bytes b = bits.Get16BitAlignedByteStream(len + len & 1 + 12);
-			if (b == NULL) { break; }
-			for (uint32_t i = 0; i < kNumRepDistances; ++i) { SET_UINT32(b, repDistances[i]); b += sizeof(uint32_t); }
-			memcpy(b, in, len);
-			if (len & 1) { b[len] = 0; }
-		}
-		else
-		{
-			// Copy symbols to last used
-			memcpy(last_symbol_lens, symbol_lens, 0x100 + numPosLenSlots);
-			memcpy(last_length_lens, length_lens, kNumLenSymbols);
-		}
-		
-		in += len;
+	// Translate
+	if (state->translate && in_len >= 6)
+	{
+		lzx_compress_translate_block(in_buf - state->pos, in_buf, in_buf + in_len - 6, state->translation_size);
 	}
 
-	free(out_buf);
+	// Write header
+	OutputBitstream bits2 = bits;
+	if (!bits.WriteBits(kBlockTypeVerbatim, kNumBlockTypeBits) || !bits.WriteManyBits(in_len, kUncompressedBlockSizeNumBits)) { PRINT_ERROR("LZX Compression Error: Insufficient buffer\n"); errno = E_INSUFFICIENT_BUFFER; return 0; }
 
-	if (in < in_end) { PRINT_ERROR("LZX Compression Error: Insufficient buffer\n"); errno = E_INSUFFICIENT_BUFFER; return 0; }
-	return bits.Finish();
-}
-size_t lzx_cab_compress2(const_bytes in, size_t in_len, bytes out, size_t out_len, unsigned int numDictBits, uint32_t translation_size)
-{
-	LZX_COMPRESSION_INIT();
-	size_t in_pos = 0;
-	const uint32_t numPosLenSlots = GetNumPosSlots(numDictBits) * kNumLenSlots, windowSize = 1u << numDictBits;
-	if (numPosLenSlots == 0) { PRINT_ERROR("LZX Compression Error: Invalid Argument: Invalid number of dictionary bytes\n"); errno = EINVAL; }
-
-	// Write translation header
-	if (!bits.WriteBit(1) || !bits.WriteUInt32(translation_size)) { PRINT_ERROR("LZX Compression Error: Insufficient buffer\n"); errno = E_INSUFFICIENT_BUFFER; return 0; };
-
-	bytes _in_buf = (bytes)malloc(MIN(2*windowSize, in_len));
-	bytes out_buf = (bytes)malloc(((((MIN(windowSize, in_len) + 1) >> 1) + 31) >> 5) * 132);	// for every 32 bytes in "in" we need up to 36 bytes in the temp buffer [completely uncompressed] or
-																								// for every 32 bytes in "in/2" we need 132 bytes [everything compressed with length 2]
-	LZXDictionaryCAB d(_in_buf, windowSize);
-
-	while (in_pos < in_len)
+	// Compress the chunk
+	const_bytes symbol_lens, length_lens;
+	if (!lzx_compress_chunk(in_buf, in_len, state->out_buf, &bits, state->num_pos_len_slots, &state->d, state->repDistances, state->last_symbol_lens, state->last_length_lens, &symbol_lens, &length_lens) ||
+		(bits.RawPosition() - bits2.RawPosition()) >= (16 + in_len + (in_len & 1)))
 	{
-		uint32_t len = (uint32_t)MIN(in_len - in_pos, windowSize);
-		uint32_t uncomp_len = 16 + len + (len & 1);
-		bytes in_buf = _in_buf + (in_pos & windowSize);
-		
-		// Write header
-		OutputBitstream bits2 = bits;
-		if (!bits.WriteBits(kBlockTypeVerbatim, kNumBlockTypeBits)) { break; }
-		if (!bits.WriteManyBits(len, kUncompressedBlockSizeNumBits)) { break; }
-
-		// Translate
-		memcpy(in_buf, in, len);
-		lzx_compress_translate(in_buf - in_pos, in_buf, len, translation_size);
-
-		// Compress the chunk
-		if (!lzx_compress_chunk(in_buf, len, out_buf, &bits, numPosLenSlots, &d, repDistances, last_symbol_lens, last_length_lens, &symbol_lens, &length_lens) ||
-			(bits.RawPosition() - bits2.RawPosition()) >= uncomp_len)
-		{
-			// Write uncompressed when data is better off uncompressed
-			bits = bits2;
-			if (!bits.WriteBits(kBlockTypeUncompressed, kNumBlockTypeBits)) { break; }
-			if (!bits.WriteManyBits(len, kUncompressedBlockSizeNumBits)) { break; }
-			bytes b = bits.Get16BitAlignedByteStream(len + len & 1 + 12);
-			if (b == NULL) { break; }
-			for (uint32_t i = 0; i < kNumRepDistances; ++i) { SET_UINT32(b, repDistances[i]); b += sizeof(uint32_t); }
-			memcpy(b, in, len);
-			if (len & 1) { b[len] = 0; }
-		}
-		else
-		{
-			// Copy symbols to last used
-			memcpy(last_symbol_lens, symbol_lens, 0x100 + numPosLenSlots);
-			memcpy(last_length_lens, length_lens, kNumLenSymbols);
-		}
-		
-		in_pos += len;
+		// Write uncompressed when data is better off uncompressed
+		bits = bits2;
+		if (!bits.WriteBits(kBlockTypeUncompressed, kNumBlockTypeBits) || !bits.WriteManyBits(0x8000, kUncompressedBlockSizeNumBits)) { PRINT_ERROR("LZX Compression Error: Insufficient buffer\n"); errno = E_INSUFFICIENT_BUFFER; return 0; }
+		bytes b = bits.Get16BitAlignedByteStream(in_len + 12);
+		if (b == NULL) { PRINT_ERROR("LZX Compression Error: Insufficient buffer\n"); errno = E_INSUFFICIENT_BUFFER; return 0; }
+		for (uint32_t i = 0; i < kNumRepDistances; ++i) { SET_UINT32(b, state->repDistances[i]); b += sizeof(uint32_t); }
+		memcpy(b, in_buf, in_len);
+		if (in_len & 1) { b[in_len] = 0; }
 	}
-	
-	free(_in_buf);
-	free(out_buf);
+	else
+	{
+		// Copy symbols to last used
+		memcpy(state->last_symbol_lens, symbol_lens, 0x100 + state->num_pos_len_slots);
+		memcpy(state->last_length_lens, length_lens, kNumLenSymbols);
+	}
 
-	if (in_pos < in_len) { PRINT_ERROR("LZX Compression Error: Insufficient buffer\n"); errno = E_INSUFFICIENT_BUFFER; return 0; }
-	return bits.Finish();
+	state->first_block = false;
+	state->pos += 0x8000;
+
+	return (uint32_t)bits.Finish();
 }
+void lzx_cab_compress_end(lzx_cab_state* state) { delete state; }
 
 size_t lzx_cab_decompress(const_bytes in, size_t in_len, bytes out, size_t out_len, unsigned int numDictBits)
 {

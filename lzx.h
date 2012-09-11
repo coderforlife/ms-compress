@@ -36,20 +36,25 @@ EXTERN_C_START
 
 // WIM style
 // Note: the uncompressed size is at most 32kb
-COMPAPI size_t lzx_wim_compress(const_bytes in, size_t in_len, bytes out, size_t out_len);
+COMPAPI uint32_t lzx_wim_compress(const_bytes in, uint32_t in_len, bytes out, uint32_t out_len);
 #ifdef COMPRESSION_API_EXPORT
-COMPAPI size_t lzx_wim_max_compressed_size(size_t in_len);
+COMPAPI uint32_t lzx_wim_max_compressed_size(uint32_t in_len);
 #else
-#define lzx_wim_max_compressed_size(in_len) (((size_t)(in_len)) + 20)
+#define lzx_wim_max_compressed_size(in_len) (((uint32_t)(in_len)) + 20)
 #endif
 
-COMPAPI size_t lzx_wim_decompress(const_bytes in, size_t in_len, bytes out, size_t out_len);
-COMPAPI size_t lzx_wim_uncompressed_size(const_bytes in, size_t in_len); // instant, not based on size
+COMPAPI uint32_t lzx_wim_decompress(const_bytes in, uint32_t in_len, bytes out, uint32_t out_len);
+COMPAPI uint32_t lzx_wim_uncompressed_size(const_bytes in, uint32_t in_len); // instant, not based on size
 
 
 // CAB style
-COMPAPI size_t lzx_cab_compress(const_bytes in, size_t in_len, bytes out, size_t out_len, unsigned int numDictBits);
-COMPAPI size_t lzx_cab_compress2(const_bytes in, size_t in_len, bytes out, size_t out_len, unsigned int numDictBits, uint32_t translation_size);
+typedef struct _lzx_cab_state lzx_cab_state;
+
+COMPAPI lzx_cab_state* lzx_cab_compress_start (unsigned int numDictBits); // can return NULL on error
+COMPAPI lzx_cab_state* lzx_cab_compress_start2(unsigned int numDictBits, uint32_t translation_size);
+COMPAPI uint32_t lzx_cab_compress_block(const_bytes in, uint32_t in_len, bytes out, uint32_t out_len, lzx_cab_state* state); // in must be <=0x8000 bytes, with 0x8000 for all blocks except last, out should be at least 0x8020
+COMPAPI void lzx_cab_compress_end(lzx_cab_state* state); // state is not valid after this call
+
 
 #ifdef COMPRESSION_API_EXPORT
 COMPAPI size_t lzx_cab_max_compressed_size(size_t in_len, unsigned int numDictBits);
