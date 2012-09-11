@@ -149,43 +149,43 @@ static bool lzx_write_table(OutputBitstream *bits, const_bytes lastLevels, const
 	uint32_t tree_pos = 0;
 	for (uint32_t i = 0; i < numSymbols;)
 	{
-		if (levels[i] == 0)
+		// Look for multiple of the current symbol
+		uint32_t j;
+		for (j = 1; i + j < numSymbols && levels[i+j] == levels[i]; ++j);
+		if (j >= 4)
 		{
-			uint32_t j;
-			for (j = 1; i + j < numSymbols && levels[i+j] == 0; ++j);
-			i += j;
-			while (j >= kLevelSymbolZerosStartValue) // TODO: maybe divide up things better, for example: 54 breaks up to 51 and 3, but the 3 drops
+			if (levels[i] == 0)
 			{
-				byte count = (byte)(j < 51 ? j : 51), s = (count < kLevelSymbolZerosBigStartValue) ? kLevelSymbolZeros : kLevelSymbolZerosBig;
-				++pre_tree_counts[s];
-				tree[tree_pos++] = s;
-				tree[tree_pos++] = count;
-				j -= count;
+				do
+				{
+					byte count = (byte)(j < 51 ? j : 51), s = (count < kLevelSymbolZerosBigStartValue) ? kLevelSymbolZeros : kLevelSymbolZerosBig;
+					++pre_tree_counts[s];
+					tree[tree_pos++] = s;
+					tree[tree_pos++] = count;
+					j -= count; i += count;
+				} while (j >= kLevelSymbolZerosStartValue);
 			}
-			pre_tree_counts[0] += j;
-			memset(tree + tree_pos, 0, j);
-			tree_pos += j;
+			else
+			{
+				do
+				{
+					byte count = (byte)(j < 5 ? j : 5), s = (byte)((17 + lastLevels[i] - levels[i]) % (kNumHuffmanBits + 1)); // lastLevels is all 0s in WIMs
+					++pre_tree_counts[kLevelSymbolSame];
+					++pre_tree_counts[s];
+					tree[tree_pos++] = kLevelSymbolSame;
+					tree[tree_pos++] = count;
+					tree[tree_pos++] = s;
+					j -= count; i += count;
+				} while (j >= kLevelSymbolSameStartValue);
+			}
 		}
-		else
+
+		// Copy symbols that don't fit into a set
+		for (uint32_t jend = tree_pos + j; tree_pos < jend; ++tree_pos, ++i)
 		{
-			// lastLevels is all 0s in WIMs
-			byte s = (byte)((17 + lastLevels[i] - levels[i]) % (kNumHuffmanBits + 1));
-			uint32_t j;
-			for (j = 1; i + j < numSymbols && levels[i+j] == levels[i]; ++j);
-			i += j;
-			while (j >= kLevelSymbolSameStartValue) // TODO: maybe divide up things better, for example: 8 breaks up to 5 and 3, but the 3 drops
-			{
-				byte count = (byte)(j < 5 ? j : 5);
-				++pre_tree_counts[kLevelSymbolSame];
-				++pre_tree_counts[s];
-				tree[tree_pos++] = kLevelSymbolSame;
-				tree[tree_pos++] = count;
-				tree[tree_pos++] = s;
-				j -= count;
-			}
-			pre_tree_counts[s] += j;
-			memset(tree + tree_pos, s, j);
-			tree_pos += j;
+			byte s = (byte)((17 + lastLevels[i] - levels[i]) % (kNumHuffmanBits + 1)); // lastLevels is all 0s in WIMs
+			++pre_tree_counts[s];
+			tree[tree_pos] = s;
 		}
 	}
 
