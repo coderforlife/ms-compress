@@ -12,12 +12,13 @@ Partially tested for accuracy. Untested against native Windows functions.
 
 * Compression very "rough" but works
  * Potentially has issues with non-32k window sized
- * CAB compressed data may not actually be CAB compliant
  * Does not support creation of aligned offset blocks but all other features implemented
  * Compression ratio is worse than Microsoft WIM LZX compression (in most cases, in a few cases it is slightly better)
+ * Does not seem to create length/offset pairs in CAB data
  * Speed untested
 * Decompression based on 7-zip code
- * Should work for all valid WIM and CAB compressed data
+ * Should work for all valid WIM compressed data
+ * Should work for all valid CAB compressed data <= 0x8000 in size (needs a refit like the compression functions to work on larger)
 
 LZNT1
 -----
@@ -60,9 +61,7 @@ The psuedo-code is found in that document, mostly referencing the LZ version of 
 
 Todo
 ====
-* LZX Compression: Check and test speed, things that are already an issue:
- * Window size != 0x8000 (CAB only)
- * Input data larger than a single window (CAB only)
+* LZX Compression: Check and test speed
 * LZX Compression: Add aligned offset blocks
 * LZX Decompression: Check and test speed
 * Xpress Huffman Compression: Allow matches to cross chunk boundaries
