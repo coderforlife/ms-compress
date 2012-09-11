@@ -141,6 +141,7 @@ public:
 		bytes out = this->out + this->index - 2;
 		this->index += 2 + nBytes + nBytes & 1;
 		// TODO: some additional checks for going over the end should be done here
+		// TODO: actually this is probably the end with no more reading
 		this->pntr[0] = (uint16_t*)(this->out + this->index - 4);
 		this->pntr[1] = (uint16_t*)(this->out + this->index - 2);
 		return out;
