@@ -5,7 +5,7 @@
 
 ::-Werror
 set FLAGS=-static-libgcc -static-libstdc++ -O3 -march=core2 -Wall -s -D UNICODE -D _UNICODE -D COMPRESSION_API_EXPORT 
-set FILES=compression.cpp Dictionary.cpp Bitstream.cpp lznt1.cpp lzx.cpp xpress.cpp xpress_huff.cpp
+set FILES=compression.cpp lznt1.cpp lzx.cpp xpress.cpp xpress_huff.cpp
 set OUT=MSCompression
 
 echo Compiling 32-bit...
@@ -18,7 +18,6 @@ del /F /Q *.o >NUL 2>&1
 echo.
 
 echo Compiling 64-bit...
-
 x86_64-w64-mingw32-g++ %FLAGS% -D COMPRESSION_API_DLL -shared %FILES% -o %OUT%64.dll -Wl,--out-implib,lib%OUT%64.dll.a
 
 x86_64-w64-mingw32-g++ %FLAGS% -D COMPRESSION_API_LIB -c %FILES%
