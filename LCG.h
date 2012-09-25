@@ -57,17 +57,13 @@ private:
 			uint16_t* table = hashes[i];
 			for (int j = 0; j < 0x100; ++j)
 			{
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable:4724) // warning C4724: potential mod by 0
-#pragma warning(disable:4127) // warning C4127: conditional expression is constant
-#endif
+WARNINGS_PUSH()
+WARNINGS_IGNORE_CONDITIONAL_EXPR_CONSTANT()
+WARNINGS_IGNORE_DIV_BY_0()
 				if (M)	hash = (hash * A + C) % M; // if M == 0, then M is actually max int, no need to do any division
 				else	hash = (hash * A + C);
 				table[j] = (hash >> S) & (MaxHash - 1);
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif
+WARNINGS_POP()
 			}
 		}
 	}

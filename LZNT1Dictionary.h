@@ -31,8 +31,6 @@
 #define LZNT1_DICTIONARY_H
 #include "compression-api.h"
 
-//#define LARGE_STACK
-
 class LZNT1Dictionary // 512+ KB (768+ KB on 64-bit systems)
 {
 private:
@@ -116,6 +114,9 @@ public:
 		}
 	}
 	
+WARNINGS_PUSH()
+WARNINGS_IGNORE_POTENTIAL_UNINIT_VALRIABLE_USED()
+
 	// Finds the best symbol in the dictionary(ies) for the data
 	// The second dictionary may be NULL for independent chunks, or the dictionary for the previous chunk is overlap can occur
 	// Returns the length of the string found, or 0 if nothing of length >= 3 was found
@@ -189,5 +190,7 @@ public:
 		return 0;
 	}
 };
+
+WARNINGS_POP()
 
 #endif

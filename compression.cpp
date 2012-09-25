@@ -22,10 +22,6 @@
 #include "xpress.h"
 #include "xpress_huff.h"
 
-#ifdef __cplusplus_cli
-#pragma unmanaged
-#endif
-
 // no-compression compression function
 size_t copy_data(const_bytes in, size_t in_len, bytes out, size_t out_len)
 {

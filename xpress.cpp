@@ -19,14 +19,6 @@
 
 #include "XpressDictionary.h"
 
-#ifdef __cplusplus_cli
-#pragma unmanaged
-#endif
-
-#if defined(_MSC_VER) && defined(NDEBUG)
-#pragma optimize("t", on)
-#endif
-
 #define MIN_DATA	5
 
 #define MIN(a, b) (((a) < (b)) ? (a) : (b)) // Get the minimum of 2
