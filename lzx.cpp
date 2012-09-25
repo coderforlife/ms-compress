@@ -46,7 +46,15 @@
 size_t lzx_wim_max_compressed_size(size_t in_len) { return in_len + (in_len == 0x8000 ? 2 : 4) + kNumRepDistances * sizeof(uint32_t); }
 #endif
 
-uint32_t lzx_wim_compress(const_bytes in, uint32_t in_len, bytes out, uint32_t out_len)
+#ifdef LARGE_STACK
+#define ALLOC(n)	_alloca(n)
+#define FREE(x)		
+#else
+#define ALLOC(n)	malloc(n)
+#define FREE(x)		free(x)
+#endif
+
+uint32_t lzx_wim_compress(const_bytes in, uint32_t in_len, bytes out, size_t out_len)
 {
 	if (in_len > 0x8000 || in_len == 0) { PRINT_ERROR("LZX Compression Error: Illegal argument: WIM-style input size must be 1 to 0x8000 bytes (inclusive)\n"); errno = EINVAL; return 0; }
 	if (out_len < 4) { PRINT_ERROR("LZX Compression Error: Insufficient buffer\n"); errno = E_INSUFFICIENT_BUFFER; return 0; }
@@ -57,28 +65,34 @@ uint32_t lzx_wim_compress(const_bytes in, uint32_t in_len, bytes out, uint32_t o
 	memset(last_symbol_lens, 0, kMainTableSize);
 	memset(last_length_lens, 0, kNumLenSymbols);
 
-	uint32_t uncomp_len = in_len + (in_len == 0x8000 ? 14 : (16 + (in_len & 1)));
+	uint32_t uncomp_len = (in_len == 0x8000) ? (0x8000 + 14) : (in_len + 16 + (in_len & 1));
+#ifdef LARGE_STACK
 	byte buf[0x10800];
+#else
+	bytes buf = (bytes)malloc(0x10800);
+#endif
 
 	// Write header
 	if (!bits.WriteBits(kBlockTypeVerbatim, kNumBlockTypeBits)) { PRINT_ERROR("LZX Compression Error: Insufficient buffer\n"); errno = E_INSUFFICIENT_BUFFER; return 0; }
 	if (in_len == 0x8000) { if (!bits.WriteBit(1)) { PRINT_ERROR("LZX Compression Error: Insufficient buffer\n"); errno = E_INSUFFICIENT_BUFFER; return 0; } }
 	else if (!bits.WriteBit(0) || !bits.WriteBits(in_len, 16)) { PRINT_ERROR("LZX Compression Error: Insufficient buffer\n"); errno = E_INSUFFICIENT_BUFFER; return 0; }
 
+	bytes in_buf;
 	if (in_len >= 6)
 	{
-		bytes in_buf = (bytes)_alloca(in_len);
+		in_buf = (bytes)ALLOC(in_len);
 		memcpy(in_buf, in, in_len);
 		lzx_compress_translate_block(in_buf, in_buf, in_buf + in_len - 6, 12000000);
 		in = in_buf;
 	}
-	LZXDictionaryWIM d(in);
-
+	else { in_buf = NULL; }
+	LZXDictionaryWIM d(in, in_len);
+	
 	// Compress the chunk
 	if (!lzx_compress_chunk(in, in_len, buf, &bits, 30 * kNumLenSlots, &d, repDistances, last_symbol_lens, last_length_lens, &symbol_lens, &length_lens) ||
 		bits.RawPosition() >= uncomp_len)
 	{
-		if (uncomp_len > out_len) { PRINT_ERROR("LZX Compression Error: Insufficient buffer\n"); errno = E_INSUFFICIENT_BUFFER; return 0; }
+		if (uncomp_len > out_len) { FREE(in_buf); PRINT_ERROR("LZX Compression Error: Insufficient buffer\n"); errno = E_INSUFFICIENT_BUFFER; return 0; }
 		
 		// Write uncompressed when data is better off uncompressed
 		if (in_len == 0x8000)
@@ -97,14 +111,16 @@ uint32_t lzx_wim_compress(const_bytes in, uint32_t in_len, bytes out, uint32_t o
 		out += kNumRepDistances * sizeof(uint32_t);
 		memcpy(out, in, in_len);
 		if ((in_len & 1) != 0) { out[in_len] = 0; }
+		FREE(in_buf);
 		return uncomp_len;
 	}
 	else
 	{
+		FREE(in_buf);
 		return (uint32_t)bits.Finish();
 	}
 }
-uint32_t lzx_wim_decompress(const_bytes in, uint32_t in_len, bytes out, uint32_t out_len)
+uint32_t lzx_wim_decompress(const_bytes in, uint32_t in_len, bytes out, size_t out_len)
 {
 	LZX_DECOMPRESS_INIT();
 	LZX_DECOMPRESS_READ_BLOCK_TYPE();
@@ -163,7 +179,11 @@ struct _lzx_cab_state
 };
 
 #ifdef COMPRESSION_API_EXPORT
+#ifdef _WIN64
+size_t lzx_cab_max_compressed_size(size_t in_len, unsigned int num_dict_bits) { return in_len + 4 + ((in_len + (1ull << num_dict_bits) - 1) >> (num_dict_bits - 4)); }
+#else
 size_t lzx_cab_max_compressed_size(size_t in_len, unsigned int num_dict_bits) { return in_len + 4 + ((in_len + (1u << num_dict_bits) - 1) >> (num_dict_bits - 4)); }
+#endif
 #endif
 
 lzx_cab_state* lzx_cab_compress_start(unsigned int num_dict_bits)
@@ -177,11 +197,6 @@ lzx_cab_state* lzx_cab_compress_start(unsigned int num_dict_bits, uint32_t trans
 	lzx_cab_state* state = new lzx_cab_state(num_dict_bits, true, translation_size);
 	if (state->num_pos_len_slots == 0) { PRINT_ERROR("LZX Compression Error: Invalid Argument: Invalid number of dictionary bytes\n"); errno = EINVAL; delete state; return NULL; }
 	return state;
-}
-inline static bool lzx_cab_write_uncompressed(const_bytes in_buf, uint32_t in_len, OutputBitstream* bits, lzx_cab_state* state)
-{
-
-	// FIXME: add all data to dictionary
 }
 uint32_t lzx_cab_compress_block(const_bytes in, uint32_t in_len, bytes out, uint32_t out_len, lzx_cab_state* state)
 {
@@ -206,7 +221,7 @@ uint32_t lzx_cab_compress_block(const_bytes in, uint32_t in_len, bytes out, uint
 	memcpy(in_buf, in, in_len);
 
 	// Translate
-	if (state->translate && in_len >= 6) { lzx_compress_translate_block(in_buf - state->pos, in_buf, in_buf + in_len - 6, state->translation_size); }
+	if (state->translate && in_len >= 6 && state->pos < 0x40000000) { lzx_compress_translate_block(in_buf - state->pos, in_buf, in_buf + in_len - 6, state->translation_size); }
 
 	// Write header
 	OutputBitstream bits2 = bits;

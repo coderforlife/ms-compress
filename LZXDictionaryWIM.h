@@ -42,7 +42,7 @@ private:
 	const_bytes start, end, end2;
 #ifdef LARGE_STACK
 	const_bytes table[MaxHash];
-	const_bytes window[0x8000*2];
+	const_bytes window[0x8000];
 #else
 	const_bytes* table;
 	const_bytes* window;
@@ -70,14 +70,14 @@ private:
 	}
 
 public:
-	inline LZXDictionaryWIM(const const_bytes start) : start(start), end(start + 0x8000), end2(end - 2)
+	inline LZXDictionaryWIM(const const_bytes start, uint32_t in_len) : start(start), end(start + in_len), end2(end - 2)
 	{
 #ifndef LARGE_STACK
-		this->table  = (const_bytes*)malloc(MaxHash *sizeof(const_bytes));
-		this->window = (const_bytes*)malloc(0x8000*2*sizeof(const_bytes));
+		this->table  = (const_bytes*)malloc(MaxHash*sizeof(const_bytes));
+		this->window = (const_bytes*)malloc(in_len *sizeof(const_bytes));
 #endif
-		memset(this->table,  0, MaxHash *sizeof(const_bytes));
-		memset(this->window, 0, 0x8000*2*sizeof(const_bytes));
+		memset(this->table,  0, MaxHash*sizeof(const_bytes));
+		memset(this->window, 0, in_len *sizeof(const_bytes));
 	}
 #ifndef LARGE_STACK
 	inline ~LZXDictionaryWIM()
@@ -112,7 +112,7 @@ public:
 	inline uint32_t Find(const const_bytes data, uint32_t* offset) const
 	{
 		const const_bytes end = ((data + 257) >= this->end) ? this->end : data + 257; // if overflow or past end use the end, otherwise go MaxLength away
-		const const_bytes xend = data - 0x8000 - 3, end4 = end - 4;
+		const const_bytes xend = data - (0x8000 - 3), end4 = end - 4;
 		const_bytes x;
 		uint32_t len = 1;
 		for (x = this->window[WindowPos(data)]; x >= xend; x = this->window[WindowPos(x)])

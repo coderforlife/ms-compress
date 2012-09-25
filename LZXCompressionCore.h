@@ -24,31 +24,17 @@
 
 inline static void lzx_compress_translate_block(const const_bytes start, bytes buf, const const_bytes end, const int32_t translation_size)
 {
-	while ((buf = (bytes)memchr(buf, 0xE8, end - buf)) != NULL)
+	while (buf < end && (buf = (bytes)memchr(buf, 0xE8, end - buf)) != NULL)
 	{
 		int32_t pos = (int32_t)(buf++ - start);
 		int32_t relValue = GET_UINT32(buf);
 		if (relValue >= -pos && relValue < translation_size)
 		{
-			uint32_t absValue = relValue > 0 ? relValue - translation_size : relValue + pos;
+			int absValue = (relValue < (translation_size - pos)) ? relValue + pos : relValue - translation_size;
 			SET_UINT32(buf, absValue);
 		}
 		buf += 4;
 	}
-}
-inline static void lzx_compress_translate(const const_bytes start, bytes buf, size_t len, const int32_t translation_size)
-{
-	//const const_bytes start = buf;
-	//if (len > 0x40000000) { len = 0x40000000; }
-	if (buf - start + len > 0x40000000) { len = 0x40000000 + start - buf; }
-	while (len > (1 << 15))
-	{
-		lzx_compress_translate_block(start, buf, buf + 0x8000 - 6, translation_size);
-		len -= 1 << 15;
-		buf += 1 << 15;
-	}
-	if (len >= 6)
-		lzx_compress_translate_block(start, buf, buf + len - 6, translation_size);
 }
 static const byte Log2Table[256] = 
 {
@@ -60,6 +46,10 @@ static const byte Log2Table[256] =
 };
 //inline static byte highbit(uint32_t x) { uint_fast16_t y, z = x >> 16; return z ? 16 + Log2Table[z] : ((y = x >> 8) ? 8 + Log2Table[y] : Log2Table[x]); } // returns 0 - 23 (0x0 - 0x17)
 inline static byte highbit(uint32_t x) { uint_fast16_t y = x >> 8, z; return y ? (((z = y >> 8) != 0) ? 16 + Log2Table[z] : 8 + Log2Table[y]) : Log2Table[x]; } // returns 0 - 23 (0x0 - 0x17)
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable:4701) // warning C4701: potentially uninitialized local variable '...' used
+#endif
 template<typename LZXDictionary>
 inline static size_t lzx_compress_lz77(const_bytes in, size_t in_len, bytes out, uint32_t repDistances[kNumRepDistances], uint32_t symbol_counts[kMainTableSize], uint32_t length_counts[kNumLenSymbols], LZXDictionary *d)
 {
@@ -139,6 +129,9 @@ inline static size_t lzx_compress_lz77(const_bytes in, size_t in_len, bytes out,
 	// Return the number of bytes in the output
 	return out - out_orig;
 }
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 static bool lzx_write_table(OutputBitstream *bits, const_bytes lastLevels, const_bytes levels, uint32_t numSymbols)
 {
 	// Calculate run length encoded tree while getting pre-tree counts
@@ -284,7 +277,7 @@ static bool lzx_compress_encode(const_bytes in, size_t in_len, OutputBitstream *
 		in_len -= i;
 	}
 
-	// Write end of stream symbol and return insufficient buffer or the compressed size
+	// Return insufficient buffer or the compressed size
 	if (in_len > 0) { PRINT_ERROR("LZX Compression Error: Insufficient buffer\n"); errno = E_INSUFFICIENT_BUFFER; return false; }
 	return bits->Flush(); // make sure that the write stream is finished writing
 }
