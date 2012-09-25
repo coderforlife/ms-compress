@@ -24,14 +24,6 @@
 #define LZX_DICTIONARY_WIM_H
 #include "compression-api.h"
 
-#ifdef __cplusplus_cli
-#pragma unmanaged
-#endif
-
-#if defined(_MSC_VER) && defined(NDEBUG)
-#pragma optimize("t", on)
-#endif
-
 #include "LZXConstants.h"
 
 class LZXDictionaryWIM

@@ -46,10 +46,8 @@ static const byte Log2Table[256] =
 };
 //inline static byte highbit(uint32_t x) { uint_fast16_t y, z = x >> 16; return z ? 16 + Log2Table[z] : ((y = x >> 8) ? 8 + Log2Table[y] : Log2Table[x]); } // returns 0 - 23 (0x0 - 0x17)
 inline static byte highbit(uint32_t x) { uint_fast16_t y = x >> 8, z; return y ? (((z = y >> 8) != 0) ? 16 + Log2Table[z] : 8 + Log2Table[y]) : Log2Table[x]; } // returns 0 - 23 (0x0 - 0x17)
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable:4701) // warning C4701: potentially uninitialized local variable '...' used
-#endif
+WARNINGS_PUSH()
+WARNINGS_IGNORE_POTENTIAL_UNINIT_VALRIABLE_USED()
 template<typename LZXDictionary>
 inline static size_t lzx_compress_lz77(const_bytes in, size_t in_len, bytes out, uint32_t repDistances[kNumRepDistances], uint32_t symbol_counts[kMainTableSize], uint32_t length_counts[kNumLenSymbols], LZXDictionary *d)
 {
@@ -129,9 +127,7 @@ inline static size_t lzx_compress_lz77(const_bytes in, size_t in_len, bytes out,
 	// Return the number of bytes in the output
 	return out - out_orig;
 }
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif
+WARNINGS_POP()
 static bool lzx_write_table(OutputBitstream *bits, const_bytes lastLevels, const_bytes levels, uint32_t numSymbols)
 {
 	// Calculate run length encoded tree while getting pre-tree counts

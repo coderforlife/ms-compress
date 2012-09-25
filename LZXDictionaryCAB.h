@@ -24,18 +24,8 @@
 #define LZX_DICTIONARY_CAB_H
 #include "compression-api.h"
 
-#ifdef __cplusplus_cli
-#pragma unmanaged
-#endif
-
-#if defined(_MSC_VER) && defined(NDEBUG)
-#pragma optimize("t", on)
-#endif
-
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable:4512) // warning C4512: assignment operator could not be generated
-#endif
+WARNINGS_PUSH()
+WARNINGS_IGNORE_ASSIGNMENT_OPERATOR_NOT_GENERATED()
 
 #include "LZXConstants.h"
 
@@ -75,7 +65,7 @@ private:
 	}
 
 public:
-	inline LZXDictionaryCAB(const const_bytes start, const uint32_t windowSize) : start(start), end(start + windowSize), end2(end - 2), windowSize(windowSize)
+	inline LZXDictionaryCAB(const const_bytes start, const uint32_t windowSize) : windowSize(windowSize), start(start), end(start + windowSize), end2(end - 2)
 	{
 #ifndef LARGE_STACK
 		this->table  = (const_bytes*)malloc(MaxHash     *sizeof(const_bytes));
@@ -132,5 +122,7 @@ public:
 		return len;
 	}
 };
+
+WARNINGS_POP()
 
 #endif

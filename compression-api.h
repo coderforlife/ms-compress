@@ -104,6 +104,41 @@
 	#define ARRAYSIZE(x) sizeof(x)/sizeof(x[0])
 #endif
 
+// Compile it right
+#if defined(__cplusplus_cli)
+#pragma unmanaged
+#endif
+#if defined(_MSC_VER) && defined(NDEBUG)
+#pragma optimize("t", on)
+#endif
+
+// Warning disable support
+#if defined(_MSC_VER)
+#define WARNINGS_PUSH() __pragma(warning(push))
+#define WARNINGS_POP()  __pragma(warning(pop))
+#define WARNINGS_IGNORE_CONDITIONAL_EXPR_CONSTANT()         __pragma(warning(disable:4127))
+#define WARNINGS_IGNORE_TRUNCATED_OVERFLOW()                __pragma(warning(disable:4309))
+#define WARNINGS_IGNORE_ASSIGNMENT_OPERATOR_NOT_GENERATED() __pragma(warning(disable:4512))
+#define WARNINGS_IGNORE_POTENTIAL_UNINIT_VALRIABLE_USED()   __pragma(warning(disable:4701))
+#define WARNINGS_IGNORE_DIV_BY_0()				            __pragma(warning(disable:4723 4724))
+#elif defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6))
+#define WARNINGS_PUSH() _Pragma("GCC diagnostic push")
+#define WARNINGS_POP()  _Pragma("GCC diagnostic pop")
+#define WARNINGS_IGNORE_CONDITIONAL_EXPR_CONSTANT()         
+#define WARNINGS_IGNORE_TRUNCATED_OVERFLOW()                _Pragma("GCC diagnostic ignored \"-Woverflow\"")
+#define WARNINGS_IGNORE_ASSIGNMENT_OPERATOR_NOT_GENERATED() 
+#define WARNINGS_IGNORE_POTENTIAL_UNINIT_VALRIABLE_USED()   _Pragma("GCC diagnostic ignored \"-Wmaybe-uninitialized\"")
+#define WARNINGS_IGNORE_DIV_BY_0()                          _Pragma("GCC diagnostic ignored \"-Wdiv-by-zero\"")
+#else
+#define WARNINGS_PUSH() 
+#define WARNINGS_POP()  
+#define WARNINGS_IGNORE_CONDITIONAL_EXPR_CONSTANT()         
+#define WARNINGS_IGNORE_TRUNCATED_OVERFLOW()                
+#define WARNINGS_IGNORE_ASSIGNMENT_OPERATOR_NOT_GENERATED() 
+#define WARNINGS_IGNORE_POTENTIAL_UNINIT_VALRIABLE_USED()   
+#define WARNINGS_IGNORE_DIV_BY_0()                          
+#endif
+
 // Compile-time assert
 #ifdef _DEBUG
 #define CASSERT(expr)		char _UNIQUE_NAME[expr]

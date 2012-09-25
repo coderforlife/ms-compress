@@ -24,14 +24,6 @@
 #define XPRESS_DICTIONARY_H
 #include "compression-api.h"
 
-#ifdef __cplusplus_cli
-#pragma unmanaged
-#endif
-
-#if defined(_MSC_VER) && defined(NDEBUG)
-#pragma optimize("t", on)
-#endif
-
 #include "LCG.h"
 
 template<uint32_t MaxOffset, uint32_t ChunkSize = MaxOffset, uint32_t MaxHash = 0x8000>
@@ -42,14 +34,10 @@ class XpressDictionary // 192 kb (on 32-bit) or 384 kb (on 64-bit)
 
 private:
 	// Define a LCG-generate hash table
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable:4309) // warning C4309: 'specialization' : truncation of constant value
-#endif
+WARNINGS_PUSH()
+WARNINGS_IGNORE_TRUNCATED_OVERFLOW()
 	typedef LCG<0x2a190348ul, 0x41C64E6Du, 12345u, 1ull << 32, 16, MaxHash> lcg;
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif
+WARNINGS_POP()
 
 	const_bytes start, end, end3;
 #ifdef LARGE_STACK
@@ -108,6 +96,28 @@ public:
 			this->table[hash] = data++;
 		}
 		return end;
+	}
+
+	inline void Add(const_bytes data)
+	{
+		if (data < this->end3)
+		{
+			const uint_fast16_t hash = lcg::Hash(data);
+			this->window[WindowPos(data)] = this->table[hash];
+			this->table[hash] = data++;
+		}
+	}
+	
+	inline void Add(const_bytes data, size_t len)
+	{
+		uint32_t pos = WindowPos(data);
+		const const_bytes end = ((data + len) < this->end3) ? data + len : this->end3;
+		while (data < end)
+		{
+			const uint32_t hash = lcg::Hash(data);
+			this->window[pos++] = this->table[hash];
+			this->table[hash] = data++;
+		}
 	}
 
 	inline uint32_t Find(const const_bytes data, uint32_t* offset) const

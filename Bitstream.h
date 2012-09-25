@@ -23,19 +23,17 @@
 #define BITSTREAM_H
 #include "compression-api.h"
 
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable:4512) // warning C4512: assignment operator could not be generated
-#endif
+WARNINGS_PUSH()
+WARNINGS_IGNORE_ASSIGNMENT_OPERATOR_NOT_GENERATED()
 
 class Bitstream
 {
 protected:
 	size_t index;	    // The current position of the stream
-	/*const*/ size_t len;	// The length of the stream
+	const size_t len;	// The length of the stream
 	uint32_t mask;		// The next bits to be read/written in the bitstream
 	byte bits;			// The number of bits in mask that are valid
-	inline Bitstream(size_t len, uint32_t mask, byte bits) : len(len), index(4), mask(mask), bits(bits) { assert(4 < len); }
+	inline Bitstream(size_t len, uint32_t mask, byte bits) : index(4), len(len), mask(mask), bits(bits) { assert(4 < len); }
 public:
 	inline size_t RawPosition() { return this->index; }
 	inline byte RemainingBits() { return this->bits; }
@@ -72,7 +70,7 @@ public:
 		else if (this->bits >= 16) { start -= 2; }
 		if (start + nBytes > this->len) { return NULL; }
 		this->bits = 0;
-		this->index = start + nBytes + nBytes & 1; // make sure the end is also 16-bit aligned
+		this->index = start + nBytes + (nBytes & 1); // make sure the end is also 16-bit aligned
 		this->Skip(0);
 		return this->in + start;
 	}
@@ -139,7 +137,7 @@ public:
 		if (this->index + nBytes - 2 > this->len) { return NULL; }
 		this->bits = 0;
 		bytes out = this->out + this->index - 2;
-		this->index += 2 + nBytes + nBytes & 1;
+		this->index += 2 + nBytes + (nBytes & 1);
 		// TODO: some additional checks for going over the end should be done here
 		// TODO: actually this is probably the end with no more reading
 		this->pntr[0] = (uint16_t*)(this->out + this->index - 4);
@@ -159,8 +157,6 @@ public:
 	}
 };
 
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif
+WARNINGS_POP()
 
 #endif

@@ -34,8 +34,7 @@
 	if (in_len < 4) { if (in_len) { PRINT_ERROR("LZX Decompression Error: Invalid Data: Less than 4 input bytes\n"); errno = E_INVALID_DATA; } return 0;  } \
 	InputBitstream bits(in, in_len); \
 	byte mainLevels[kMainTableSize]; memset(mainLevels, 0, sizeof(mainLevels)); \
-	byte lenLevels [kNumLenSymbols]; memset(lenLevels,  0, sizeof(lenLevels )); \
-	uint32_t repDistances[kNumRepDistances] = { 0, 0, 0 };
+	byte lenLevels [kNumLenSymbols]; memset(lenLevels,  0, sizeof(lenLevels ));
 
 #define LZX_DECOMPRESS_READ_BLOCK_TYPE() \
 	uint32_t blockType = bits.ReadBits(kNumBlockTypeBits); \

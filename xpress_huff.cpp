@@ -27,14 +27,6 @@
 #include <ctype.h>
 #endif
 
-#ifdef __cplusplus_cli
-#pragma unmanaged
-#endif
-
-#if defined(_MSC_VER) && defined(NDEBUG)
-#pragma optimize("t", on)
-#endif
-
 
 ////////////////////////////// General Definitions and Functions ///////////////////////////////////
 #define MAX_OFFSET		0xFFFF
@@ -66,6 +58,8 @@ static const byte Log2Table[256] =
 #undef LT
 };
 inline static byte highbit(uint32_t x) { uint_fast16_t y = x >> 8; return y ? 8 + Log2Table[y] : Log2Table[x]; } // returns 0x0 - 0xF
+WARNINGS_PUSH()
+WARNINGS_IGNORE_POTENTIAL_UNINIT_VALRIABLE_USED()
 static size_t xh_compress_lz77(const_bytes in, int32_t /* * */ in_len, const_bytes in_end, bytes out, uint32_t symbol_counts[], Dictionary* d)
 {
 	int32_t rem = /* * */ in_len;
@@ -73,7 +67,7 @@ static size_t xh_compress_lz77(const_bytes in, int32_t /* * */ in_len, const_byt
 	const const_bytes in_orig = in, out_orig = out;
 	uint32_t* mask_out;
 	byte i;
-
+	
 	d->Fill(in);
 	memset(symbol_counts, 0, SYMBOLS*sizeof(uint32_t));
 
@@ -100,10 +94,13 @@ static size_t xh_compress_lz77(const_bytes in, int32_t /* * */ in_len, const_byt
 		{
 			uint32_t len, off;
 			mask >>= 1;
+			//d->Add(in);
 			if (rem >= 3 && (len = d->Find(in, &off)) >= 3)
 			{
 				// TODO: allow len > rem
 				if (len > rem) { len = rem; }
+				
+				//d->Add(in + 1, len - 1);
 
 				// Write offset / length
 				*(uint16_t*)out = (uint16_t)off;
@@ -157,6 +154,7 @@ static size_t xh_compress_lz77(const_bytes in, int32_t /* * */ in_len, const_byt
 	// Return the number of bytes in the output
 	return out - out_orig;
 }
+WARNINGS_POP()
 static const uint16_t OffsetMasks[16] = // (1 << O) - 1
 {
 	0x0000, 0x0001, 0x0003, 0x0007,

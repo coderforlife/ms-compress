@@ -26,14 +26,6 @@
 
 #include <malloc.h>
 
-#ifdef __cplusplus_cli
-#pragma unmanaged
-#endif
-
-#if defined(_MSC_VER) && defined(NDEBUG)
-#pragma optimize("t", on)
-#endif
-
 #define MIN(a, b) (((a) < (b)) ? (a) : (b)) // Get the minimum of 2
 
 // The Huffman trees take up at least 41 bytes (the pre-trees are fixed to 30 bytes themselves) so anything under that is known to be better uncompressed (this is for size 0x8000 windows, more bytes for larger windows)
@@ -123,6 +115,7 @@ uint32_t lzx_wim_compress(const_bytes in, uint32_t in_len, bytes out, size_t out
 uint32_t lzx_wim_decompress(const_bytes in, uint32_t in_len, bytes out, size_t out_len)
 {
 	LZX_DECOMPRESS_INIT();
+	uint32_t repDistances[kNumRepDistances] = { 0, 0, 0 };
 	LZX_DECOMPRESS_READ_BLOCK_TYPE();
 	uint32_t size = bits.ReadBit() ? 0x8000 : bits.ReadBits(16);
 	LZX_DECOMPRESS_CHECK_SIZE();
@@ -148,20 +141,24 @@ uint32_t lzx_wim_uncompressed_size(const_bytes in, uint32_t in_len)
 
 
 /////////////////// CAB Functions ////////////////////////////
+WARNINGS_PUSH()
+WARNINGS_IGNORE_ASSIGNMENT_OPERATOR_NOT_GENERATED()
 struct _lzx_cab_state
 {
 	const bool translate;
 	const uint32_t translation_size;
-	const uint32_t num_pos_len_slots, window_size;
 
 	bool first_block;
 	size_t pos;
 
+	const uint32_t num_pos_len_slots, window_size;
+
 	uint32_t repDistances[kNumRepDistances];
 	byte last_symbol_lens[kMainTableSize], last_length_lens[kNumLenSymbols];
 
-	LZXDictionaryCAB d;
 	bytes in_buf;
+	LZXDictionaryCAB d;
+
 	byte out_buf[0x10800]; // for every 32 bytes in "in" we need up to 36 bytes in the temp buffer [completely uncompressed] or
 						   // for every 32 bytes in "in/2" we need 132 bytes [everything compressed with length 2]
 
@@ -177,6 +174,7 @@ struct _lzx_cab_state
 	}
 	~_lzx_cab_state() { free(this->in_buf); }
 };
+WARNINGS_POP()
 
 #ifdef COMPRESSION_API_EXPORT
 #ifdef _WIN64
@@ -262,6 +260,7 @@ void lzx_cab_compress_end(lzx_cab_state* state) { delete state; }
 size_t lzx_cab_decompress(const_bytes in, size_t in_len, bytes out, size_t out_len, unsigned int numDictBits)
 {
 	LZX_DECOMPRESS_INIT();
+	uint32_t repDistances[kNumRepDistances] = { 0, 0, 0 };
 	const bytes out_orig = out;
 	const uint32_t numPosLenSlots = GetNumPosSlots(numDictBits) * kNumLenSlots;
 	if (numPosLenSlots == 0) { PRINT_ERROR("LZX Decompression Error: Invalid Argument: Invalid number of dictionary bytes\n"); errno = EINVAL; }
