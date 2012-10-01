@@ -322,7 +322,7 @@ static bool xpress_huff_decompress_chunk(const_bytes in, size_t in_len, size_t* 
 	{
 		uint_fast16_t sym = decoder->DecodeSymbol(&bstr);
 		if (sym == INVALID_SYMBOL)											{ PRINT_ERROR("Xpress Huffman Decompression Error: Invalid data: Unable to read enough bits for symbol\n"); errno = E_INVALID_DATA; return false; }
-		else if (sym == STREAM_END && bstr.MaskIsZero())					{ *end_of_stream = true; break; }
+		else if (sym == STREAM_END && bstr.RemainingRawBytes() == 0 && bstr.MaskIsZero()) { *end_of_stream = true; break; }
 		else if (sym < 0x100)
 		{
 			if (i == out_len)												{ PRINT_ERROR("Xpress Huffman Decompression Error: Insufficient buffer\n"); errno = E_INSUFFICIENT_BUFFER; return false; }
