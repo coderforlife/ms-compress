@@ -8,18 +8,17 @@ LZX compression used in WIM and CAB files with some minor differences between th
 
 Microsoft document about the CAB LZX format: http://msdn.microsoft.com/en-us/library/bb417343.aspx#lzxdatacompressionformat
 
-Partially tested for accuracy. Untested against native Windows functions.
+WIM version tested for accuracy. Untested against native Windows functions.
 
-* Compression very "rough" but works
+* Compression:
  * WIM: Works
- * CAB: Potentially has issues with non-32k window sized
- * CAB: Does not seem to create length/offset pairs
- * CAB: Memory issues abound
+ * CAB: Potentially has issues with non-32k window size, does not seem to create length/offset pairs, memory issues abound
  * BOTH: Speed untested
  * BOTH: Does not support creation of aligned offset blocks but all other features implemented
 * Decompression based on [7-zip](http://www.7-zip.org/) code
- * WIM: Should work for all valid compressed data (note: a few examples don't, need to fix)
+ * WIM: Works
  * CAB: Should work for all valid compressed data <= 0x8000 in size (needs a refit like the compression functions to work on larger)
+ * BOTH: Speed untested
 
 LZNT1
 -----
