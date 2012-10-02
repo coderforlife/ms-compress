@@ -84,6 +84,7 @@ uint32_t lzx_wim_compress(const_bytes in, uint32_t in_len, bytes out, size_t out
 	if (!lzx_compress_chunk(in, in_len, buf, &bits, 30 * kNumLenSlots, &d, repDistances, last_symbol_lens, last_length_lens, &symbol_lens, &length_lens) ||
 		bits.RawPosition() >= uncomp_len)
 	{
+		free(buf);
 		if (uncomp_len > out_len) { FREE(in_buf); PRINT_ERROR("LZX Compression Error: Insufficient buffer\n"); errno = E_INSUFFICIENT_BUFFER; return 0; }
 		
 		// Write uncompressed when data is better off uncompressed
@@ -108,6 +109,7 @@ uint32_t lzx_wim_compress(const_bytes in, uint32_t in_len, bytes out, size_t out
 	}
 	else
 	{
+		free(buf);
 		FREE(in_buf);
 		return (uint32_t)bits.Finish();
 	}
