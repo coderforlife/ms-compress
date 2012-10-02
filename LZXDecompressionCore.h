@@ -208,7 +208,7 @@ inline static bool lzx_decompress_chunk(InputBitstream *bits, bytes out, size_t 
 }
 inline static void lzx_decompress_translate_block(const const_bytes start, bytes buf, const const_bytes end, const int32_t translation_size)
 {
-	while ((buf = (bytes)memchr(buf, 0xE8, end - buf)) != NULL)
+	while (buf < end && (buf = (bytes)memchr(buf, 0xE8, end - buf)) != NULL)
 	{
 		int32_t pos = (int32_t)(buf++ - start);
 		int32_t absValue = GET_UINT32(buf);
