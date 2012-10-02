@@ -70,6 +70,9 @@ const uint32_t kDictionarySizeMax = (1 << kNumDictionaryBitsMax);
 const unsigned kNumLinearPosSlotBits = 17;
 const uint32_t kNumPowerPosSlots = 0x26;
 
+const byte kMinTranslationLength = 10; // not allowed in last 6 and is 5 long
+const int kWIMTranslationSize = 12000000;
+
 static inline uint32_t GetNumPosSlots(unsigned int numDictBits)
 {
 	if (numDictBits < kNumDictionaryBitsMin || numDictBits > kNumDictionaryBitsMax)	{ return 0; }

@@ -105,7 +105,7 @@ inline static size_t lzx_compress_lz77(const_bytes in, size_t in_len, bytes out,
 				else if (off >= kNumRepDistances) // TODO: better to remove this if
 				{
 					byte log2 = highbit(off);
-					off = 2*log2 + ((off & (1 << (log2 - 1))) != 0); // TODO: maybe find faster equation // doesn't work for 0 and 1
+					off = (log2 << 1) + ((off & (1 << (log2 - 1))) != 0); // TODO: maybe find faster equation // doesn't work for 0 and 1
 				}
 				++symbol_counts[((off << 3) | len) + 0x100];
 			}
@@ -239,7 +239,7 @@ static bool lzx_compress_encode(const_bytes in, size_t in_len, OutputBitstream *
 				else if (off >= kNumRepDistances) 
 				{
 					byte log2 = highbit(off);
-					O = 2*log2 + ((off & (1 << (log2 - 1))) != 0); // TODO: maybe find faster equation // doesn't work for 0 and 1
+					O = (log2 << 1) + ((off & (1 << (log2 - 1))) != 0); // TODO: maybe find faster equation // doesn't work for 0 and 1
 					n = (O >> 1) - 1; // doesn't work for 0 and 1
 					off &= OffsetMasks[n]; // (1 << n) - 1
 				}

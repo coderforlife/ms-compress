@@ -70,11 +70,11 @@ uint32_t lzx_wim_compress(const_bytes in, uint32_t in_len, bytes out, size_t out
 	else if (!bits.WriteBit(0) || !bits.WriteBits(in_len, 16)) { PRINT_ERROR("LZX Compression Error: Insufficient buffer\n"); errno = E_INSUFFICIENT_BUFFER; return 0; }
 
 	bytes in_buf;
-	if (in_len >= 6)
+	if (in_len > kMinTranslationLength)
 	{
 		in_buf = (bytes)ALLOC(in_len);
 		memcpy(in_buf, in, in_len);
-		lzx_compress_translate_block(in_buf, in_buf, in_buf + in_len - 6, 12000000);
+		lzx_compress_translate_block(in_buf, in_buf, in_buf + in_len - kMinTranslationLength, kWIMTranslationSize);
 		in = in_buf;
 	}
 	else { in_buf = NULL; }
@@ -129,7 +129,7 @@ uint32_t lzx_wim_decompress(const_bytes in, uint32_t in_len, bytes out, size_t o
 		memcpy(out, in + off, size); // TODO: multi-byte copy
 	}
 	else if (!lzx_decompress_chunk(&bits, out, size, repDistances, mainLevels, lenLevels, 30 * kNumLenSlots, blockType == kBlockTypeAligned)) { return 0; }
-	if (size >= 6) { lzx_decompress_translate_block(out, out, out + size - 6, 12000000); }
+	if (size > kMinTranslationLength) { lzx_decompress_translate_block(out, out, out + size - kMinTranslationLength, kWIMTranslationSize); }
 	return size;
 }
 uint32_t lzx_wim_uncompressed_size(const_bytes in, uint32_t in_len)
@@ -221,7 +221,7 @@ uint32_t lzx_cab_compress_block(const_bytes in, uint32_t in_len, bytes out, uint
 	memcpy(in_buf, in, in_len);
 
 	// Translate
-	if (state->translate && in_len >= 6 && state->pos < 0x40000000) { lzx_compress_translate_block(in_buf - state->pos, in_buf, in_buf + in_len - 6, state->translation_size); }
+	if (state->translate && in_len > kMinTranslationLength && state->pos < 0x40000000) { lzx_compress_translate_block(in_buf - state->pos, in_buf, in_buf + in_len - kMinTranslationLength, state->translation_size); }
 
 	// Write header
 	OutputBitstream bits2 = bits;
@@ -269,8 +269,7 @@ size_t lzx_cab_decompress(const_bytes in, size_t in_len, bytes out, size_t out_l
 
 	bool translationMode = bits.ReadBit();
 	uint32_t translationSize;
-	if (!translationMode) { translationSize = 0; }
-	else
+	if (translationMode)
 	{
 		if (bits.RemainingBytes() < sizeof(uint32_t)) { PRINT_ERROR("LZX Decompression Error: Invalid Data: Unable to read translation size\n"); errno = E_INVALID_DATA; return 0; }
 		translationSize = bits.ReadUInt32();

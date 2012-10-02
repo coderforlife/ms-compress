@@ -224,14 +224,14 @@ inline static void lzx_decompress_translate(bytes buf, size_t len, const int32_t
 {
 	const const_bytes start = buf;
 	if (len > 0x40000000) { len = 0x40000000; }
-	while (len > (1 << 15))
+	while (len > 0x8000)
 	{
-		lzx_decompress_translate_block(start, buf, buf + 0x8000 - 6, translation_size);
+		lzx_decompress_translate_block(start, buf, buf + 0x8000 - kMinTranslationLength, translation_size);
 		len -= 1 << 15;
 		buf += 1 << 15;
 	}
-	if (len >= 6)
-		lzx_decompress_translate_block(start, buf, buf + len - 6, translation_size);
+	if (len > kMinTranslationLength)
+		lzx_decompress_translate_block(start, buf, buf + len - kMinTranslationLength, translation_size);
 }
 
 
