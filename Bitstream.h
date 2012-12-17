@@ -130,7 +130,7 @@ public:
 	inline bytes Get16BitAlignedByteStream(size_t nBytes)
 	{
 		// Flush, aligning to 16 bit boundary [ add 1 - 16 bits ]
-		this->WriteBit(1);
+		this->WriteBit(0);
 		this->WriteBits(0, 16 - this->bits);
 		// now (this->bits == 16)
 		SET_UINT16(this->pntr[0], this->mask >> 16);
