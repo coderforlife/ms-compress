@@ -84,20 +84,20 @@ uint32_t lzx_wim_compress(const_bytes in, uint32_t in_len, bytes out, size_t out
 	if (!lzx_compress_chunk(in, in_len, buf, &bits, 30 * kNumLenSlots, &d, repDistances, last_symbol_lens, last_length_lens, &symbol_lens, &length_lens) ||
 		bits.RawPosition() >= uncomp_len)
 	{
-		free(buf);
+		FREE(buf);
 		if (uncomp_len > out_len) { FREE(in_buf); PRINT_ERROR("LZX Compression Error: Insufficient buffer\n"); errno = E_INSUFFICIENT_BUFFER; return 0; }
 		
 		// Write uncompressed when data is better off uncompressed
 		if (in_len == 0x8000)
 		{
-			*(uint16_t*)out = (1 << kNumBlockTypeBits) | kBlockTypeUncompressed;
+			*(uint16_t*)out = (kBlockTypeUncompressed << (16 - kNumBlockTypeBits)) | (1 << (16 - kNumBlockTypeBits - 1));
 			out += sizeof(uint16_t);
 		}
 		else
 		{
-			*(uint16_t*)out = (uint16_t)((in_len << (1 + kNumBlockTypeBits)) | kBlockTypeUncompressed);
+			*(uint16_t*)out = (kBlockTypeUncompressed << (16 - kNumBlockTypeBits)) | (uint16_t)(in_len >> (kNumBlockTypeBits + 1));
 			out += sizeof(uint16_t);
-			*(uint16_t*)out = (uint16_t)(in_len >> (16 - (1 + kNumBlockTypeBits)));
+			*(uint16_t*)out = (uint16_t)(in_len << (16 - (kNumBlockTypeBits + 1)));
 			out += sizeof(uint16_t);
 		}
 		memset(out, 0, kNumRepDistances * sizeof(uint32_t));
@@ -109,7 +109,7 @@ uint32_t lzx_wim_compress(const_bytes in, uint32_t in_len, bytes out, size_t out
 	}
 	else
 	{
-		free(buf);
+		FREE(buf);
 		FREE(in_buf);
 		return (uint32_t)bits.Finish();
 	}
