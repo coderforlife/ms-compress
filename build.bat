@@ -4,7 +4,7 @@
 :: Make sure both mingw-w32\bin and mingw-w64\bin are in the PATH
 
 ::-Werror
-set FLAGS=-static-libgcc -static-libstdc++ -O3 -march=core2 -Wall -s -D UNICODE -D _UNICODE -D COMPRESSION_API_EXPORT 
+set FLAGS=-static-libgcc -static-libstdc++ -O3 -fno-tree-vectorize -march=core2 -Wall -s -D UNICODE -D _UNICODE -D COMPRESSION_API_EXPORT 
 set FILES=compression.cpp lznt1.cpp lzx.cpp xpress.cpp xpress_huff.cpp
 set OUT=MSCompression
 
