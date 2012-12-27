@@ -223,6 +223,12 @@ size_t xpress_decompress(const_bytes in, size_t in_len, bytes out, size_t out_le
 							out32 += 4; o32 += 4; len -= 16;
 						}
 						// Last 16 bytes
+						if ((const_bytes)out32 >= out_endx)
+						{
+							if (out > out_end) { PRINT_ERROR("Xpress Decompression Error: Insufficient buffer\n"); errno = E_INSUFFICIENT_BUFFER; return 0; }
+							out = (bytes)out32;
+							goto CHECKED_COPY;
+						}
 						out32[0] = o32[0];
 						out32[1] = o32[1];
 						out32[2] = o32[2];

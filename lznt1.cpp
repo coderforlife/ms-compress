@@ -201,6 +201,12 @@ static size_t lznt1_decompress_chunk(const_bytes in, const const_bytes in_end, b
 							out32 += 4; o32 += 4; len -= 16;
 						}
 						// Last 16 bytes
+						if ((const_bytes)out32 >= out_endx)
+						{
+							if (out > out_end) { PRINT_ERROR("LZNT1 Decompression Error: Insufficient buffer\n"); errno = E_INSUFFICIENT_BUFFER; return 0; }
+							out = (bytes)out32;
+							goto CHECKED_COPY;
+						}
 						out32[0] = o32[0];
 						out32[1] = o32[1];
 						out32[2] = o32[2];
