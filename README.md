@@ -58,7 +58,7 @@ The psuedo-code is found in that document, mostly referencing the LZ version of 
  * Has a better compression ratio (average ~0.9% better, range -0.1% to 2.6%)
  * Uses about the same amount of memory
 * Decompression actually works (RTL Xpress Huffman decompression is broken)
-* BUG: GCC compiled code causes "access violation reading 0x00000000"
+* BUG: GCC compiled code with -ftree-vectorize (included in -O3) causes "access violation reading 0x00000000"
 
 Todo
 ====
