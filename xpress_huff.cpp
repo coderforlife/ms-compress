@@ -394,6 +394,11 @@ static bool xpress_huff_decompress_chunk(const_bytes in, size_t in_len, size_t* 
 		}
 	} while (i < CHUNK_SIZE || !bstr.MaskIsZero()); /* end of chunk, not stream */
 	*in_pos = bstr.RawPosition();
+	if (!*end_of_stream && decoder->DecodeSymbol(&bstr) == STREAM_END && bstr.RemainingRawBytes() == 0 && bstr.MaskIsZero())
+	{
+		*in_pos = bstr.RawPosition();
+		*end_of_stream = true;
+	}
 	*out_pos = i;
 
 #ifdef VERBOSE_DECOMPRESSION
