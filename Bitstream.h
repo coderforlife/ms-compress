@@ -33,7 +33,7 @@ protected:
 	const size_t len;	// The length of the stream
 	uint32_t mask;		// The next bits to be read/written in the bitstream
 	byte bits;			// The number of bits in mask that are valid
-	inline Bitstream(size_t len, uint32_t mask, byte bits) : index(4), len(len), mask(mask), bits(bits) { assert(4 < len); }
+	inline Bitstream(size_t len, uint32_t mask, byte bits) : index(4), len(len), mask(mask), bits(bits) { assert(4 <= len); }
 public:
 	inline size_t RawPosition() { return this->index; }
 	inline byte RemainingBits() { return this->bits; }
