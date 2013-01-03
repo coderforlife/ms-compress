@@ -126,7 +126,7 @@ uint32_t lzx_wim_decompress(const_bytes in, uint32_t in_len, bytes out, size_t o
 	{
 		uint32_t off = (size == 0x8000 ? 2 : 4) + kNumRepDistances * sizeof(uint32_t);
 		LZX_DECOMPRESS_CHECK_UNCOMPRESSED_SIZE(in_len < off + size);
-		memcpy(out, in + off, size); // TODO: multi-byte copy
+		memcpy(out, in + off, size);
 	}
 	else if (!lzx_decompress_chunk(&bits, out, size, repDistances, mainLevels, lenLevels, 30 * kNumLenSlots, blockType == kBlockTypeAligned)) { return 0; }
 	if (size > kMinTranslationLength) { lzx_decompress_translate_block(out, out, out + size - kMinTranslationLength, kWIMTranslationSize); }
@@ -286,7 +286,7 @@ size_t lzx_cab_decompress(const_bytes in, size_t in_len, bytes out, size_t out_l
 			const_bytes in = bits.Get16BitAlignedByteStream(kNumRepDistances * sizeof(uint32_t) + size);
 			LZX_DECOMPRESS_CHECK_UNCOMPRESSED_SIZE(!in);
 			for (uint32_t i = 0; i < kNumRepDistances; i++) { repDistances[i] = GET_UINT32(in) - 1; in += sizeof(uint32_t); }
-			memcpy(out, in, size); // TODO: multi-byte copy
+			memcpy(out, in, size);
 		}
 		else if (!lzx_decompress_chunk(&bits, out, size, repDistances, mainLevels, lenLevels, numPosLenSlots, blockType == kBlockTypeAligned)) { return 0; }
 		out += size;

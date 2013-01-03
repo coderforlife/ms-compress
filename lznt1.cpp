@@ -69,7 +69,7 @@ static uint_fast16_t lznt1_compress_chunk(const_bytes in, uint_fast16_t in_len, 
 		end = out_pos+1+pos;
 		if (end >= in_len || end > out_len)  { return in_len; } // should be uncompressed or insufficient buffer
 		out[out_pos] = (bits >> (8-i)); // finish moving the value over
-		memcpy(out+out_pos+1, bytes, pos); // TODO: use a uint32_t copy method?
+		memcpy(out+out_pos+1, bytes, pos);
 		out_pos += 1+pos;
 	}
 
@@ -97,7 +97,7 @@ size_t lznt1_compress(const_bytes in, size_t in_len, bytes out, size_t out_len)
 			if (out_pos+2+in_size > out_len) { break; }
 			out_size = in_size;
 			flags = 0x3000;
-			memcpy(out+out_pos+2, in+in_pos, out_size); // TODO: use a uint32_t copy method?
+			memcpy(out+out_pos+2, in+in_pos, out_size);
 		}
 
 		// Save header
@@ -126,7 +126,7 @@ size_t lznt1_compress(const_bytes in, size_t in_len, bytes out, size_t out_len)
 static size_t lznt1_decompress_chunk(const_bytes in, const const_bytes in_end, bytes out, const const_bytes out_end)
 {
 	const const_bytes                  in_endx  = in_end -0x11; // 1 + 8 * 2 from the end
-	const const_bytes out_start = out, out_endx = out_end-0x58; // 8 * 11 from the end
+	const const_bytes out_start = out, out_endx = out_end-0x58; // 8 * (3 + 8) from the end
 	byte flags, flagged;
 	
 	uint_fast16_t pow2 = 0x10, mask = 0xFFF, shift = 12;
@@ -303,7 +303,7 @@ size_t lznt1_decompress(const_bytes in, size_t in_len, bytes out, size_t out_len
 		{
 			out_size = in_size;
 			if (out + out_size > out_end) { break; } // chunk is longer than the available space
-			memcpy(out, in, out_size); // TODO: should this use a uint32_t copy mechanism instead of byte-by-byte?
+			memcpy(out, in, out_size);
 		}
 		out += out_size;
 		in += in_size;

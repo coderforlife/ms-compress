@@ -136,7 +136,7 @@ size_t xpress_compress(const_bytes in, size_t in_len, bytes out, size_t out_len)
 size_t xpress_decompress(const_bytes in, size_t in_len, bytes out, size_t out_len)
 {
 	const const_bytes                  in_end  = in +in_len,  in_endx  = in_end -0x054; // 4 + 32 * (2 + 0.5) from the end, or maybe 4 + 32 * (2 + 0.5 + 1 + 2 + 4) = 0x134
-	const const_bytes out_start = out, out_end = out+out_len, out_endx = out_end-0x160; // 32 * 11 from the end
+	const const_bytes out_start = out, out_end = out+out_len, out_endx = out_end-0x160; // 32 * (3 + 8) from the end
 	const_byte* half_byte = NULL;
 	uint32_t flags, flagged, len;
 	uint_fast16_t off;
