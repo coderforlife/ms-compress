@@ -122,7 +122,10 @@ size_t xpress_compress(const_bytes in, size_t in_len, bytes out, size_t out_len)
 			out += 4;
 		}
 	}
-	flags = (flags << (32 - flag_count)) | ((1 << (32 - flag_count)) - 1); // finish shifting over and set all unused bytes to 1
+	// Finish shifting over flags and set all unused bytes to 1
+	// Note: the shifting math does not effect flags at all when flag_count == 0, resulting in a copy of the previous flags so the proper value must be set manually
+	// RTL produces improper output in this case as well, so the decompressor still must tolerate bad flags at the very end
+	flags = flag_count ? (flags << (32 - flag_count)) | ((1 << (32 - flag_count)) - 1) : 0xFFFFFFFF;
 	SET_UINT32(out_flags, flags);
 	if (in != in_end) { PRINT_ERROR("Xpress Compression Error: Insufficient buffer\n"); errno = E_INSUFFICIENT_BUFFER; return 0; }
 	return out - out_start;
@@ -265,7 +268,7 @@ size_t xpress_decompress(const_bytes in, size_t in_len, bytes out, size_t out_le
 	}
 
 	// Slower decompression but with full bounds checking
-	while (in + 4 <= in_end)
+	while (in + 4 < in_end)
 	{
 		// Handle a fragment
 		flagged = (flags = GET_UINT32(in)) & 0x80000000;
@@ -340,7 +343,7 @@ CHECKED_COPY:		for (end = out + len; out < end; ++out) { *out = *(out-off); }
 		} while (flags);
 	}
 
-	if (in == in_end) { return out - out_start; }
+	if (in == in_end || in + 4 == in_end) { return out - out_start; }
 	PRINT_ERROR("Xpress Decompression Error: Invalid data: Unable to read 4 bytes for flags\n");
 	errno = E_INVALID_DATA;
 	return 0;
@@ -394,7 +397,7 @@ size_t xpress_uncompressed_size(const_bytes in, size_t in_len)
 	}
 
 	// Slower decompression but with full bounds checking
-	while (in + 4 <= in_end)
+	while (in + 4 < in_end)
 	{
 		flagged = (flags = GET_UINT32(in)) & 0x80000000;
 		flags = (flags << 1) | 1;
@@ -447,5 +450,5 @@ size_t xpress_uncompressed_size(const_bytes in, size_t in_len)
 		} while (flags);
 	}
 	
-	return in == in_end ? out : 0;
+	return (in == in_end || in + 4 == in_end) ? out : 0;
 }
