@@ -67,21 +67,14 @@ static uint_fast16_t lznt1_compress_chunk(const_bytes in, uint_fast16_t in_len, 
 			}
 		}
 		end = out_pos+1+pos;
-		if (end > in_len)  { return in_len; } // should be uncompressed
-		if (end > out_len) { break; } // insufficient buffer
+		if (end >= in_len || end > out_len)  { return in_len; } // should be uncompressed or insufficient buffer
 		out[out_pos] = (bits >> (8-i)); // finish moving the value over
 		memcpy(out+out_pos+1, bytes, pos); // TODO: use a uint32_t copy method?
 		out_pos += 1+pos;
 	}
 
 	// Return insufficient buffer or the compressed size
-	if (rem)
-	{
-		PRINT_ERROR("LZNT1 Compression Error: Insufficient buffer\n");
-		errno = E_INSUFFICIENT_BUFFER;
-		return 0;
-	}
-	return out_pos;
+	return rem ? in_len : out_pos;
 }
 size_t lznt1_compress(const_bytes in, size_t in_len, bytes out, size_t out_len)
 {
@@ -95,15 +88,14 @@ size_t lznt1_compress(const_bytes in, size_t in_len, bytes out, size_t out_len)
 		// Compress the next chunk
 		in_size = (uint_fast16_t)MIN(in_len-in_pos, 0x1000);
 		out_size = lznt1_compress_chunk(in+in_pos, in_size, out+out_pos+2, out_len-out_pos-2, &d);
-		if (out_size == 0) { return 0; } // errno already set
 		if (out_size < in_size) // chunk is compressed
 		{
 			flags = 0xB000;
 		}
 		else // chunk is uncompressed
 		{
+			if (out_pos+2+in_size > out_len) { break; }
 			out_size = in_size;
-			if (out_pos+2+out_size > out_len) { break; }
 			flags = 0x3000;
 			memcpy(out+out_pos+2, in+in_pos, out_size); // TODO: use a uint32_t copy method?
 		}
@@ -124,10 +116,6 @@ size_t lznt1_compress(const_bytes in, size_t in_len, bytes out, size_t out_len)
 		errno = E_INSUFFICIENT_BUFFER;
 		return 0;
 	}
-//	// Add an extra null byte at the end (Win 7 bootmgr requires this, Vista bootmgr does not)
-//	// Also clear up to 2 bytes for end-of-stream (not reported, not necessary, but could help)
-//	memset(out+out_pos, 0, MIN(out_len-out_pos, 3));
-//	return out_pos+1;
 	// Clear up to 2 bytes for end-of-stream (not reported in size, not necessary, but could help)
 	memset(out+out_pos, 0, MIN(out_len-out_pos, 2));
 	return out_pos;
