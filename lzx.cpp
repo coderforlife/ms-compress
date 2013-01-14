@@ -147,7 +147,6 @@ WARNINGS_PUSH()
 WARNINGS_IGNORE_ASSIGNMENT_OPERATOR_NOT_GENERATED()
 struct _lzx_cab_state
 {
-	const bool translate;
 	const uint32_t translation_size;
 
 	bool first_block;
@@ -164,8 +163,8 @@ struct _lzx_cab_state
 	byte out_buf[0x10800]; // for every 32 bytes in "in" we need up to 36 bytes in the temp buffer [completely uncompressed] or
 						   // for every 32 bytes in "in/2" we need 132 bytes [everything compressed with length 2]
 
-	_lzx_cab_state(unsigned int num_dict_bits, bool translate = false, uint32_t translation_size = 0)
-		: translate(translate), translation_size(translation_size), first_block(true), pos(0),
+	_lzx_cab_state(unsigned int num_dict_bits, uint32_t translation_size = 0) :
+		translation_size(translation_size), first_block(true), pos(0),
 		num_pos_len_slots(GetNumPosSlots(num_dict_bits) * kNumLenSlots), window_size(1u << num_dict_bits), in_buf((bytes)malloc(2*window_size)), d(in_buf, window_size)
 	{
 		this->repDistances[0] = 1;
@@ -186,15 +185,9 @@ size_t lzx_cab_max_compressed_size(size_t in_len, unsigned int num_dict_bits) { 
 #endif
 #endif
 
-lzx_cab_state* lzx_cab_compress_start(unsigned int num_dict_bits)
-{
-	lzx_cab_state* state = new lzx_cab_state(num_dict_bits);
-	if (state->num_pos_len_slots == 0) { PRINT_ERROR("LZX Compression Error: Invalid Argument: Invalid number of dictionary bytes\n"); errno = EINVAL; delete state; return NULL; }
-	return state;
-}
 lzx_cab_state* lzx_cab_compress_start(unsigned int num_dict_bits, uint32_t translation_size)
 {
-	lzx_cab_state* state = new lzx_cab_state(num_dict_bits, true, translation_size);
+	lzx_cab_state* state = new lzx_cab_state(num_dict_bits, translation_size);
 	if (state->num_pos_len_slots == 0) { PRINT_ERROR("LZX Compression Error: Invalid Argument: Invalid number of dictionary bytes\n"); errno = EINVAL; delete state; return NULL; }
 	return state;
 }
@@ -210,7 +203,7 @@ uint32_t lzx_cab_compress_block(const_bytes in, uint32_t in_len, bytes out, uint
 	if (state->first_block)
 	{
 		// Write translation header
-		if (state->translate)
+		if (state->translation_size)
 		{
 			if (!bits.WriteBit(1) || !bits.WriteUInt32(state->translation_size)) { PRINT_ERROR("LZX Compression Error: Insufficient buffer\n"); errno = E_INSUFFICIENT_BUFFER; return 0; };
 		}
@@ -221,7 +214,7 @@ uint32_t lzx_cab_compress_block(const_bytes in, uint32_t in_len, bytes out, uint
 	memcpy(in_buf, in, in_len);
 
 	// Translate
-	if (state->translate && in_len > kMinTranslationLength && state->pos < 0x40000000) { lzx_compress_translate_block(in_buf - state->pos, in_buf, in_buf + in_len - kMinTranslationLength, state->translation_size); }
+	if (state->translation_size && in_len > kMinTranslationLength && state->pos < 0x40000000) { lzx_compress_translate_block(in_buf - state->pos, in_buf, in_buf + in_len - kMinTranslationLength, state->translation_size); }
 
 	// Write header
 	OutputBitstream bits2 = bits;
@@ -267,9 +260,8 @@ size_t lzx_cab_decompress(const_bytes in, size_t in_len, bytes out, size_t out_l
 	const uint32_t numPosLenSlots = GetNumPosSlots(numDictBits) * kNumLenSlots;
 	if (numPosLenSlots == 0) { PRINT_ERROR("LZX Decompression Error: Invalid Argument: Invalid number of dictionary bytes\n"); errno = EINVAL; }
 
-	bool translationMode = bits.ReadBit();
 	uint32_t translationSize;
-	if (translationMode)
+	if (bits.ReadBit())
 	{
 		if (bits.RemainingBytes() < sizeof(uint32_t)) { PRINT_ERROR("LZX Decompression Error: Invalid Data: Unable to read translation size\n"); errno = E_INVALID_DATA; return 0; }
 		translationSize = bits.ReadUInt32();
@@ -293,7 +285,7 @@ size_t lzx_cab_decompress(const_bytes in, size_t in_len, bytes out, size_t out_l
 		out_len -= size;
 	}
 
-	if (translationMode)
+	if (translationSize)
 		lzx_decompress_translate(out_orig, out - out_orig, translationSize);
 	return out - out_orig;
 }
