@@ -128,8 +128,71 @@ inline static size_t lzx_compress_lz77(const_bytes in, size_t in_len, bytes out,
 	return out - out_orig;
 }
 WARNINGS_POP()
+	
+inline static void fix_table_counts(uint32_t *counts, uint32_t numSymbols)
+{
+	// Find if there is exactly 1 non-zero
+	uint32_t nonzeros = 0;
+	for (int i = 0; i < numSymbols; ++i)
+	{
+		if (counts[i])
+		{
+			if (nonzeros) { return; }
+			++nonzeros;
+		}
+	}
+
+	// If there is exactly 1 non-zero we need to add an extra symbol
+	if (nonzeros) { counts[counts[0] ? 1 : 0] = 1; } // if the symbol is the first symbol, add the extra to the second symbol, otherwise add it to the first
+}
+inline static bool is_all_zeros(const_bytes arr, uint32_t len) { for (uint32_t i = 0; i < len; ++i) { if (arr[i]) { return false; } } return true; }
+inline static bool lzx_write_table_of_zeros(OutputBitstream *bits, uint32_t numSymbols)
+{
+	// This is necessary since the MS decompressor cannot handle a tree with a single code in it
+	// If the tree is all zeros the regular code would encode it as just repeats of symbol 18
+
+	// Pre-tree
+	if (!bits->WriteBits(0x1000, 16) || // symbol 0 has Huffman code "0"
+		!bits->WriteBits(0x0000, 16) ||
+		!bits->WriteBits(0x0000, 16) ||
+		!bits->WriteBits(0x0000, 16) ||
+		!bits->WriteBits(0x0010, 16))   // symbol 18 (many zeros) has Huffman code "1"
+		{ return false; }
+
+	// Tree
+	//1+11111   51 0s
+	// ...
+	//1+11111   51 0s
+	//(1+xxxxx  xx 0s)
+	//1+xxxxx   xx 0s
+	//0         sym 0
+		
+	// Tree sizes:
+	//  240 - 51*4 + 36
+	//  249 - 51*4 + 45
+	//  256 - 51*5 + 1 (would be okay anyways)
+	//  272 - 51*5 + 17* => 51*4 + 34*2
+	//  288 - 51*5 + 33
+	//  304 - 51*5 + 49
+	//  336 - 51*6 + 30
+	//  400 - 51*7 + 43
+
+	int full = (numSymbols - 1) / 51;
+	int rem  = (numSymbols - 1) % 51;
+	bool special = rem && rem < 20;
+	if (special) { --full; }
+	for (int i = 0; i < full; ++i) { if (!bits->WriteBits(0x3F, 6)) { return false; } } // 1+11111
+	if (special) // handle the case when the remainder is less than 20
+	{
+		if (!bits->WriteBits((1 << 5) | (((rem + 1) / 2 - 20) << 1), 6)) { return false; } // 1+xxxxx
+		rem >>= 1;
+	}
+	return bits->WriteBits((1 << 6) | ((rem - 20) << 1) | 0, 7); // 1+xxxxx + 0
+}
 static bool lzx_write_table(OutputBitstream *bits, const_bytes lastLevels, const_bytes levels, uint32_t numSymbols)
 {
+	if (is_all_zeros(levels, numSymbols)) { return lzx_write_table_of_zeros(bits, numSymbols); }
+
 	// Calculate run length encoded tree while getting pre-tree counts
 	HuffmanEncoder<kNumHuffmanBits, kLevelTableSize> levelEncoder;
 	uint32_t pre_tree_counts[kLevelTableSize];
@@ -288,6 +351,8 @@ inline bool lzx_compress_chunk(const_bytes in, uint32_t in_len, bytes buf, Outpu
 
 	// LZ compress the data
 	size_t buf_len = lzx_compress_lz77(in, in_len, buf, repDistances, symbol_counts, length_counts, d);
+	fix_table_counts(symbol_counts, 0x100 + numPosLenSlots);
+	fix_table_counts(length_counts, kNumLenSymbols);
 	
 	// Write trees and encoded data
 	return
