@@ -266,6 +266,10 @@ size_t lzx_cab_decompress(const_bytes in, size_t in_len, bytes out, size_t out_l
 		if (bits.RemainingBytes() < sizeof(uint32_t)) { PRINT_ERROR("LZX Decompression Error: Invalid Data: Unable to read translation size\n"); errno = E_INVALID_DATA; return 0; }
 		translationSize = bits.ReadUInt32();
 	}
+	else
+	{
+		translationSize = 0;
+	}
 
 	while (bits.RemainingRawBytes())
 	{
