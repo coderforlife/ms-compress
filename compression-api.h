@@ -92,7 +92,6 @@
 
 // Get ROTL function
 #if defined(_MSC_VER) && (defined(_M_IX86) || defined(_M_AMD64) || defined(_M_X64))
-	#include <stdlib.h>
 	#pragma intrinsic(_rotl)
 	#define ROTL(x, bits) _rotl(x, bits)
 #else

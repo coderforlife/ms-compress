@@ -69,6 +69,9 @@
     <ClInclude Include="LZXDictionaryCAB.h">
       <Filter>Internal</Filter>
     </ClInclude>
+    <ClInclude Include="Threaded.h">
+      <Filter>Internal</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="xpress_huff.cpp">
@@ -85,6 +88,9 @@
     </ClCompile>
     <ClCompile Include="lzx.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Threaded.cpp">
+      <Filter>Internal</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>
