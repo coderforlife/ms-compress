@@ -323,34 +323,9 @@ size_t lznt1_decompress(const_bytes in, size_t in_len, bytes out, size_t out_len
 /////////////////// Decompression Dry-run Functions ////////////////////////////
 static size_t lznt1_decompress_chunk_dry_run(const_bytes in, const const_bytes in_end)
 {
-	const const_bytes in_endx = in_end-0x11; // 1 + 8 * 2 from the end
 	size_t out = 0;
 	byte flags, flagged;
 	uint_fast16_t pow2 = 0x10, mask = 0xFFF, shift = 12;
-
-	// Faster decompression, minimal bounds checking
-	while (in < in_endx)
-	{
-		flagged = (flags = *in++) & 0x01;
-		flags = (flags >> 1) | 0x80;
-		do
-		{
-			if (flagged)
-			{
-				uint16_t sym;
-				while (out > pow2) { pow2 <<= 1; mask >>= 1; --shift; }
-				sym = GET_UINT16(in);
-				if (out < ((sym>>shift)+1u)) { errno = E_INVALID_DATA; return 0; }
-				out += (sym&mask)+3;
-				in += 2;
-			}
-			else { ++out; ++in; }
-			flagged = flags & 0x01;
-			flags >>= 1;
-		} while (flags);
-	}
-	
-	// Slower decompression but with full bounds checking
 	while (in < in_end)
 	{
 		flagged = (flags = *in++) & 0x01;
@@ -373,8 +348,6 @@ static size_t lznt1_decompress_chunk_dry_run(const_bytes in, const const_bytes i
 			flags >>= 1;
 		} while (flags);
 	}
-
-	if (in != in_end) { errno = E_INVALID_DATA; return 0; }
 	return out;
 }
 size_t lznt1_uncompressed_size(const_bytes in, size_t in_len)
@@ -390,8 +363,9 @@ size_t lznt1_uncompressed_size(const_bytes in, size_t in_len)
 		if ((header = GET_UINT16(in)) == 0) { return out; }
 		in_size = (header & 0x0FFF)+1;
 		if (in+in_size >= in_end) { errno = E_INVALID_DATA; return 0; }
-		if (header & 0x8000)
+		if ((header & 0x8000) && (in+1+in_size == in_end))
 		{
+			// Only need to "decompress" the final chunk
 			size_t out_size = lznt1_decompress_chunk_dry_run(in+2, in+2+in_size);
 			if (out_size == 0) { return 0; }
 			out += out_size;

@@ -23,16 +23,17 @@
 // Compression is much faster than RtlCompressBuffer (~50x faster)
 // Decompression is slightly faster than RtlDecompressBuffer (~1.4x faster)
 //
-// Calculating uncompressed size takes about half the time of decompression
+// Calculating uncompressed size takes much less time than decompression (especially for large files)
 //
 // Assumptions based on RtlCompressBuffer output on NT 3.51, NT 4 SP1, XP SP2, Win 7 SP1:
 //   All flags besides the compressed flag are always 011 (binary)
 //   Actual chunk size is 4096 bytes (regardless of requested chunk size)
+//   All chunks represent 4096 bytes uncompressed bytes except the last one (tested using RtlDecompressBuffer)
 //
 // Differences between these and RtlDecompressBuffer and RtlCompressBuffer:
 //   Higher memory usage for compression (variable, from 512 KB to several megabytes)
 //   Decompression gets faster with better compression ratios
-//   Compressed size has a much nicer worst-case upper limit
+//   Compressed size has a nicer worst-case upper limit
 
 #ifndef LZNT1_H
 #define LZNT1_H
