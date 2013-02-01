@@ -58,6 +58,7 @@ _Status: working_ - but needs major speed improvements and does not create optio
  * BUG: GCC compiled code with -ftree-vectorize (included in -O3) causes "access violation reading 0x00000000"
 * Decompression:
  * To be tested
+ * RTL does not allow the output buffer to be anything besides the exact size of the uncompressed data
 
 LZX
 ---
