@@ -57,7 +57,7 @@ static compress_func decompressors[] =
 
 size_t compress(CompressionFormat format, const_bytes in, size_t in_len, bytes out, size_t out_len)
 {
-	if (format >= ARRAYSIZE(compressors) || !compressors[format])
+	if ((unsigned)format >= ARRAYSIZE(compressors) || !compressors[format])
 	{
 		PRINT_ERROR("Compression Error: Illegal format (%d)\n", format);
 		errno = E_ILLEGAL_FORMAT;
@@ -68,7 +68,7 @@ size_t compress(CompressionFormat format, const_bytes in, size_t in_len, bytes o
 
 size_t decompress(CompressionFormat format, const_bytes in, size_t in_len, bytes out, size_t out_len)
 {
-	if (format >= ARRAYSIZE(decompressors) || !decompressors[format])
+	if ((unsigned)format >= ARRAYSIZE(decompressors) || !decompressors[format])
 	{
 		PRINT_ERROR("Decompression Error: Illegal format (%d)\n", format);
 		errno = E_ILLEGAL_FORMAT;

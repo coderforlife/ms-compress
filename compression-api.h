@@ -22,16 +22,18 @@
 
 #ifdef COMPRESSION_API_EXPORT
 
-// For MSC
+// For MSVC
 #define _CRT_SECURE_NO_WARNINGS
 #define _CRT_NON_CONFORMING_SWPRINTFS
 
 // For GCC
-#define __STDC_LIMIT_MACROS		
+#define __STDC_LIMIT_MACROS
 
+#include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#include <limits.h>
 #include <assert.h>
 #include <errno.h>
 
@@ -172,7 +174,11 @@
 
 // DLL linkage
 #ifdef COMPRESSION_API_DLL
-	#define COMPAPI __declspec(dllexport)
+	#ifdef _WIN32
+		#define COMPAPI __declspec(dllexport)
+	#else
+		#define COMPAPI extern // unnecessary but whatever
+	#endif
 #else
 	#define COMPAPI
 #endif
@@ -182,7 +188,11 @@
 
 #include <stdint.h>
 #ifdef COMPRESSION_API_DLL
-	#define COMPAPI __declspec(dllimport)
+	#ifdef _WIN32
+		#define COMPAPI __declspec(dllexport)
+	#else
+		#define COMPAPI
+	#endif
 #else
 	#define COMPAPI
 #endif
