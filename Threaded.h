@@ -104,7 +104,7 @@ class Threaded
 private:
 protected:
 public:
-	static bool isEnabled() { return false; }
+	static bool enabled() { return false; }
 	static void setEnabled(bool enabled) { UNREFERENCED_PARAMETER(enabled); }
 	static long idealThreadCount() { return 1; }
 };
