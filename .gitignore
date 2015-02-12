@@ -2,8 +2,12 @@
 *.xpress
 *.xpress_huff
 *.lib
+*.pyc
+*.gcda
 x86
 x64
+corpus
+single
 
 # Compiled Object files
 *.slo
@@ -17,3 +21,4 @@ x64
 *.lai
 *.la
 *.a
+
