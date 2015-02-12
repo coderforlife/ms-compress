@@ -20,17 +20,22 @@
 //
 // TODO: ? Most of the compression time is spent in the dictionary - particularly Find and Add.
 
-#ifndef XPRESS_DICTIONARY_H
-#define XPRESS_DICTIONARY_H
+#ifndef XPRESS_DICTIONARY_STATIC_H
+#define XPRESS_DICTIONARY_STATIC_H
 #include "mscomp-api.h"
 
 #include "LCG.h"
 
-template<uint32_t MaxOffset, uint32_t ChunkSize = MaxOffset, uint32_t MaxHash = 0x8000>
-class XpressDictionary // 192 kb (on 32-bit) or 384 kb (on 64-bit)
+template<uint32_t MaxOffset, uint32_t ChunkSize = MaxOffset>
+// XPRESS         uses 0x2000/ 0x2000
+// XPRESS Huffman uses 0xFFFF/0x10000
+// Both have a maximum length of 0xFFFFFFFF but the dictionary will only report up to ChunkSize
+class XpressDictionaryStatic // 192 kb (on 32-bit) or 384 kb (on 64-bit)
 {
 	//TODO: CASSERT(IS_POW2(ChunkSize));
 	CASSERT(MaxOffset <= ChunkSize);
+
+	static const uint32_t MaxHash = 0x8000;
 
 private:
 	// Define a LCG-generate hash table
@@ -39,15 +44,37 @@ WARNINGS_IGNORE_TRUNCATED_OVERFLOW()
 	typedef LCG<0x2a190348ul, 0x41C64E6Du, 12345u, 1ull << 32, 16, MaxHash> lcg;
 WARNINGS_POP()
 
-	const_bytes start, end, end3;
-#ifdef LARGE_STACK
-	const_bytes table[MaxHash];
-	const_bytes window[ChunkSize*2];
-#else
-	const_bytes* table;
-	const_bytes* window;
-#endif
+	uint32_t pos;
+	byte data[ChunkSize*3];
+
+	const_bytes table[MaxHash];      // the hash table
+	const_bytes window[ChunkSize*2]; // 
+	//bytes end;
 	
+	INLINE void FillChunk(const_bytes data)
+	{
+		memcpy(this->data+this->pos, data, ChunkSize);
+		//this->pos = (this->pos + ChunkSize) % (3 * ChunkSize);
+		this->pos = (this->pos == 2 * ChunkSize) ? 0 : (this->pos + ChunkSize);
+	}
+
+	INLINE void FillPart(const_bytes data, uint32_t len) // 0 < len <= ??
+	{
+		if (len > ) { }
+
+		memcpy(this->data+this->pos, data, len);
+		this->pos += len;
+
+
+		this->pos += (this->pos + ChunkSize) % (3 * ChunkSize);
+	}
+
+	INLINE uint32_t ChunkNeeded()
+	{
+
+	}
+
+
 	INLINE uint32_t WindowPos(const_bytes x) const { return (uint32_t)((x - this->start) & ((ChunkSize << 1) - 1)); } // { return (uint32_t)((x - this->start) % (2 * ChunkSize)); }
 	INLINE static uint32_t GetMatchLength(const_bytes a, const_bytes b, const const_bytes end, const const_bytes end4)
 	{
@@ -69,48 +96,28 @@ WARNINGS_POP()
 	}
 
 public:
-	INLINE XpressDictionary(const const_bytes start, const const_bytes end) : start(start), end(end), end3(end - 3)
+	INLINE XpressDictionaryStatic(const const_bytes start, const const_bytes end) : start(start), end(end), end3(end - 3)
 	{
-#ifndef LARGE_STACK
-		this->table  = (const_bytes*)malloc(MaxHash    *sizeof(const_bytes));
-		this->window = (const_bytes*)malloc(ChunkSize*2*sizeof(const_bytes));
-		if (this->table == NULL || this->window == NULL)
-		{
-			free(this->table);
-			free(this->window);
-		}
-#endif
 		memset(this->table, 0, MaxHash*sizeof(const_bytes));
 	}
-	
-#ifdef LARGE_STACK
-	INLINE bool Initialized() { return true; }
-#else
-	INLINE bool Initialized() { return this->table != NULL && this->window != NULL; }
-#endif
 
-#ifndef LARGE_STACK
-	INLINE ~XpressDictionary()
+	INLINE void Fill(const_bytes data, int len) // 0 < len <= ChunkSize
 	{
-		free(this->table);
-		free(this->window);
-	}
-#endif
-
-	INLINE const_bytes Fill(const_bytes data)
-	{
-		uint32_t pos = WindowPos(data); // either 0x00000 or 0x02000 / 0x10000
-		const const_bytes end = ((data + ChunkSize) < this->end3) ? data + ChunkSize : this->end3;
-		while (data < end)
+		uint32_t pos = ChunkSize * this->segment; // either 0x00000 or 0x02000 / 0x10000
+		bytes d = this->data + pos;
+		const const_bytes end = d + len;
+		memcpy(d, data, len);
+		while (d < end)
 		{
-			const uint_fast16_t hash = lcg::Hash(data);
+			const uint_fast16_t hash = lcg::Hash(d);
 			this->window[pos++] = this->table[hash];
-			this->table[hash] = data++;
+			this->table[hash] = d++;
 		}
-		return end;
+		this->segment ^= 1;
+		// return end;
 	}
 
-	INLINE void Add(const_bytes data)
+	INLINE void Add(const_bytes data) // must have 3 readable bytes
 	{
 		if (data < this->end3)
 		{
@@ -119,26 +126,15 @@ public:
 			this->table[hash] = data++;
 		}
 	}
-	
-	INLINE void Add(const_bytes data, size_t len)
-	{
-		uint32_t pos = WindowPos(data);
-		const const_bytes end = ((data + len) < this->end3) ? data + len : this->end3;
-		while (data < end)
-		{
-			const uint32_t hash = lcg::Hash(data);
-			this->window[pos++] = this->table[hash];
-			this->table[hash] = data++;
-		}
-	}
 
-	INLINE uint32_t Find(const const_bytes data, uint32_t* offset) const
+	INLINE uint32_t Find(const const_bytes data, int pos, uint32_t* offset) const
 	{
 #if PNTR_BITS <= 32
 		const const_bytes end = this->end; // on 32-bit, + UINT32_MAX will always overflow
 #else
 		const const_bytes end = ((data + UINT32_MAX) < data || (data + UINT32_MAX) >= this->end) ? this->end : data + UINT32_MAX; // if overflow or past end use the end
 #endif
+
 		const const_bytes xend = data - MaxOffset, end4 = end - 4;
 		const_bytes x;
 		uint32_t len = 2;

@@ -21,31 +21,44 @@
 // Directory Replication Service (LDAP/RPC/AD), Windows Update Services, and Windows CE.
 //
 // The algorithm is documented in the MSDN article [MS-XCA]:
-// http://msdn.microsoft.com/library/hh554002(v=prot.10).aspx
+// https://msdn.microsoft.com/library/hh554002.aspx
+// which contains (although with mistakes):
+//   Compression Psuedo-Code:   https://msdn.microsoft.com/library/hh554053.aspx
+//   Decompression Psuedo-Code: https://msdn.microsoft.com/library/hh536411.aspx
+//   Example:                   https://msdn.microsoft.com/library/hh553843.aspx
 //
-// The pseudo-code is available in that document, specifically at:
-// Compression: http://msdn.microsoft.com/library/hh554053(v=PROT.10).aspx
-// Decompression: http://msdn.microsoft.com/library/hh536411(v=PROT.10).aspx
-//
-// Compression is slower than RtlCompressBuffer (~0.6x as fast) but has a marginally better compression ratio and uses the same amount of memory
-// Decompression is almost as fast as RtlDecompressBuffer (~0.9x as fast)
+// Differences from those documents found by testing the RTL functions are that:
+//   supports 32-bit match lengths when the 16-bit match length is 0
+//   There is always an end-of-stream flag even if we ended right at the end of the previous flags
+// The RTL version also has some bugs:
+//   cannot compress inputs of 7 bytes or less
+//   requires at least 24 extra bytes in the compression output buffer
+
 
 #ifndef XPRESS_H
 #define XPRESS_H
-#include "compression-api.h"
+#include "mscomp-api.h"
+
+#ifdef MSCOMP_WITH_XPRESS
 
 EXTERN_C_START
 
-COMPAPI size_t xpress_compress(const_bytes in, size_t in_len, bytes out, size_t out_len);
-#ifdef COMPRESSION_API_EXPORT
-COMPAPI size_t xpress_max_compressed_size(size_t in_len);
-#else
-#define xpress_max_compressed_size(in_len) (((size_t)(in_len)) + 4 * ((((size_t)(in_len)) + 31) / 32))
-#endif
+MSCOMPAPI MSCompStatus xpress_compress(const_bytes in, size_t in_len, bytes out, size_t* out_len);
+MSCOMPAPI size_t xpress_max_compressed_size(size_t in_len);
 
-COMPAPI size_t xpress_decompress(const_bytes in, size_t in_len, bytes out, size_t out_len);
-COMPAPI size_t xpress_uncompressed_size(const_bytes in, size_t in_len);
+MSCOMPAPI MSCompStatus xpress_decompress(const_bytes in, size_t in_len, bytes out, size_t* out_len);
+MSCOMPAPI MSCompStatus xpress_uncompressed_size(const_bytes in, size_t in_len, size_t* out_len);
+
+MSCOMPAPI MSCompStatus xpress_deflate_init(mscomp_stream* stream);
+MSCOMPAPI MSCompStatus xpress_deflate(mscomp_stream* stream, bool finish);
+MSCOMPAPI MSCompStatus xpress_deflate_end(mscomp_stream* stream);
+
+MSCOMPAPI MSCompStatus xpress_inflate_init(mscomp_stream* stream);
+MSCOMPAPI MSCompStatus xpress_inflate(mscomp_stream* stream, bool finish);
+MSCOMPAPI MSCompStatus xpress_inflate_end(mscomp_stream* stream);
 
 EXTERN_C_END
+
+#endif // MSCOMP_WITH_XPRESS
 
 #endif

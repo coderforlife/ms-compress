@@ -19,7 +19,7 @@
 #ifndef HUFFMAN_DECODER
 #define HUFFMAN_DECODER
 
-#include "compression-api.h"
+#include "mscomp-api.h"
 #include "Bitstream.h"
 
 #define INVALID_SYMBOL 0xFFFF
@@ -38,7 +38,7 @@ private:
 	byte     lengths  [1 << kNumTableBits]; // Table oh length for short codes.
 
 public:
-	inline bool SetCodeLengths(const const_bytes codeLengths)
+	INLINE bool SetCodeLengths(const const_bytes codeLengths)
 	{
 		memset(symbols, INVALID_SYMBOL, sizeof(symbols));
 
@@ -84,7 +84,7 @@ public:
 		return true;
 	}
 
-	inline uint_fast16_t DecodeSymbol(InputBitstream *bits) const
+	INLINE uint_fast16_t DecodeSymbol(InputBitstream *bits) const
 	{
 		byte numBits, remBits = bits->RemainingBits();
 		uint32_t value = (kNumBitsMax > remBits) ? (bits->Peek(remBits) << (kNumBitsMax - remBits)) : bits->Peek(kNumBitsMax);
@@ -117,7 +117,7 @@ public:
 //	};
 //	Node n[2*NumSymbols-1];
 //
-//	inline void add_leaf(uint_fast16_t& npos, uint32_t code, byte len, uint16_t sym)
+//	INLINE void add_leaf(uint_fast16_t& npos, uint32_t code, byte len, uint16_t sym)
 //	{
 //		Node *node = this->n;
 //		while (--len)
@@ -131,7 +131,7 @@ public:
 //	}
 //
 //public:
-//	inline bool SetCodeLengths(const bytes codeLengths) // 2 kb stack
+//	INLINE bool SetCodeLengths(const bytes codeLengths) // 2 kb stack
 //	{
 //		uint_fast16_t len = 0;
 //		uint16_t syms[NumSymbols], temp[NumSymbols]; // 2*2*512 = 2 kb
@@ -153,7 +153,7 @@ public:
 //		return true;
 //	}
 //
-//	inline uint_fast16_t DecodeSymbol(InputBitstream *bits)
+//	INLINE uint_fast16_t DecodeSymbol(InputBitstream *bits)
 //	{
 //		Node *n = this->n;
 //		do {

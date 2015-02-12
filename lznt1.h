@@ -20,10 +20,14 @@
 // This algorithm is used for NTFS file compression, Windows 2000 hibernation file, Active
 // Directory, File Replication Service, Windows Vista SuperFetch Files, and Windows Vista/7 bootmgr
 //
-// Compression is much faster than RtlCompressBuffer (~50x faster)
-// Decompression is slightly faster than RtlDecompressBuffer (~1.4x faster)
-//
 // Calculating uncompressed size takes much less time than decompression (especially for large files)
+//
+// The algorithm is documented in the MSDN article [MS-XCA]:
+// https://msdn.microsoft.com/library/hh554002.aspx
+// which contains:
+//   Algorithm: https://msdn.microsoft.com/library/jj665697.aspx
+//   Example:   https://msdn.microsoft.com/library/jj711990.aspx
+// 
 //
 // Assumptions based on RtlCompressBuffer output on NT 3.51, NT 4 SP1, XP SP2, Win 7 SP1:
 //   All flags besides the compressed flag are always 011 (binary)
@@ -37,20 +41,29 @@
 
 #ifndef LZNT1_H
 #define LZNT1_H
-#include "compression-api.h"
+#include "mscomp-api.h"
+
+#ifdef MSCOMP_WITH_LZNT1
 
 EXTERN_C_START
 
-COMPAPI size_t lznt1_compress(const_bytes in, size_t in_len, bytes out, size_t out_len);
-#ifdef COMPRESSION_API_EXPORT
-COMPAPI size_t lznt1_max_compressed_size(size_t in_len);
-#else
-#define lznt1_max_compressed_size(in_len) (((size_t)(in_len)) + 3 + 2 * (((size_t)(in_len) + 4095) / 4096))
-#endif
+MSCOMPAPI MSCompStatus lznt1_compress(const_bytes in, size_t in_len, bytes out, size_t* out_len);
+MSCOMPAPI size_t lznt1_max_compressed_size(size_t in_len);
 
-COMPAPI size_t lznt1_decompress(const_bytes in, size_t in_len, bytes out, size_t out_len);
-COMPAPI size_t lznt1_uncompressed_size(const_bytes in, size_t in_len);
+MSCOMPAPI MSCompStatus lznt1_decompress(const_bytes in, size_t in_len, bytes out, size_t* out_len);
+MSCOMPAPI MSCompStatus lznt1_uncompressed_size(const_bytes in, size_t in_len, size_t* out_len);
+
+
+MSCOMPAPI MSCompStatus lznt1_deflate_init(mscomp_stream* stream);
+MSCOMPAPI MSCompStatus lznt1_deflate(mscomp_stream* stream, bool finish);
+MSCOMPAPI MSCompStatus lznt1_deflate_end(mscomp_stream* stream);
+
+MSCOMPAPI MSCompStatus lznt1_inflate_init(mscomp_stream* stream);
+MSCOMPAPI MSCompStatus lznt1_inflate(mscomp_stream* stream, bool finish);
+MSCOMPAPI MSCompStatus lznt1_inflate_end(mscomp_stream* stream);
 
 EXTERN_C_END
+
+#endif // MSCOMP_WITH_LZNT1
 
 #endif

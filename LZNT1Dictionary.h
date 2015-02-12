@@ -29,7 +29,7 @@
 
 #ifndef LZNT1_DICTIONARY_H
 #define LZNT1_DICTIONARY_H
-#include "compression-api.h"
+#include "mscomp-api.h"
 
 class LZNT1Dictionary // 512+ KB (768+ KB on 64-bit systems)
 {
@@ -39,79 +39,70 @@ private:
 	{
 		const_bytes* pos;
 		uint16_t cap;
-		inline void add(const_bytes data, uint16_t& size)
+		INLINE bool add(const_bytes data, uint16_t& size)
 		{
 			if (size >= this->cap)
 			{
 				const_bytes *temp = (const_bytes*)realloc((bytes*)this->pos, (this->cap=(this->cap?((this->cap==0x8000)?0xFFFF:(this->cap<<1)):8))*sizeof(const_bytes));
-				if (temp == NULL)
-				{
-					// TODO: throw memory error
-				}
+				if (UNLIKELY(temp == NULL)) { return false; }
 				this->pos = temp;
 			}
 			this->pos[size++] = data;
+			return true;
 		}
 	};
 
 	// The dictionary
-#ifdef LARGE_STACK
-	Entry entries[0x100*0x100]; //Entry entries[0x100][0x100]; // 384/640 KB
+	Entry entries[0x100*0x100];  //Entry entries[0x100][0x100];  // 384/640 KB
 	uint16_t sizes[0x100*0x100]; //uint16_t sizes[0x100][0x100]; // 128 KB
-#else
-	Entry *entries;
-	uint16_t *sizes;
-#endif
 
 public:
-	inline LZNT1Dictionary()
+	INLINE LZNT1Dictionary()
 	{
-#ifndef LARGE_STACK
-		this->entries = (Entry*)malloc(0x100*0x100*sizeof(Entry));
-		this->sizes = (uint16_t*)malloc(0x100*0x100*sizeof(uint16_t));
-#endif
 		// need to set pos to NULL and cap to 0
 		memset(this->entries, 0, 0x100*0x100*sizeof(Entry));
 	}
 
-	inline ~LZNT1Dictionary()
+	INLINE ~LZNT1Dictionary()
 	{
 		uint32_t idx;
 		for (idx = 0; idx < 0x100*0x100; ++idx)
+		{
 			free(this->entries[idx].pos);
-#ifndef LARGE_STACK
-		free(this->entries);
-		free(this->sizes);
-#endif
+		}
 	}
 
 	// Resets a dictionary, ready to start a new chunk
 	// This should also be called before any Add/Find
-	inline void Reset()
+	INLINE void Reset()
 	{
 		memset(this->sizes, 0, 0x100*0x100*sizeof(uint16_t));
 	}
 	
 	// Adds data to the dictionary, which will be used as a starting point during future finds
 	// Max length is how many bytes can be read from data, regardless of the end of the chunk
-	inline void Add(const_bytes data, const size_t max_len)
+	INLINE bool Add(const_bytes data, const size_t max_len)
 	{
-		if (max_len >= 2)
+		if (LIKELY(max_len >= 2))
 		{
 			const uint_fast16_t idx = data[0] << 8 | data[1];
-			this->entries[idx].add(data, this->sizes[idx]);
+			return this->entries[idx].add(data, this->sizes[idx]);
 		}
+		return true;
 	}
-	inline void Add(const_bytes data, size_t len, const size_t max_len)
+	INLINE bool Add(const_bytes data, size_t len, const size_t max_len)
 	{
 		if (len > max_len - 2)
+		{
 			len = max_len - 2;
+		}
 		byte x, y = data[0];
 		for (const_bytes end = data + len; data < end; ++data)
 		{
 			x = y; y = data[1];
-			this->entries[x << 8 | y].add(data, this->sizes[x << 8 | y]);
+			if (UNLIKELY(!this->entries[x << 8 | y].add(data, this->sizes[x << 8 | y]))) { return false; }
 		}
+		return true;
 	}
 	
 WARNINGS_PUSH()
@@ -121,9 +112,9 @@ WARNINGS_IGNORE_POTENTIAL_UNINIT_VALRIABLE_USED()
 	// The second dictionary may be NULL for independent chunks, or the dictionary for the previous chunk is overlap can occur
 	// Returns the length of the string found, or 0 if nothing of length >= 3 was found
 	// offset is set to the offset from the current position to the string
-	inline uint_fast16_t Find(const_bytes data, const uint_fast16_t max_len, const_bytes search, uint_fast16_t* offset) const
+	INLINE uint_fast16_t Find(const_bytes data, const uint_fast16_t max_len, const_bytes search, uint_fast16_t* offset) const
 	{
-		if (max_len >= 3 && data-search > 0)
+		if (LIKELY(max_len >= 3 && data-search > 0))
 		{
 			const byte x = data[0], y = data[1];
 			const uint_fast16_t idx = data[0] << 8 | data[1];
@@ -146,7 +137,9 @@ WARNINGS_IGNORE_POTENTIAL_UNINIT_VALRIABLE_USED()
 						while (l < max_len && data[l] == x)	{ ++l; }
 						--ep;
 						if (data-search > 1 && x == data[-2])
+						{
 							--ep;
+						}
 
 						// Found the best match, stop now
 						if (l == max_len) { *offset = o; return l; }

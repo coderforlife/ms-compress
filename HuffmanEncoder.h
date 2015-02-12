@@ -17,7 +17,7 @@
 #ifndef HUFFMAN_ENCODER
 #define HUFFMAN_ENCODER
 
-#include "compression-api.h"
+#include "mscomp-api.h"
 #include "Bitstream.h"
 
 #define INVALID_SYMBOL 0xFFFF
@@ -69,7 +69,7 @@ private:
 	}
 
 public:
-	inline const const_bytes CreateCodes(uint32_t symbol_counts[]) // 3 kb stack
+	INLINE const const_bytes CreateCodes(uint32_t symbol_counts[]) // 3 kb stack
 	{
 		uint16_t* syms, syms_by_count[NumSymbols], syms_by_len[NumSymbols], temp[NumSymbols]; // 3*2*512 = 3 kb
 		uint_fast16_t i, j, len, pos, s;
@@ -98,7 +98,7 @@ public:
 			collection* cols = (collection*)malloc(32*sizeof(collection)), *next_cols = (collection*)malloc(32*sizeof(collection)), *temp_cols; // 32.25 kb initial allocation
 			uint_fast16_t cols_cap = 32, cols_len = 0, cols_pos, next_cols_len = 0;
 		
-			if (!cols || !next_cols) { PRINT_ERROR("Xpress Huffman Compression Error: malloc failed\n"); free(cols); free(next_cols); return NULL; }
+			if (!cols || !next_cols) { free(cols); free(next_cols); return NULL; }
 
 			// Start at the lowest value row, adding new collection
 			for (j = 0; j < kNumBitsMax; ++j)
@@ -114,11 +114,11 @@ public:
 						cols_cap <<= 1;
 
 						temp_cols = (collection*)realloc(cols,      cols_cap*sizeof(collection));
-						if (temp_cols == NULL) { PRINT_ERROR("Xpress Huffman Compression Error: realloc failed\n"); free(cols); free(next_cols); return NULL; }
+						if (temp_cols == NULL) { free(cols); free(next_cols); return NULL; }
 						cols      = temp_cols;
 
 						temp_cols = (collection*)realloc(next_cols, cols_cap*sizeof(collection));
-						if (temp_cols == NULL) { PRINT_ERROR("Xpress Huffman Compression Error: realloc failed\n"); free(cols); free(next_cols); return NULL; }
+						if (temp_cols == NULL) { free(cols); free(next_cols); return NULL; }
 						next_cols = temp_cols;
 					}
 					memset(next_cols+next_cols_len, 0, sizeof(collection));
@@ -172,7 +172,7 @@ public:
 		return this->lens;
 	}
 
-	inline bool EncodeSymbol(uint_fast16_t sym, OutputBitstream *bits) const { return bits->WriteBits(this->codes[sym], this->lens[sym]); }
+	INLINE bool EncodeSymbol(uint_fast16_t sym, OutputBitstream *bits) const { return bits->WriteBits(this->codes[sym], this->lens[sym]); }
 };
 
 #endif

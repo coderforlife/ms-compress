@@ -37,7 +37,10 @@
 //			}
 //			table[j] = (hash -= 0x789ABCDFu) & (MAX_HASH - 1);
 
-#include "compression-api.h"
+#ifndef LCG_H
+#define LCG_H
+
+#include "mscomp-api.h"
 
 template<uint32_t SEED, uint32_t A, uint32_t C, uint32_t M, uint32_t S, uint16_t MaxHash>
 class LCG
@@ -70,8 +73,10 @@ WARNINGS_POP()
 	static LCG<SEED, A, C, M, S, MaxHash> lcg;
 
 public:
-	inline static uint_fast16_t Hash(const const_bytes x) { return lcg.hashes[0][x[0]] ^ lcg.hashes[1][x[1]] ^ lcg.hashes[2][x[2]]; }
+	INLINE static uint_fast16_t Hash(const const_bytes x) { return lcg.hashes[0][x[0]] ^ lcg.hashes[1][x[1]] ^ lcg.hashes[2][x[2]]; }
 };
 
 template<uint32_t SEED, uint32_t A, uint32_t C, uint32_t M, uint32_t S, uint16_t MaxHash>
 LCG<SEED, A, C, M, S, MaxHash> LCG<SEED, A, C, M, S, MaxHash>::lcg;
+
+#endif

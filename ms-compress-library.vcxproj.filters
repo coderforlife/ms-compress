@@ -30,14 +30,8 @@
     <ClInclude Include="xpress_huff.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="compression.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Bitstream.h">
       <Filter>Internal</Filter>
-    </ClInclude>
-    <ClInclude Include="compression-api.h">
-      <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="XpressDictionary.h">
       <Filter>Internal</Filter>
@@ -72,25 +66,40 @@
     <ClInclude Include="Threaded.h">
       <Filter>Internal</Filter>
     </ClInclude>
+    <ClInclude Include="mscomp-api.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="mscomp.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="mscomp-api-internal.h">
+      <Filter>Internal</Filter>
+    </ClInclude>
+    <ClInclude Include="XpressDictionaryStatic.h">
+      <Filter>Internal</Filter>
+    </ClInclude>
+    <ClInclude Include="CircularBuffer.h">
+      <Filter>Internal</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="xpress_huff.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="xpress.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="lznt1.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="compression.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="lzx.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Threaded.cpp">
       <Filter>Internal</Filter>
+    </ClCompile>
+    <ClCompile Include="xpress.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="xpress_huff.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="mscomp.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="lzx.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

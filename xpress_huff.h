@@ -17,25 +17,46 @@
 
 // Xpress Huffman Compression and Decompression Functions
 //
-// This is the Xpress compression used in WIM files not the hibernation file.
+// This is the Xpress compression used in WIM files - not the hibernation file.
 //
-// A mostly complete pseudo-code decompression implementation is given at: http://msdn.microsoft.com/en-us/library/dd644740(PROT.13).aspx
-// The decompression code is similar to the given pseudo-code but has been
-// optimized, can handle 64kb chunked data, and detects the end-of-stream
-// instead of requiring the decompressed size to be known.
+// The algorithm is documented in the MSDN article [MS-XCA]:
+// https://msdn.microsoft.com/library/hh554002.aspx
+// which contains (although with mistakes):
+//   Compression:   https://msdn.microsoft.com/library/hh554076.aspx
+//   Decompression: https://msdn.microsoft.com/library/hh536379.aspx
+//   Example:       https://msdn.microsoft.com/library/hh536484.aspx
 //
-// The compression code is completely new and performs similar to the WIMGAPI
-// compression ratio (time not tested).
+// A mostly complete pseudo-code decompression implementation is given at: https://msdn.microsoft.com/library/dd644740.aspx
+// The decompression code is similar to the given pseudo-code but has been optimized, can handle
+// 64kb chunked data, and detects the end-of-stream instead of requiring the decompressed size to
+// be known.
+//
+// The compression code is completely new and performs similar to the WIMGAPI compression ratio
+// (time not tested).
 
 #ifndef XPRESS_HUFF_H
 #define XPRESS_HUFF_H
-#include "compression-api.h"
+#include "mscomp-api.h"
+
+#ifdef MSCOMP_WITH_XPRESS_HUFF
 
 EXTERN_C_START
 
-COMPAPI size_t xpress_huff_compress(const_bytes in, size_t in_len, bytes out, size_t out_len);
-COMPAPI size_t xpress_huff_decompress(const_bytes in, size_t in_len, bytes out, size_t out_len);
+MSCOMPAPI MSCompStatus xpress_huff_compress(const_bytes in, size_t in_len, bytes out, size_t* out_len);
+//MSCOMPAPI size_t xpress_huff_max_compressed_size(size_t in_len);
+
+MSCOMPAPI MSCompStatus xpress_huff_decompress(const_bytes in, size_t in_len, bytes out, size_t* out_len);
+
+//MSCOMPAPI MSCompStatus xpress_huff_deflate_init(mscomp_stream* stream);
+//MSCOMPAPI MSCompStatus xpress_huff_deflate(mscomp_stream* stream, bool finish);
+//MSCOMPAPI MSCompStatus xpress_huff_deflate_end(mscomp_stream* stream);
+
+//MSCOMPAPI MSCompStatus xpress_huff_inflate_init(mscomp_stream* stream);
+//MSCOMPAPI MSCompStatus xpress_huff_inflate(mscomp_stream* stream, bool finish);
+//MSCOMPAPI MSCompStatus xpress_huff_inflate_end(mscomp_stream* stream);
 
 EXTERN_C_END
+
+#endif // MSCOMP_WITH_XPRESS_HUFF
 
 #endif
