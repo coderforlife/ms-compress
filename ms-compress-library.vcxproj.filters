@@ -83,9 +83,6 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="lznt1.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Threaded.cpp">
       <Filter>Internal</Filter>
     </ClCompile>
@@ -99,6 +96,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="lzx.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="lznt1_decompress.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="lznt1_compress.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

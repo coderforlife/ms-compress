@@ -316,6 +316,7 @@
     <ClInclude Include="xpress_huff.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="lznt1_compress.cpp" />
     <ClCompile Include="lzx.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug-Lib|Win32'">true</ExcludedFromBuild>
@@ -327,7 +328,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release-Lib|x64'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="mscomp.cpp" />
-    <ClCompile Include="lznt1.cpp" />
+    <ClCompile Include="lznt1_decompress.cpp" />
     <ClCompile Include="Threaded.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug-Lib|Win32'">true</ExcludedFromBuild>

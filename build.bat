@@ -6,7 +6,10 @@
 ::-Werror
 set FLAGS=-DMSCOMP_API_EXPORT -DMSCOMP_WITHOUT_XPRESS_HUFF -DMSCOMP_WITHOUT_LZX ^
   -static-libgcc -static-libstdc++ -O3 -fno-tree-vectorize -march=native -Wall -s
-set FILES=mscomp.cpp lznt1.cpp xpress.cpp xpress_huff.cpp lzx.cpp
+set FILES=mscomp.cpp ^
+	lznt1_compress.cpp lznt1_decompress.cpp ^
+	xpress_compress.cpp xpress_decompress.cpp ^
+	xpress_huff_compress.cpp xpress_huff_decompress.cpp
 set OUT=MSCompression
 
 echo Compiling 32-bit...
