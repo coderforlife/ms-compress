@@ -36,7 +36,7 @@
 
 #ifndef XPRESS_HUFF_H
 #define XPRESS_HUFF_H
-#include "mscomp-api.h"
+#include "mscomp/general.h"
 
 #ifdef MSCOMP_WITH_XPRESS_HUFF
 

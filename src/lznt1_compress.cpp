@@ -15,11 +15,12 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-#include "lznt1.h"
+#include "../include/mscomp/internal.h"
 
 #ifdef MSCOMP_WITH_LZNT1
 
-#include "LZNT1Dictionary.h"
+#include "../include/lznt1.h"
+#include "../include/mscomp/LZNT1Dictionary.h"
 
 #define CHUNK_SIZE 0x1000 // to be compatible with all known forms of Windows
 

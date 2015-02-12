@@ -15,12 +15,13 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-#include "xpress_huff.h"
+#include "../include/mscomp/internal.h"
 
 #ifdef MSCOMP_WITH_XPRESS_HUFF
 
-#include "Bitstream.h"
-#include "HuffmanDecoder.h"
+#include "../include/xpress_huff.h"
+#include "../include/mscomp/Bitstream.h"
+#include "../include/mscomp/HuffmanDecoder.h"
 
 #ifdef VERBOSE_DECOMPRESSION
 #include <stdio.h>

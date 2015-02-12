@@ -16,10 +16,10 @@
 
 // Adapted from 7-zip. See http://www.7-zip.org/.
 
-#ifndef HUFFMAN_DECODER
-#define HUFFMAN_DECODER
+#ifndef MSCOMP_HUFFMAN_DECODER
+#define MSCOMP_HUFFMAN_DECODER
 
-#include "mscomp-api.h"
+#include "internal.h"
 #include "Bitstream.h"
 
 #define INVALID_SYMBOL 0xFFFF

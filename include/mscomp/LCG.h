@@ -37,10 +37,10 @@
 //			}
 //			table[j] = (hash -= 0x789ABCDFu) & (MAX_HASH - 1);
 
-#ifndef LCG_H
-#define LCG_H
+#ifndef MSCOMP_LCG_H
+#define MSCOMP_LCG_H
 
-#include "mscomp-api.h"
+#include "internal.h"
 
 template<uint32_t SEED, uint32_t A, uint32_t C, uint32_t M, uint32_t S, uint16_t MaxHash>
 class LCG

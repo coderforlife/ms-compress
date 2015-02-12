@@ -21,8 +21,8 @@
 // To make other compilers work at their full potential, you should add stuff below, particularly
 // to the INLINE/FORCE_INLINE and Builtins/Intrinsics sections.
 
-#ifndef MSCOMP_API_INTERNAL_H
-#define MSCOMP_API_INTERNAL_H
+#ifndef MSCOMP_INTERNAL_H
+#define MSCOMP_INTERNAL_H
 
 // For MSVC
 #define _CRT_SECURE_NO_WARNINGS
@@ -31,13 +31,14 @@
 // For GCC
 #define __STDC_LIMIT_MACROS
 
+#include "general.h"
 #include <stddef.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdint.h>
 #include <limits.h>
 #include <assert.h>
-#include <new.h>
+#include <new>
 
 // Check that it is 8 bits to the byte
 #if CHAR_BIT != 8
@@ -355,16 +356,5 @@
 		method##_end(&strm); \
 		return LIKELY(status == MSCOMP_STREAM_END) ? MSCOMP_OK : (status == MSCOMP_OK ? MSCOMP_BUF_ERROR : status); \
 	}
-
-// DLL linkage
-#ifdef MSCOMP_API_DLL
-	#ifdef _WIN32
-		#define MSCOMPAPI __declspec(dllexport)
-	#else
-		#define MSCOMPAPI extern // unnecessary but whatever
-	#endif
-#else
-	#define MSCOMPAPI
-#endif
 
 #endif

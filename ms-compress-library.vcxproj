@@ -293,54 +293,30 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="Bitstream.h" />
-    <ClInclude Include="CircularBuffer.h" />
-    <ClInclude Include="mscomp-api-internal.h" />
-    <ClInclude Include="mscomp.h" />
-    <ClInclude Include="mscomp-api.h" />
-    <ClInclude Include="HuffmanDecoder.h" />
-    <ClInclude Include="HuffmanEncoder.h" />
-    <ClInclude Include="LCG.h" />
-    <ClInclude Include="LZNT1Dictionary.h" />
-    <ClInclude Include="lznt1.h" />
-    <ClInclude Include="lzx.h" />
-    <ClInclude Include="LZXCompressionCore.h" />
-    <ClInclude Include="LZXConstants.h" />
-    <ClInclude Include="LZXDecompressionCore.h" />
-    <ClInclude Include="LZXDictionaryCAB.h" />
-    <ClInclude Include="LZXDictionaryWIM.h" />
-    <ClInclude Include="Threaded.h" />
-    <ClInclude Include="XpressDictionary.h" />
-    <ClInclude Include="xpress.h" />
-    <ClInclude Include="XpressDictionaryStatic.h" />
-    <ClInclude Include="xpress_huff.h" />
+    <ClInclude Include="include/mscomp/Bitstream.h" />
+    <ClInclude Include="include/mscomp/CircularBuffer.h" />
+    <ClInclude Include="include/mscomp/config.h" />
+    <ClInclude Include="include/mscomp/general.h" />
+    <ClInclude Include="include/mscomp/internal.h" />
+    <ClInclude Include="include/mscomp.h" />
+    <ClInclude Include="include/mscomp/HuffmanDecoder.h" />
+    <ClInclude Include="include/mscomp/HuffmanEncoder.h" />
+    <ClInclude Include="include/mscomp/LCG.h" />
+    <ClInclude Include="include/mscomp/LZNT1Dictionary.h" />
+    <ClInclude Include="include/mscomp/XpressDictionary.h" />
+    <ClInclude Include="include/mscomp/XpressDictionaryStatic.h" />
+    <ClInclude Include="include/lznt1.h" />
+    <ClInclude Include="include/xpress.h" />
+    <ClInclude Include="include/xpress_huff.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="lznt1_compress.cpp" />
-    <ClCompile Include="lzx.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug-Lib|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release-Lib|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug-Lib|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release-Lib|x64'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="mscomp.cpp" />
-    <ClCompile Include="lznt1_decompress.cpp" />
-    <ClCompile Include="Threaded.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug-Lib|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release-Lib|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug-Lib|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release-Lib|x64'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="xpress.cpp" />
-    <ClCompile Include="xpress_huff.cpp" />
+    <ClCompile Include="src/mscomp.cpp" />
+    <ClCompile Include="src/lznt1_compress.cpp" />
+    <ClCompile Include="src/lznt1_decompress.cpp" />
+    <ClCompile Include="src/xpress_compress.cpp" />
+    <ClCompile Include="src/xpress_decompress.cpp" />
+    <ClCompile Include="src/xpress_huff_compress.cpp" />
+    <ClCompile Include="src/xpress_huff_decompress.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

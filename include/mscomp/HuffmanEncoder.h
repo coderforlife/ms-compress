@@ -14,10 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef HUFFMAN_ENCODER
-#define HUFFMAN_ENCODER
+#ifndef MSCOMP_HUFFMAN_ENCODER
+#define MSCOMP_HUFFMAN_ENCODER
 
-#include "mscomp-api.h"
+#include "internal.h"
 #include "Bitstream.h"
 
 #define INVALID_SYMBOL 0xFFFF

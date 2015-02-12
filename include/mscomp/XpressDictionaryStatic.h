@@ -20,9 +20,9 @@
 //
 // TODO: ? Most of the compression time is spent in the dictionary - particularly Find and Add.
 
-#ifndef XPRESS_DICTIONARY_STATIC_H
-#define XPRESS_DICTIONARY_STATIC_H
-#include "mscomp-api.h"
+#ifndef MSCOMP_XPRESS_DICTIONARY_STATIC_H
+#define MSCOMP_XPRESS_DICTIONARY_STATIC_H
+#include "internal.h"
 
 #include "LCG.h"
 

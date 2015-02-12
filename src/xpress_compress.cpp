@@ -15,14 +15,15 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-#include "xpress.h"
+#include "../include/mscomp/internal.h"
 
 #ifdef MSCOMP_WITH_XPRESS
 
-#include "XpressDictionary.h"
-//#include "XpressDictionaryStatic.h"
-
 #define MIN_DATA	5
+
+#include "../include/xpress.h"
+#include "../include/mscomp/XpressDictionary.h"
+//#include "../include/mscomp/XpressDictionaryStatic.h"
 
 typedef XpressDictionary<0x2000> Dictionary;
 //typedef XpressDictionaryStatic<0x2000> DictionaryStatic;

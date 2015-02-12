@@ -41,7 +41,7 @@
 
 #ifndef LZNT1_H
 #define LZNT1_H
-#include "mscomp-api.h"
+#include "mscomp/general.h"
 
 #ifdef MSCOMP_WITH_LZNT1
 

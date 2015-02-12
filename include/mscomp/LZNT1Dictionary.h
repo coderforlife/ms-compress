@@ -27,9 +27,9 @@
 
 // This implementation is ~30x faster than the original 576 KB fixed-size dictionary!
 
-#ifndef LZNT1_DICTIONARY_H
-#define LZNT1_DICTIONARY_H
-#include "mscomp-api.h"
+#ifndef MSCOMP_LZNT1_DICTIONARY_H
+#define MSCOMP_LZNT1_DICTIONARY_H
+#include "internal.h"
 
 class LZNT1Dictionary // 512+ KB (768+ KB on 64-bit systems)
 {

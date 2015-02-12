@@ -17,53 +17,32 @@
 
 // General include file which includes necessary files, defines, and typedefs.
 
-#ifndef MSCOMP_API_H
-#define MSCOMP_API_H
+#ifndef MSCOMP_GENERAL_H
+#define MSCOMP_GENERAL_H
+#include "config.h"
 
-// Compile Options
-#if !defined(MSCOMP_WITH_OPT_COMPRESS) && !defined(MSCOMP_WITHOUT_OPT_COMPRESS)
-#define MSCOMP_WITH_OPT_COMPRESS       // Without this option the single-call compressors are simple wrappers around the stream functions
-#endif
-#if !defined(MSCOMP_WITH_OPT_DECOMPRESS) && !defined(MSCOMP_WITHOUT_OPT_DECOMPRESS)
-#define MSCOMP_WITH_OPT_DECOMPRESS     // Without this option the single-call decompressors are simple wrappers around the stream functions
-#endif
-#if !defined(MSCOMP_WITH_ERROR_MESSAGES) && !defined(MSCOMP_WITHOUT_ERROR_MESSAGES)
-#define MSCOMP_WITH_ERROR_MESSAGES     // Includes detailed error messages in the stream object (mainly for debugging, error codes are always given)
-#endif
-#if !defined(MSCOMP_WITH_WARNING_MESSAGES) && !defined(MSCOMP_WITHOUT_WARNING_MESSAGES)
-#define MSCOMP_WITH_WARNING_MESSAGES   // Includes detailed warning messages in the stream object (mainly for debugging)
-#endif
+#include <stdint.h> // for uint8_t
+#include <stddef.h> // for size_t
 
-#if !defined(MSCOMP_WITH_LZNT1) && !defined(MSCOMP_WITHOUT_LZNT1)
-#define MSCOMP_WITH_LZNT1
-#endif
-#if !defined(MSCOMP_WITH_XPRESS) && !defined(MSCOMP_WITHOUT_XPRESS)
-#define MSCOMP_WITH_XPRESS
-#endif
-#if !defined(MSCOMP_WITH_XPRESS_HUFF) && !defined(MSCOMP_WITHOUT_XPRESS_HUFF)
-#define MSCOMP_WITH_XPRESS_HUFF
-#endif
-#if !defined(MSCOMP_WITH_LZX) && !defined(MSCOMP_WITHOUT_LZX)
-//#define MSCOMP_WITH_LZX // not working yet - never enable!
-#endif
-
-#ifdef MSCOMP_API_EXPORT
-
-#include "mscomp-api-internal.h"
-
-#else // Importing from DLL or LIB
-
-#include <stdint.h>
+// There are 2 defines which effect the linkage of the public functions
+// Define MSCOMP_API_DLL if you are either creating or using a dynamic library
+// Define MSCOMP_API_EXPORT if you are creating a library (either static or dynamic)
+// If you are bundling the code in your own code (and don't want/need the functions exported) or using a static library, define neither.
+// If you are creating a dynamic library, define both.
 #ifdef MSCOMP_API_DLL
-	#ifdef _WIN32
-		#define MSCOMPAPI __declspec(dllexport)
+	#ifdef MSCOMP_API_EXPORT
+		#ifdef _WIN32
+			#define MSCOMPAPI __declspec(dllexport)
+		#else
+			#define MSCOMPAPI extern // unnecessary but whatever
+		#endif
+	#elif defined(_WIN32)
+		#define MSCOMPAPI __declspec(dllimport)
 	#else
 		#define MSCOMPAPI
 	#endif
 #else
 	#define MSCOMPAPI
-#endif
-
 #endif
 
 #ifndef __cplusplus
@@ -75,7 +54,7 @@
 #endif
 
 // Define types used
-typedef uint8_t byte; // should always be unsigned char (there is a check for CHAR_BIT == 8 above)
+typedef uint8_t byte; // should always be unsigned char (there is a check for CHAR_BIT == 8 in internal)
 typedef byte* bytes;
 typedef const byte const_byte;
 typedef const_byte* const_bytes;

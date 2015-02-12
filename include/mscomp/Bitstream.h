@@ -19,9 +19,9 @@
 // A bitstream that allows either reading or writing, but not both at the same time.
 // It reads uint16s for bits and 16 bits can be reliably read at a time
 
-#ifndef BITSTREAM_H
-#define BITSTREAM_H
-#include "mscomp-api.h"
+#ifndef MSCOMP_BITSTREAM_H
+#define MSCOMP_BITSTREAM_H
+#include "internal.h"
 
 WARNINGS_PUSH()
 WARNINGS_IGNORE_ASSIGNMENT_OPERATOR_NOT_GENERATED()

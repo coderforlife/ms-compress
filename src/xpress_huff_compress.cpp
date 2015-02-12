@@ -15,13 +15,14 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-#include "xpress_huff.h"
+#include "../include/mscomp/internal.h"
 
 #ifdef MSCOMP_WITH_XPRESS_HUFF
 
-#include "XpressDictionary.h"
-#include "Bitstream.h"
-#include "HuffmanEncoder.h"
+#include "../include/xpress_huff.h"
+#include "../include/mscomp/XpressDictionary.h"
+#include "../include/mscomp/Bitstream.h"
+#include "../include/mscomp/HuffmanEncoder.h"
 
 #define PRINT_ERROR(...) // TODO: remove
 

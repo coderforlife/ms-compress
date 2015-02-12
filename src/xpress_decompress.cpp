@@ -15,13 +15,14 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-#include "xpress.h"
+#include "../include/mscomp/internal.h"
 
 #ifdef MSCOMP_WITH_XPRESS
 
 #define MIN_DATA	5
 
-#include "CircularBuffer.h"
+#include "../include/xpress.h"
+#include "../include/mscomp/CircularBuffer.h"
 typedef CircularBuffer<0x2000> Buffer;
 
 struct _mscomp_internal_state

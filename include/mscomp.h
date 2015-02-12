@@ -37,7 +37,7 @@
 
 #ifndef MSCOMPRESSION_H
 #define MSCOMPRESSION_H
-#include "mscomp-api.h"
+#include "mscomp/general.h"
 
 EXTERN_C_START
 

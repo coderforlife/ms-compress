@@ -18,90 +18,72 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="lznt1.h">
+    <ClInclude Include="include/mscomp/config.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="lzx.h">
+    <ClInclude Include="include/mscomp/general.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="xpress.h">
+    <ClInclude Include="include/mscomp.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="xpress_huff.h">
+    <ClInclude Include="include/lznt1.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Bitstream.h">
-      <Filter>Internal</Filter>
-    </ClInclude>
-    <ClInclude Include="XpressDictionary.h">
-      <Filter>Internal</Filter>
-    </ClInclude>
-    <ClInclude Include="LZNT1Dictionary.h">
-      <Filter>Internal</Filter>
-    </ClInclude>
-    <ClInclude Include="LCG.h">
-      <Filter>Internal</Filter>
-    </ClInclude>
-    <ClInclude Include="HuffmanDecoder.h">
-      <Filter>Internal</Filter>
-    </ClInclude>
-    <ClInclude Include="HuffmanEncoder.h">
-      <Filter>Internal</Filter>
-    </ClInclude>
-    <ClInclude Include="LZXConstants.h">
-      <Filter>Internal</Filter>
-    </ClInclude>
-    <ClInclude Include="LZXDecompressionCore.h">
-      <Filter>Internal</Filter>
-    </ClInclude>
-    <ClInclude Include="LZXCompressionCore.h">
-      <Filter>Internal</Filter>
-    </ClInclude>
-    <ClInclude Include="LZXDictionaryWIM.h">
-      <Filter>Internal</Filter>
-    </ClInclude>
-    <ClInclude Include="LZXDictionaryCAB.h">
-      <Filter>Internal</Filter>
-    </ClInclude>
-    <ClInclude Include="Threaded.h">
-      <Filter>Internal</Filter>
-    </ClInclude>
-    <ClInclude Include="mscomp-api.h">
+    <ClInclude Include="include/xpress.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="mscomp.h">
+    <ClInclude Include="include/xpress_huff.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="mscomp-api-internal.h">
+    <ClInclude Include="include/mscomp/XpressDictionaryStatic.h">
       <Filter>Internal</Filter>
     </ClInclude>
-    <ClInclude Include="XpressDictionaryStatic.h">
+    <ClInclude Include="include/mscomp/XpressDictionary.h">
       <Filter>Internal</Filter>
     </ClInclude>
-    <ClInclude Include="CircularBuffer.h">
+    <ClInclude Include="include/mscomp/LZNT1Dictionary.h">
+      <Filter>Internal</Filter>
+    </ClInclude>
+    <ClInclude Include="include/mscomp/LCG.h">
+      <Filter>Internal</Filter>
+    </ClInclude>
+    <ClInclude Include="include/mscomp/internal.h">
+      <Filter>Internal</Filter>
+    </ClInclude>
+    <ClInclude Include="include/mscomp/HuffmanEncoder.h">
+      <Filter>Internal</Filter>
+    </ClInclude>
+    <ClInclude Include="include/mscomp/HuffmanDecoder.h">
+      <Filter>Internal</Filter>
+    </ClInclude>
+    <ClInclude Include="include/mscomp/CircularBuffer.h">
+      <Filter>Internal</Filter>
+    </ClInclude>
+    <ClInclude Include="include/mscomp/Bitstream.h">
       <Filter>Internal</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Threaded.cpp">
-      <Filter>Internal</Filter>
-    </ClCompile>
-    <ClCompile Include="xpress.cpp">
+    <ClCompile Include="src/mscomp.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="xpress_huff.cpp">
+    <ClCompile Include="src/lznt1_compress.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="mscomp.cpp">
+    <ClCompile Include="src/lznt1_decompress.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="lzx.cpp">
+    <ClCompile Include="src/xpress_compress.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="lznt1_decompress.cpp">
+    <ClCompile Include="src/xpress_decompress.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="lznt1_compress.cpp">
+    <ClCompile Include="src/xpress_huff_compress.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src/xpress_huff_decompress.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

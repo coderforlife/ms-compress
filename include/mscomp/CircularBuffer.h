@@ -20,9 +20,9 @@
 // that the oldest elements are erased. These are optimized for the compression algorithms used
 // here.
 
-#ifndef BITSTREAM_H
-#define BITSTREAM_H
-#include "mscomp-api.h"
+#ifndef MSCOMP_BITSTREAM_H
+#define MSCOMP_BITSTREAM_H
+#include "internal.h"
 
 template<uint32_t Size>
 class CircularBuffer

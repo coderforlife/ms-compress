@@ -15,12 +15,12 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-#include "mscomp.h"
+#include "../include/mscomp/internal.h"
+#include "../include/mscomp.h"
 
-#include "lznt1.h"
-#include "lzx.h"
-#include "xpress.h"
-#include "xpress_huff.h"
+#include "../include/lznt1.h"
+#include "../include/xpress.h"
+#include "../include/xpress_huff.h"
 
 // First we give some simple no-compression 'compression' functions
 MSCompStatus copy(const_bytes in, size_t in_len, bytes out, size_t* _out_len)

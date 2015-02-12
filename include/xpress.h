@@ -37,7 +37,7 @@
 
 #ifndef XPRESS_H
 #define XPRESS_H
-#include "mscomp-api.h"
+#include "mscomp/general.h"
 
 #ifdef MSCOMP_WITH_XPRESS
 
