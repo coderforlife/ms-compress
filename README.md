@@ -11,6 +11,7 @@ totaling 67 MB. Each file was done 100 times. The files came from the following 
 * [Canterbury Corpus](http://corpus.canterbury.ac.nz/descriptions/#cantrbry)
 * [Canterbury Large Corpus](http://corpus.canterbury.ac.nz/descriptions/#large)
 * [Maximum Compression's single file tests](http://www.maximumcompression.com)
+
 For comparison, the library includes a "no compression" engine and it operates at 2200 MB/s in the
 same testing environment.
 
