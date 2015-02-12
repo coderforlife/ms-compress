@@ -27,7 +27,7 @@ typedef CircularBuffer<0x2000> Buffer;
 
 struct _mscomp_internal_state
 { // 39-43 bytes
-	bool finished; // for decompression it means we are fully finished
+	bool finished; // means we are fully finished
 	
 	byte half_byte;
 	bool has_half_byte;

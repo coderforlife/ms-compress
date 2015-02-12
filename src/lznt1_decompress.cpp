@@ -26,7 +26,7 @@
 
 struct _mscomp_internal_state
 { // 8,216 - 8,232 bytes
-	bool finished; // means whatever is left in state->out is all that is left
+	bool finishing; // means whatever is left in state->out is all that is left
 	byte in[CHUNK_SIZE+2];
 	size_t in_needed, in_avail;
 	byte out[CHUNK_SIZE+2];
@@ -180,7 +180,7 @@ MSCompStatus lznt1_decompress_chunk_read(mscomp_stream* stream, const_bytes in, 
 #ifdef MSCOMP_WITH_WARNING_MESSAGES
 		if (UNLIKELY((stream->in_avail|state->in_avail) != 2)) { SET_WARNING(stream, "LZNT1 Decompression Warning: Possible premature end (%"SSIZE_T_FMT"u bytes read so far with %"SSIZE_T_FMT"u bytes avail)", stream->in_total+2, (stream->in_avail|state->in_avail)-2); }
 #endif
-		state->finished = true;
+		state->finishing = true;
 		return MSCOMP_OK;
 	}
 	in_size = (header & 0x0FFF)+3; // +3 includes +2 for header
@@ -262,7 +262,7 @@ MSCompStatus lznt1_decompress_chunk_read(mscomp_stream* stream, const_bytes in, 
 #ifdef MSCOMP_WITH_WARNING_MESSAGES
 		if (UNLIKELY((stream->in_avail|state->in_avail) != in_size)) { SET_WARNING(stream, "LZNT1 Decompression Warning: Possible premature end (%"SSIZE_T_FMT"u bytes read so far with %"SSIZE_T_FMT"u bytes avail)", stream->in_total+in_size, (stream->in_avail|state->in_avail)-in_size); }
 #endif
-		state->finished = true;
+		state->finishing = true;
 	}
 
 	return MSCOMP_OK;
@@ -273,7 +273,7 @@ MSCompStatus lznt1_inflate_init(mscomp_stream* stream)
 
 	mscomp_internal_state* state = (mscomp_internal_state*)malloc(sizeof(mscomp_internal_state));
 	if (UNLIKELY(state == NULL)) { SET_ERROR(stream, "LZNT1 Decompression Error: Unable to allocate buffer memory"); return MSCOMP_MEM_ERROR; }
-	state->finished  = false;
+	state->finishing  = false;
 	state->in_needed = 0;
 	state->in_avail  = 0;
 	state->out_pos   = 0;
@@ -284,7 +284,7 @@ MSCompStatus lznt1_inflate_init(mscomp_stream* stream)
 }
 MSCompStatus lznt1_inflate(mscomp_stream* stream, bool finish)
 {
-	CHECK_STREAM_PLUS(stream, false, MSCOMP_LZNT1, stream->state == NULL || (!finish && stream->state->finished));
+	CHECK_STREAM_PLUS(stream, false, MSCOMP_LZNT1, stream->state == NULL || (!finish && stream->state->finishing));
 
 	mscomp_internal_state *state = stream->state;
 
@@ -305,7 +305,7 @@ MSCompStatus lznt1_inflate(mscomp_stream* stream, bool finish)
 	});
 	
 	// Decompress full chunks while there is room in the output buffer
-	while (stream->out_avail && stream->in_avail >= 2 && !state->finished)
+	while (stream->out_avail && stream->in_avail >= 2 && !state->finishing)
 	{
 		size_t in_size = stream->in_avail;
 		MSCompStatus status = lznt1_decompress_chunk_read(stream, stream->in, &in_size);
@@ -313,7 +313,7 @@ MSCompStatus lznt1_inflate(mscomp_stream* stream, bool finish)
 		ADVANCE_IN(stream, in_size);
 	}
 
-	if (stream->out_avail && stream->in_avail && !state->finished)
+	if (stream->out_avail && stream->in_avail && !state->finishing)
 	{
 		ALWAYS(stream->in_avail == 1);
 		state->in[0] = stream->in[0];
@@ -321,16 +321,16 @@ MSCompStatus lznt1_inflate(mscomp_stream* stream, bool finish)
 		state->in_avail  = 1;
 		stream->in += 1; stream->in_total += 1; stream->in_avail = 0;
 	}
-	else if (UNLIKELY(finish && !stream->in_avail && !state->in_avail)) { state->finished = true; }
+	else if (UNLIKELY(finish && !stream->in_avail && !state->in_avail)) { state->finishing = true; }
 
-	return UNLIKELY(state->finished && !state->out_avail) ? MSCOMP_STREAM_END : MSCOMP_OK;
+	return UNLIKELY(state->finishing && !state->out_avail) ? MSCOMP_STREAM_END : MSCOMP_OK;
 }
 MSCompStatus lznt1_inflate_end(mscomp_stream* stream)
 {
 	CHECK_STREAM_PLUS(stream, false, MSCOMP_LZNT1, stream->state == NULL);
 
 	MSCompStatus status = MSCOMP_OK;
-	if (UNLIKELY(!stream->state->finished || stream->in_avail || stream->state->in_avail || stream->state->out_avail)) { SET_ERROR(stream, "LZNT1 Decompression Error: End prematurely called"); status = MSCOMP_DATA_ERROR; }
+	if (UNLIKELY(!stream->state->finishing || stream->in_avail || stream->state->in_avail || stream->state->out_avail)) { SET_ERROR(stream, "LZNT1 Decompression Error: End prematurely called"); status = MSCOMP_DATA_ERROR; }
 
 	free(stream->state);
 	stream->state = NULL;
