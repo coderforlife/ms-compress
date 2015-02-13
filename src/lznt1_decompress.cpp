@@ -25,8 +25,9 @@
 #define CHUNK_SIZE 0x1000 // to be compatible with all known forms of Windows
 
 struct _mscomp_internal_state
-{ // 8,216 - 8,232 bytes
-	bool finishing; // means whatever is left in state->out is all that is left
+{ // 8,216 - 8,232 bytes (+padding)
+  // could reduce padding by 4 bytes by moving out up to right after in
+	bool end_of_stream;
 	byte in[CHUNK_SIZE+2];
 	size_t in_needed, in_avail;
 	byte out[CHUNK_SIZE+2];
@@ -175,12 +176,11 @@ MSCompStatus lznt1_decompress_chunk_read(mscomp_stream* stream, const_bytes in, 
 	mscomp_internal_state *state = stream->state;
 
 	// Read chunk header
-	if ((header = GET_UINT16(in)) == 0)
+	if (UNLIKELY((header = GET_UINT16(in)) == 0))
 	{
-#ifdef MSCOMP_WITH_WARNING_MESSAGES
-		if (UNLIKELY((stream->in_avail|state->in_avail) != 2)) { SET_WARNING(stream, "LZNT1 Decompression Warning: Possible premature end (%"SSIZE_T_FMT"u bytes read so far with %"SSIZE_T_FMT"u bytes avail)", stream->in_total+2, (stream->in_avail|state->in_avail)-2); }
-#endif
-		state->finishing = true;
+		if (UNLIKELY((stream->in_avail+state->in_avail) != 2)) { SET_ERROR(stream, "LZNT1 Decompression Warning: End-of-stream found with data left"); return MSCOMP_DATA_ERROR; }
+		*in_len = 2;
+		state->end_of_stream = true;
 		return MSCOMP_OK;
 	}
 	in_size = (header & 0x0FFF)+3; // +3 includes +2 for header
@@ -199,11 +199,8 @@ MSCompStatus lznt1_decompress_chunk_read(mscomp_stream* stream, const_bytes in, 
 	// The other bits are always 011 (0x3) and have unknown meaning:
 	//   The last two bits are possibly uncompressed chunk size (512, 1024, 2048, or 4096)
 	//   However in NT 3.51, NT 4 SP1, XP SP2, Win 7 SP1 the actual chunk size is always 4096 and the unknown flags are always 011 (0x3)
-
-#ifdef MSCOMP_WITH_WARNING_MESSAGES
-	if (UNLIKELY((header & 0x7000) != 0x3000)) { SET_WARNING(stream, "LZNT1 Decompression Warning: Unknown chunk flags: %x", (unsigned int)((header >> 12) & 0x7)); }
-#endif
-
+	// The online description says it must always be 3.
+	if (UNLIKELY((header & 0x7000) != 0x3000)) { SET_ERROR(stream, "LZNT1 Decompression Error: Invalid header signature: %x", (unsigned int)((header >> 12) & 0x7)); return MSCOMP_DATA_ERROR; }
 	if (header & 0x8000) // read compressed chunk
 	{
 		if (stream->out_avail < CHUNK_SIZE)
@@ -257,14 +254,6 @@ MSCompStatus lznt1_decompress_chunk_read(mscomp_stream* stream, const_bytes in, 
 		}
 	}
 
-	if (out_size < CHUNK_SIZE)
-	{
-#ifdef MSCOMP_WITH_WARNING_MESSAGES
-		if (UNLIKELY((stream->in_avail|state->in_avail) != in_size)) { SET_WARNING(stream, "LZNT1 Decompression Warning: Possible premature end (%"SSIZE_T_FMT"u bytes read so far with %"SSIZE_T_FMT"u bytes avail)", stream->in_total+in_size, (stream->in_avail|state->in_avail)-in_size); }
-#endif
-		state->finishing = true;
-	}
-
 	return MSCOMP_OK;
 }
 MSCompStatus lznt1_inflate_init(mscomp_stream* stream)
@@ -273,7 +262,7 @@ MSCompStatus lznt1_inflate_init(mscomp_stream* stream)
 
 	mscomp_internal_state* state = (mscomp_internal_state*)malloc(sizeof(mscomp_internal_state));
 	if (UNLIKELY(state == NULL)) { SET_ERROR(stream, "LZNT1 Decompression Error: Unable to allocate buffer memory"); return MSCOMP_MEM_ERROR; }
-	state->finishing  = false;
+	state->end_of_stream = false;
 	state->in_needed = 0;
 	state->in_avail  = 0;
 	state->out_pos   = 0;
@@ -282,38 +271,40 @@ MSCompStatus lznt1_inflate_init(mscomp_stream* stream)
 	stream->state = state;
 	return MSCOMP_OK;
 }
-MSCompStatus lznt1_inflate(mscomp_stream* stream, bool finish)
+MSCompStatus lznt1_inflate(mscomp_stream* stream)
 {
-	CHECK_STREAM_PLUS(stream, false, MSCOMP_LZNT1, stream->state == NULL || (!finish && stream->state->finishing));
+	CHECK_STREAM_PLUS(stream, false, MSCOMP_LZNT1, stream->state == NULL);
 
 	mscomp_internal_state *state = stream->state;
 
 	DUMP_OUT(state, stream);
+	if (UNLIKELY(state->end_of_stream))
+	{
+		if (UNLIKELY(stream->in_avail || state->in_avail)) { SET_ERROR(stream, "LZNT1 Decompression Warning: End-of-stream found with data left"); return MSCOMP_DATA_ERROR; }
+		return MSCOMP_OK;
+	}
+
 	APPEND_IN(state, stream,
-		else if (UNLIKELY(state->in_needed))
-		{
-			SET_ERROR(stream, "LZNT1 Decompression Error: Not enough input data to decompress");
-			return MSCOMP_DATA_ERROR;
-		}
-		else
-		{
-			size_t in_len = state->in_avail;
-			MSCompStatus status = lznt1_decompress_chunk_read(stream, state->in, &in_len);
-			if (UNLIKELY(in_len != state->in_avail)) { SET_ERROR(stream, "LZNT1 Decompression Error: Inconsistent stream state"); return MSCOMP_ARG_ERROR; }
-			else if (UNLIKELY(status != MSCOMP_OK)) { return status; }
-			else if (state->in_needed) { continue; } // we only had enough to read the header this time
-	});
+		if (state->in_needed) { return MSCOMP_OK; }
+		size_t in_len = state->in_avail;
+		MSCompStatus status = lznt1_decompress_chunk_read(stream, state->in, &in_len);
+		if (UNLIKELY(in_len != state->in_avail)) { SET_ERROR(stream, "LZNT1 Decompression Error: Inconsistent stream state"); return MSCOMP_ARG_ERROR; }
+		else if (UNLIKELY(status != MSCOMP_OK)) { return status; }
+		else if (UNLIKELY(state->end_of_stream)) { return MSCOMP_OK; }
+		else if (state->in_needed) { continue; } // we only had enough to read the header this time
+	);
 	
 	// Decompress full chunks while there is room in the output buffer
-	while (stream->out_avail && stream->in_avail >= 2 && !state->finishing)
+	while (stream->out_avail && stream->in_avail >= 2)
 	{
 		size_t in_size = stream->in_avail;
 		MSCompStatus status = lznt1_decompress_chunk_read(stream, stream->in, &in_size);
 		if (UNLIKELY(status != MSCOMP_OK)) { return status; }
 		ADVANCE_IN(stream, in_size);
+		if (UNLIKELY(state->end_of_stream)) { return MSCOMP_OK; }
 	}
 
-	if (stream->out_avail && stream->in_avail && !state->finishing)
+	if (stream->out_avail && stream->in_avail)
 	{
 		ALWAYS(stream->in_avail == 1);
 		state->in[0] = stream->in[0];
@@ -321,18 +312,19 @@ MSCompStatus lznt1_inflate(mscomp_stream* stream, bool finish)
 		state->in_avail  = 1;
 		stream->in += 1; stream->in_total += 1; stream->in_avail = 0;
 	}
-	else if (UNLIKELY(finish && !stream->in_avail && !state->in_avail)) { state->finishing = true; }
 
-	return UNLIKELY(state->finishing && !state->out_avail) ? MSCOMP_STREAM_END : MSCOMP_OK;
+	return MSCOMP_OK;
 }
 MSCompStatus lznt1_inflate_end(mscomp_stream* stream)
 {
 	CHECK_STREAM_PLUS(stream, false, MSCOMP_LZNT1, stream->state == NULL);
 
-	MSCompStatus status = MSCOMP_OK;
-	if (UNLIKELY(!stream->state->finishing || stream->in_avail || stream->state->in_avail || stream->state->out_avail)) { SET_ERROR(stream, "LZNT1 Decompression Error: End prematurely called"); status = MSCOMP_DATA_ERROR; }
+	mscomp_internal_state* state = stream->state;
 
-	free(stream->state);
+	MSCompStatus status = MSCOMP_OK;
+	if (UNLIKELY(stream->in_avail || state->in_avail || state->out_avail)) { SET_ERROR(stream, "LZNT1 Decompression Error: End prematurely called"); status = MSCOMP_DATA_ERROR; }
+
+	free(state);
 	stream->state = NULL;
 
 	return status;
@@ -384,66 +376,7 @@ MSCompStatus lznt1_decompress(const_bytes in, size_t in_len, bytes out, size_t* 
 	return MSCOMP_OK;
 }
 #else
-ALL_AT_ONCE_WRAPPER(lznt1_decompress, lznt1_inflate)
+ALL_AT_ONCE_WRAPPER_DECOMPRESS(lznt1)
 #endif
-
-
-/////////////////// Decompression Dry-run Functions ////////////////////////////
-static size_t lznt1_decompress_chunk_dry_run(const_bytes in, const const_bytes in_end)
-{
-	size_t out = 0;
-	byte flags, flagged;
-	uint_fast16_t pow2 = 0x10, mask = 0xFFF, shift = 12;
-	while (LIKELY(in < in_end))
-	{
-		flagged = (flags = *in++) & 0x01;
-		flags = (flags >> 1) | 0x80;
-		do
-		{
-			if (in == in_end) { return out; }
-			else if (flagged)
-			{
-				uint16_t sym;
-				if (UNLIKELY(in + 2 > in_end)) { return 0; }
-				while (out > pow2) { pow2 <<= 1; mask >>= 1; --shift; }
-				sym = GET_UINT16(in);
-				if (UNLIKELY(out < ((sym>>shift)+1u))) { return 0; }
-				out += (sym&mask)+3;
-				in += 2;
-			}
-			else { ++out; ++in; }
-			flagged = flags & 0x01;
-			flags >>= 1;
-		} while (LIKELY(flags));
-	}
-	return out;
-}
-MSCompStatus lznt1_uncompressed_size(const_bytes in, size_t in_len, size_t* _out_len)
-{
-	size_t out = 0;
-	const const_bytes in_end = in+in_len-1;
-	uint16_t header;
-	uint_fast16_t in_size;
-
-	// Go through every chunk
-	while (LIKELY(in < in_end))
-	{
-		if ((header = GET_UINT16(in)) == 0) { *_out_len = out; return MSCOMP_OK; }
-		in_size = (header & 0x0FFF)+1;
-		if (UNLIKELY(in+in_size >= in_end)) { return MSCOMP_DATA_ERROR; }
-		if ((header & 0x8000) && (in+1+in_size == in_end))
-		{
-			// Only need to "decompress" the final chunk
-			size_t out_size = lznt1_decompress_chunk_dry_run(in+2, in+2+in_size);
-			if (UNLIKELY(out_size == 0)) { return MSCOMP_DATA_ERROR; }
-			out += out_size;
-		}
-		else { out += in_size; }
-		in += 2 + in_size;
-	}
-
-	*_out_len = out;
-	return MSCOMP_OK;
-}
 
 #endif

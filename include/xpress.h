@@ -47,14 +47,13 @@ MSCOMPAPI MSCompStatus xpress_compress(const_bytes in, size_t in_len, bytes out,
 MSCOMPAPI size_t xpress_max_compressed_size(size_t in_len);
 
 MSCOMPAPI MSCompStatus xpress_decompress(const_bytes in, size_t in_len, bytes out, size_t* out_len);
-MSCOMPAPI MSCompStatus xpress_uncompressed_size(const_bytes in, size_t in_len, size_t* out_len);
 
 MSCOMPAPI MSCompStatus xpress_deflate_init(mscomp_stream* stream);
-MSCOMPAPI MSCompStatus xpress_deflate(mscomp_stream* stream, bool finish);
+MSCOMPAPI MSCompStatus xpress_deflate(mscomp_stream* stream, MSCompFlush flush);
 MSCOMPAPI MSCompStatus xpress_deflate_end(mscomp_stream* stream);
 
 MSCOMPAPI MSCompStatus xpress_inflate_init(mscomp_stream* stream);
-MSCOMPAPI MSCompStatus xpress_inflate(mscomp_stream* stream, bool finish);
+MSCOMPAPI MSCompStatus xpress_inflate(mscomp_stream* stream);
 MSCOMPAPI MSCompStatus xpress_inflate_end(mscomp_stream* stream);
 
 EXTERN_C_END

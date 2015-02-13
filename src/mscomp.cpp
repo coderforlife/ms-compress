@@ -31,8 +31,8 @@ MSCompStatus copy(const_bytes in, size_t in_len, bytes out, size_t* _out_len)
 	return MSCOMP_OK;
 }
 size_t copy_max_size(size_t in_len) { return in_len; }
-MSCompStatus copy_deflate_init(mscomp_stream* stream) { INIT_STREAM(stream, true, MSCOMP_NONE); return MSCOMP_OK; }
-MSCompStatus copy_deflate(mscomp_stream* stream, bool finish)
+MSCompStatus copy_xxflate_init(mscomp_stream* stream) { INIT_STREAM(stream, true, MSCOMP_NONE); return MSCOMP_OK; }
+MSCompStatus copy_deflate(mscomp_stream* stream, MSCompFlush flush)
 {
 	CHECK_STREAM(stream, true, MSCOMP_NONE);
 	size_t n = stream->in_avail < stream->out_avail ? stream->in_avail : stream->out_avail;
@@ -43,9 +43,22 @@ MSCompStatus copy_deflate(mscomp_stream* stream, bool finish)
 	stream->in        += n;
 	stream->in_total  += n;
 	stream->in_avail  -= n;
-	return (finish && !stream->in_avail) ? MSCOMP_STREAM_END : MSCOMP_OK;
+	return (flush == MSCOMP_FINISH && !stream->in_avail) ? MSCOMP_STREAM_END : MSCOMP_OK;
 }
-MSCompStatus copy_deflate_end(mscomp_stream* stream) { CHECK_STREAM(stream, true, MSCOMP_NONE); return MSCOMP_OK; }
+MSCompStatus copy_inflate(mscomp_stream* stream)
+{
+	CHECK_STREAM(stream, true, MSCOMP_NONE);
+	size_t n = stream->in_avail < stream->out_avail ? stream->in_avail : stream->out_avail;
+	memcpy(stream->out, stream->in, n);
+	stream->out       += n;
+	stream->out_total += n;
+	stream->out_avail -= n;
+	stream->in        += n;
+	stream->in_total  += n;
+	stream->in_avail  -= n;
+	return MSCOMP_OK;
+}
+MSCompStatus copy_xxflate_end(mscomp_stream* stream) { CHECK_STREAM(stream, true, MSCOMP_NONE); return MSCOMP_OK; }
 
 
 
@@ -121,18 +134,18 @@ MSCOMPAPI MSCompStatus ms_decompress(MSCompFormat format, const_bytes in, size_t
 // Streaming Compression and Decompression Functions
 
 typedef MSCompStatus (*stream_func)(mscomp_stream* stream);
-typedef MSCompStatus (*stream_bool_func)(mscomp_stream* stream, bool finish);
+typedef MSCompStatus (*stream_flush_func)(mscomp_stream* stream, MSCompFlush flush);
 
 static stream_func deflaters_init[] =
 {
-	copy_deflate_init,
+	copy_xxflate_init,
 	NULL,
 	IF_WITH_LZNT1(lznt1_deflate_init),
 	IF_WITH_XPRESS(xpress_deflate_init),
 	// TODO: IF_WITH_XPRESS_HUFF(xpress_huff_deflate_init),
 };
 
-static stream_bool_func deflaters[] =
+static stream_flush_func deflaters[] =
 {
 	copy_deflate,
 	NULL,
@@ -143,7 +156,7 @@ static stream_bool_func deflaters[] =
 
 static stream_func deflaters_end[] =
 {
-	copy_deflate_end,
+	copy_xxflate_end,
 	NULL,
 	IF_WITH_LZNT1(lznt1_deflate_end),
 	IF_WITH_XPRESS(xpress_deflate_end),
@@ -168,16 +181,16 @@ MSCompStatus ms_deflate_end(mscomp_stream* stream)
 
 static stream_func inflaters_init[] =
 {
-	copy_deflate_init,
+	copy_xxflate_init,
 	NULL,
 	IF_WITH_LZNT1(lznt1_inflate_init),
 	IF_WITH_XPRESS(xpress_inflate_init),
 	// TODO: IF_WITH_XPRESS_HUFF(xpress_huff_inflate_init),
 };
 
-static stream_bool_func inflaters[] =
+static stream_func inflaters[] =
 {
-	copy_deflate,
+	copy_inflate,
 	NULL,
 	IF_WITH_LZNT1(lznt1_inflate),
 	IF_WITH_XPRESS(xpress_inflate),
@@ -186,7 +199,7 @@ static stream_bool_func inflaters[] =
 
 static stream_func inflaters_end[] =
 {
-	copy_deflate_end,
+	copy_xxflate_end,
 	NULL,
 	IF_WITH_LZNT1(lznt1_inflate_end),
 	IF_WITH_XPRESS(xpress_inflate_end),
@@ -198,10 +211,10 @@ MSCompStatus ms_inflate_init(MSCompFormat format, mscomp_stream* stream)
 	if ((unsigned)format >= ARRAYSIZE(inflaters_init) || !inflaters_init[format]) { SET_ERROR(stream, "Error: Invalid format provided"); return MSCOMP_ARG_ERROR; }
 	return inflaters_init[format](stream);
 }
-MSCompStatus ms_inflate(mscomp_stream* stream, bool finish)
+MSCompStatus ms_inflate(mscomp_stream* stream)
 {
 	if (stream == NULL || (unsigned)stream->format >= ARRAYSIZE(inflaters) || !inflaters[stream->format]) { SET_ERROR(stream, "Error: Invalid stream provided"); return MSCOMP_ARG_ERROR; }
-	return inflaters[stream->format](stream, finish);
+	return inflaters[stream->format](stream);
 }
 MSCompStatus ms_inflate_end(mscomp_stream* stream)
 {

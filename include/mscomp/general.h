@@ -83,6 +83,14 @@ typedef enum _MSCompStatus
 	MSCOMP_BUF_ERROR			= -5,
 } MSCompStatus;
 
+// Flush Codes
+typedef enum _MSCompFlush
+{
+	MSCOMP_NO_FLUSH  = 0,
+	MSCOMP_FLUSH     = 2,
+	MSCOMP_FINISH    = 4,
+} MSCompFlush;
+
 // Compression Stream Object
 typedef struct _mscomp_stream {
 	MSCompFormat	format;

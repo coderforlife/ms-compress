@@ -334,27 +334,42 @@
 			state->in_avail  += copy; \
 			state->in_needed -= copy; \
 			ADVANCE_IN(stream, copy); \
-			if (!finish && state->in_needed) { return MSCOMP_OK; } /* not enough to (de)compress yet */ \
 			OP \
 			break; \
 		} \
 		state->in_avail = 0; \
 	}
 
-#define ALL_AT_ONCE_WRAPPER(name, method) \
-	MSCompStatus name(const_bytes in, size_t in_len, bytes out, size_t* _out_len) \
+#define ALL_AT_ONCE_WRAPPER_COMPRESS(name) \
+	MSCompStatus name##_compress(const_bytes in, size_t in_len, bytes out, size_t* _out_len) \
 	{ \
 		mscomp_stream strm; \
-		MSCompStatus status = method##_init(&strm); \
+		MSCompStatus status = name##_deflate_init(&strm); \
 		if (UNLIKELY(status != MSCOMP_OK)) { return status; } \
 		strm.in = in; \
 		strm.in_avail = in_len; \
 		strm.out = out; \
 		strm.out_avail = *_out_len; \
-		status = method(&strm, true); \
+		status = name##_deflate(&strm, true); \
 		*_out_len = strm.out_total; \
-		method##_end(&strm); \
+		name##_deflate_end(&strm); \
 		return LIKELY(status == MSCOMP_STREAM_END) ? MSCOMP_OK : (status == MSCOMP_OK ? MSCOMP_BUF_ERROR : status); \
+	}
+
+#define ALL_AT_ONCE_WRAPPER_DECOMPRESS(name) \
+	MSCompStatus name##_decompress(const_bytes in, size_t in_len, bytes out, size_t* _out_len) \
+	{ \
+		mscomp_stream strm; \
+		MSCompStatus status = name##_inflate_init(&strm); \
+		if (UNLIKELY(status != MSCOMP_OK)) { return status; } \
+		strm.in = in; \
+		strm.in_avail = in_len; \
+		strm.out = out; \
+		strm.out_avail = *_out_len; \
+		status = name##_inflate(&strm); \
+		if (status != MSCOMP_OK) { name##_inflate_end(&strm); } \
+		else if ((status = name##_inflate_end(&strm)) == MSCOMP_OK) { *_out_len = strm.out_total; } \
+		return status; \
 	}
 
 #endif

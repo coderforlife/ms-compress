@@ -224,7 +224,7 @@ if dll is not None:
         deflate      = _prep(dll.ms_deflate,      [POINTER(stream), c_bool])
         deflate_end  = _prep(dll.ms_deflate_end,  [POINTER(stream)])
         inflate_init = _prep(dll.ms_inflate_init, [c_int, POINTER(stream)])
-        inflate      = _prep(dll.ms_inflate,      [POINTER(stream), c_bool])
+        inflate      = _prep(dll.ms_inflate,      [POINTER(stream)])
         inflate_end  = _prep(dll.ms_inflate_end,  [POINTER(stream)])
 
         def __init__(self, format):
@@ -279,13 +279,13 @@ if dll is not None:
                     s.in_ = input_ptr
                     while s.in_avail != 0:
                         s.out, s.out_avail = output_ptr, output_len
-                        OpenSrc.inflate(s_ptr, False)
+                        OpenSrc.inflate(s_ptr)
                         output.write(buffer(output_buf, 0, output_len-s.out_avail))
                     s.in_avail = input.readinto(input_buf)
                 done = False
                 while not done:
                     s.out, s.out_avail = output_ptr, output_len
-                    done = bool(OpenSrc.inflate(s_ptr, True))
+                    done = bool(OpenSrc.inflate(s_ptr))
                     output.write(buffer(output_buf, 0, output_len-s.out_avail))
             finally:
                 OpenSrc.inflate_end(s_ptr)

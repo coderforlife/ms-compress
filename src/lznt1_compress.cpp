@@ -27,7 +27,8 @@
 size_t lznt1_max_compressed_size(size_t in_len) { return in_len + 3 + 2 * ((in_len + CHUNK_SIZE - 1) / CHUNK_SIZE); }
 
 struct _mscomp_internal_state
-{ // 8,220 - 8,240 bytes
+{ // 8,220 - 8,240 bytes (+padding)
+  // could reduce padding by 4 bytes by moving out up to right after in
 	bool finished; // means fully finished
 	LZNT1Dictionary* d;
 	byte in[CHUNK_SIZE+2];
@@ -151,7 +152,7 @@ MSCompStatus lznt1_deflate_init(mscomp_stream* stream)
 	stream->state = state;
 	return MSCOMP_OK;
 }
-MSCompStatus lznt1_deflate(mscomp_stream* stream, bool finish)
+MSCompStatus lznt1_deflate(mscomp_stream* stream, MSCompFlush flush)
 {
 	CHECK_STREAM_PLUS(stream, true, MSCOMP_LZNT1, stream->state == NULL || stream->state->finished);
 
@@ -159,6 +160,7 @@ MSCompStatus lznt1_deflate(mscomp_stream* stream, bool finish)
 
 	DUMP_OUT(state, stream);
 	APPEND_IN(state, stream,
+		if (flush != MSCOMP_NO_FLUSH && state->in_needed) { return MSCOMP_OK; } /* not enough to compress yet */
 		if (UNLIKELY(!lznt1_compress_chunk_write(stream, state->in, (uint_fast16_t)state->in_avail)))
 		{
 			SET_ERROR(stream, "LZNT1 Compression Error: Unable to allocate dictionary memory");
@@ -180,9 +182,9 @@ MSCompStatus lznt1_deflate(mscomp_stream* stream, bool finish)
 	if (stream->out_avail && stream->in_avail)
 	{
 		ALWAYS(0 < stream->in_avail && stream->in_avail < CHUNK_SIZE);
-		if (finish)
+		if (flush != MSCOMP_NO_FLUSH)
 		{
-			// Last chunk - compress it
+			// Compress a partial chunk
 			if (UNLIKELY(!lznt1_compress_chunk_write(stream, stream->in, (uint_fast16_t)stream->in_avail)))
 			{
 				SET_ERROR(stream, "LZNT1 Compression Error: Unable to allocate dictionary memory");
@@ -198,7 +200,7 @@ MSCompStatus lznt1_deflate(mscomp_stream* stream, bool finish)
 		ADVANCE_IN_TO_END(stream);
 	}
 
-	if (finish && !state->out_avail)
+	if (flush == MSCOMP_FINISH && !state->out_avail)
 	{
 		state->finished = true;
 		return MSCOMP_STREAM_END;
@@ -209,13 +211,15 @@ MSCompStatus lznt1_deflate_end(mscomp_stream* stream)
 {
 	CHECK_STREAM_PLUS(stream, true, MSCOMP_LZNT1, stream->state == NULL);
 
+	mscomp_internal_state *state = stream->state;
+
 	MSCompStatus status = MSCOMP_OK;
-	if (UNLIKELY(!stream->state->finished || stream->in_avail || stream->state->in_avail || stream->state->out_avail)) { SET_ERROR(stream, "LZNT1 Compression Error: End prematurely called"); status = MSCOMP_DATA_ERROR; }
+	if (UNLIKELY(!state->finished || stream->in_avail || state->in_avail || state->out_avail)) { SET_ERROR(stream, "LZNT1 Compression Error: End prematurely called"); status = MSCOMP_DATA_ERROR; }
 
 	// Cleanup
-	stream->state->d->~LZNT1Dictionary();
-	free(stream->state->d);
-	free(stream->state);
+	state->d->~LZNT1Dictionary();
+	free(state->d);
+	free(state);
 	stream->state = NULL;
 
 	return status;
@@ -264,7 +268,7 @@ MSCompStatus lznt1_compress(const_bytes in, size_t in_len, bytes out, size_t* _o
 	return MSCOMP_OK;
 }
 #else
-ALL_AT_ONCE_WRAPPER(lznt1_compress, lznt1_deflate)
+ALL_AT_ONCE_WRAPPER_COMPRESS(lznt1)
 #endif
 
 #endif

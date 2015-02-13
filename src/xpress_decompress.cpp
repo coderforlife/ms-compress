@@ -26,16 +26,12 @@
 typedef CircularBuffer<0x2000> Buffer;
 
 struct _mscomp_internal_state
-{ // 39-43 bytes
-	bool finished; // means we are fully finished
-	
+{ // 38-42 bytes (+padding)
+	uint32_t flagged, flags;
 	byte half_byte;
 	bool has_half_byte;
-	uint32_t flagged, flags;
-	
 	byte in[10];
 	size_t in_avail;
-
 	Buffer* buffer;
 	uint_fast16_t copy_off;
 	uint32_t copy_len;
@@ -53,7 +49,6 @@ MSCompStatus xpress_inflate_init(mscomp_stream* stream)
 	mscomp_internal_state* state = (mscomp_internal_state*)malloc(sizeof(mscomp_internal_state));
 	if (UNLIKELY(state == NULL)) { SET_ERROR(stream, "XPRESS Decompression Error: Unable to allocate state memory"); return MSCOMP_MEM_ERROR; }
 
-	state->finished  = false;
 	state->flagged = 1;
 	state->flags = 0;
 	state->has_half_byte = false;
@@ -248,7 +243,6 @@ LABEL       if (UNLIKELY(in == in_end)) { ERROR("XPRESS Decompression Error: Inv
 	stream->in_total  += in_len;   stream->in_avail   = 0;        stream->in  = in_end; \
 	stream->out_total += _out_len; stream->out_avail -= _out_len; stream->out = out
 #define READ_ALL_IN() INFLATE_SYNC_STATE(); READ_ALL_IN_NO_SYNC()
-#define FINISHED() state->finished = true; READ_ALL_IN_NO_SYNC()
 #define WROTE_ALL_OUT() \
 	INFLATE_SYNC_STATE(); \
 	size_t in_len = in - stream->in; \
@@ -258,13 +252,13 @@ LABEL       if (UNLIKELY(in == in_end)) { ERROR("XPRESS Decompression Error: Inv
 #define READ_SYMBOL_PART_ERROR(MSG, NOT_ENOUGH_BYTES, ...) \
 	WARNINGS_PUSH() \
 	WARNINGS_IGNORE_CONDITIONAL_EXPR_CONSTANT() \
-	if (LIKELY(NOT_ENOUGH_BYTES && !finish)) { ADVANCE_IN(stream, to_copy); state->in_avail += to_copy; return MSCOMP_OK; } \
+	if (LIKELY(NOT_ENOUGH_BYTES)) { ADVANCE_IN(stream, to_copy); state->in_avail += to_copy; return MSCOMP_OK; } \
 	WARNINGS_POP() \
 	SET_STREAM_ERROR(MSG)
 #define READ_SYMBOL_ERROR(MSG, NOT_ENOUGH_BYTES, BYTES_ADVANCED, HALF_BYTE_UPDATED) \
 	WARNINGS_PUSH() \
 	WARNINGS_IGNORE_CONDITIONAL_EXPR_CONSTANT() \
-	if (LIKELY(NOT_ENOUGH_BYTES && !finish)) \
+	if (LIKELY(NOT_ENOUGH_BYTES)) \
 	{ \
 		in -= BYTES_ADVANCED; \
 		if (!HALF_BYTE_UPDATED) \
@@ -286,9 +280,9 @@ LABEL       if (UNLIKELY(in == in_end)) { ERROR("XPRESS Decompression Error: Inv
 
 WARNINGS_PUSH();
 WARNINGS_IGNORE_POTENTIAL_UNINIT_VALRIABLE_USED();
-MSCompStatus xpress_inflate(mscomp_stream* stream, bool finish)
+MSCompStatus xpress_inflate(mscomp_stream* stream)
 {
-	CHECK_STREAM_PLUS(stream, false, MSCOMP_XPRESS, stream->state == NULL || stream->state->finished);
+	CHECK_STREAM_PLUS(stream, false, MSCOMP_XPRESS, stream->state == NULL);
 
 	mscomp_internal_state *state = stream->state;
 	Buffer* buf = state->buffer;
@@ -316,12 +310,6 @@ MSCompStatus xpress_inflate(mscomp_stream* stream, bool finish)
 	uint32_t flags = state->flags, flagged = state->flagged, len;
 	uint_fast16_t off;
 	int starting_place = 0;
-	if (finish && !stream->in_avail && !state->in_avail)
-	{
-		if (UNLIKELY(!flagged || !set_bits_are_highest(flags))) { SET_ERROR(stream, "XPRESS Decompression Error: Invalid data: Unable to read a byte"); return MSCOMP_DATA_ERROR; }
-		state->finished = true;
-		return MSCOMP_STREAM_END;
-	}
 	if (!flags)
 	{
 		// Start with a new flag
@@ -329,7 +317,6 @@ MSCompStatus xpress_inflate(mscomp_stream* stream, bool finish)
 		{
 			if (UNLIKELY(stream->in_avail + state->in_avail < 4))
 			{
-				if (finish) { SET_ERROR(stream, "XPRESS Decompression Error: Invalid data: Unable to read 4 bytes for flags"); return MSCOMP_DATA_ERROR; }
 				memcpy(state->in+state->in_avail, stream->in, stream->in_avail);
 				state->in_avail += stream->in_avail;
 				ADVANCE_IN_TO_END(stream);
@@ -398,18 +385,7 @@ MSCompStatus xpress_inflate(mscomp_stream* stream, bool finish)
 MAIN_LOOP:
 		do
 		{
-			if (in == in_end)
-			{
-				if (finish)
-				{
-					if (UNLIKELY(!flagged || !set_bits_are_highest(flags))) { SET_ERROR(stream, "XPRESS Decompression Error: Invalid data: Unable to read a byte"); return MSCOMP_DATA_ERROR; }
-					FINISHED();
-					return MSCOMP_STREAM_END;
-				}
-				// We have read all the we can for now, save state and quit
-				READ_ALL_IN();
-				return MSCOMP_OK;
-			}
+			if (in == in_end) { READ_ALL_IN(); return MSCOMP_OK; } // We have read all the we can for now, save state and quit
 			else if (flagged) // Either: offset/length symbol, end of flags, or end of stream (checked above)
 			{
 				READ_SYMBOL_WITH_LABEL(READ_SYMBOL_ERROR, CHECKED_LENGTH);
@@ -438,7 +414,6 @@ COPY_BYTE:
 			flags <<= 1;
 		} while (LIKELY(flags));
 	}
-	if (UNLIKELY(finish)) { SET_ERROR(stream, "XPRESS Decompression Error: Invalid data: Unable to read 4 bytes for flags"); return MSCOMP_DATA_ERROR; }
 	state->in_avail = in_end - in;
 	ALWAYS(state->in_avail <= 3);
 	memcpy(state->in, in, state->in_avail); // at most 3 bytes
@@ -450,13 +425,15 @@ MSCompStatus xpress_inflate_end(mscomp_stream* stream)
 {
 	CHECK_STREAM_PLUS(stream, false, MSCOMP_XPRESS, stream->state == NULL);
 
+	mscomp_internal_state* state = stream->state;
+
 	MSCompStatus status = MSCOMP_OK;
-	if (UNLIKELY(!stream->state->finished || stream->in_avail || stream->state->in_avail)) { SET_ERROR(stream, "XPRESS Decompression Error: End prematurely called"); status = MSCOMP_DATA_ERROR; }
+	if (UNLIKELY(stream->in_avail || state->in_avail || !state->flagged || !set_bits_are_highest(state->flags))) { SET_ERROR(stream, "XPRESS Decompression Error: End prematurely called"); status = MSCOMP_DATA_ERROR; }
 
 	// Cleanup
-	stream->state->buffer->~Buffer();
-	free(stream->state->buffer);
-	free(stream->state);
+	state->buffer->~Buffer();
+	free(state->buffer);
+	free(state);
 	stream->state = NULL;
 
 	return status;
@@ -519,116 +496,7 @@ CHECKED_COPY:		for (end = out + len; out < end; ++out) { *out = *(out-off); }
 	return MSCOMP_DATA_ERROR;
 }
 #else
-ALL_AT_ONCE_WRAPPER(xpress_decompress, xpress_inflate)
+ALL_AT_ONCE_WRAPPER_DECOMPRESS(xpress)
 #endif
-
-MSCompStatus xpress_uncompressed_size(const_bytes in, size_t in_len, size_t* _out_len)
-{
-	const const_bytes in_end = in+in_len, in_endx = in_end-0x134; // 4 + 32 * (2 + 0.5 + 1 + 2 + 4) from the end
-	size_t out = 0;
-	const_byte* half_byte = NULL;
-	uint32_t flags, flagged, len;
-
-	if (in_len < MIN_DATA)
-	{
-		if (LIKELY(in_len == 0 || (in_len == 4 && (*(uint32_t*)in) != 0xFFFFFFFF))) { *_out_len = 0; return MSCOMP_OK; }
-		return MSCOMP_DATA_ERROR;
-	}
-
-	// Faster decompression, minimal bounds checking
-	while (LIKELY(in < in_endx))
-	{
-		flagged = (flags = GET_UINT32(in)) & 0x80000000;
-		flags = (flags << 1) | 1;
-		in += 4;
-		do
-		{
-			if (flagged)
-			{
-				uint16_t sym = GET_UINT16(in);
-				if (UNLIKELY(out < (uint16_t)((sym>>3)+1))) { return MSCOMP_DATA_ERROR; }
-				in += 2;
-				if ((len = (sym & 0x7)) == 0x7)
-				{
-					if (half_byte) { len = *half_byte >> 4; half_byte = NULL; }
-					else           { len = *in & 0xF;       half_byte = in++; }
-					if (len == 0xF)
-					{
-						if ((len = *(in++)) == 0xFF)
-						{
-							len = GET_UINT16(in);
-							in += 2;
-							if (UNLIKELY(len == 0)) { len = GET_UINT32(in); in += 4; }
-							if (UNLIKELY(len < 0xF+0x7)) { return MSCOMP_DATA_ERROR; }
-							len -= 0xF+0x7;
-						}
-						len += 0xF;
-					}
-					len += 0x7;
-				}
-				out += len + 3;
-			}
-			else { out++; in++; }
-			flagged = flags & 0x80000000;
-			flags <<= 1;
-		} while (LIKELY(flags));
-	}
-
-	// Slower decompression but with full bounds checking
-	while (LIKELY(in + 4 <= in_end))
-	{
-		flagged = (flags = GET_UINT32(in)) & 0x80000000;
-		flags = (flags << 1) | 1;
-		in += 4;
-		do
-		{
-			if (in == in_end)
-			{
-				if (UNLIKELY(!flagged || !set_bits_are_highest(flags))) { return MSCOMP_DATA_ERROR; }
-				*_out_len = out;
-				return MSCOMP_OK;
-			}
-			else if (flagged)
-			{
-				uint16_t sym = GET_UINT16(in);
-				if (UNLIKELY(in + 2 > in_end)) { return MSCOMP_DATA_ERROR; }
-				sym = GET_UINT16(in);
-				if (UNLIKELY(out < (uint16_t)((sym>>3)+1))) { return MSCOMP_DATA_ERROR; }
-				in += 2;
-				if ((len = sym & 0x7) == 0x7)
-				{
-					if (half_byte) { len = *half_byte >> 4; half_byte = NULL; }
-					else if (UNLIKELY(in == in_end)) { return MSCOMP_DATA_ERROR; }
-					else { len = *(half_byte = in++) & 0xF; }
-					if (len == 0xF)
-					{
-						if (UNLIKELY(in == in_end)) { return MSCOMP_DATA_ERROR; }
-						if ((len = *(in++)) == 0xFF)
-						{
-							if (UNLIKELY(in + 2 > in_end)) { return MSCOMP_DATA_ERROR; }
-							len = GET_UINT16(in);
-							in += 2;
-							if (UNLIKELY(len == 0))
-							{
-								if (UNLIKELY(in + 4 > in_end)) { return MSCOMP_DATA_ERROR; }
-								len = GET_UINT32(in);
-								in += 4;
-							}
-							if (UNLIKELY(len < 0xF+0x7)) { return MSCOMP_DATA_ERROR; }
-							len -= 0xF+0x7;
-						}
-						len += 0xF;
-					}
-					len += 0x7;
-				}
-				out += len + 0x3;
-			}
-			else { out++; in++; }
-			flagged = flags & 0x80000000;
-			flags <<= 1;
-		} while (LIKELY(flags));
-	}
-	return MSCOMP_DATA_ERROR;
-}
 
 #endif

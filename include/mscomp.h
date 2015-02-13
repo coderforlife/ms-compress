@@ -46,11 +46,11 @@ MSCOMPAPI MSCompStatus ms_decompress(MSCompFormat format, const_bytes in, size_t
 MSCOMPAPI size_t ms_max_compressed_size(MSCompFormat format, size_t in_len);
 
 MSCOMPAPI MSCompStatus ms_deflate_init(MSCompFormat format, mscomp_stream* stream);
-MSCOMPAPI MSCompStatus ms_deflate(mscomp_stream* stream, bool finish);
+MSCOMPAPI MSCompStatus ms_deflate(mscomp_stream* stream, MSCompFlush flush);
 MSCOMPAPI MSCompStatus ms_deflate_end(mscomp_stream* stream);
 
 MSCOMPAPI MSCompStatus ms_inflate_init(MSCompFormat format, mscomp_stream* stream);
-MSCOMPAPI MSCompStatus ms_inflate(mscomp_stream* stream, bool finish);
+MSCOMPAPI MSCompStatus ms_inflate(mscomp_stream* stream);
 MSCOMPAPI MSCompStatus ms_inflate_end(mscomp_stream* stream);
 
 EXTERN_C_END

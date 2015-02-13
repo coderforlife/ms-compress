@@ -51,15 +51,14 @@ MSCOMPAPI MSCompStatus lznt1_compress(const_bytes in, size_t in_len, bytes out, 
 MSCOMPAPI size_t lznt1_max_compressed_size(size_t in_len);
 
 MSCOMPAPI MSCompStatus lznt1_decompress(const_bytes in, size_t in_len, bytes out, size_t* out_len);
-MSCOMPAPI MSCompStatus lznt1_uncompressed_size(const_bytes in, size_t in_len, size_t* out_len);
 
 
 MSCOMPAPI MSCompStatus lznt1_deflate_init(mscomp_stream* stream);
-MSCOMPAPI MSCompStatus lznt1_deflate(mscomp_stream* stream, bool finish);
+MSCOMPAPI MSCompStatus lznt1_deflate(mscomp_stream* stream, MSCompFlush flush);
 MSCOMPAPI MSCompStatus lznt1_deflate_end(mscomp_stream* stream);
 
 MSCOMPAPI MSCompStatus lznt1_inflate_init(mscomp_stream* stream);
-MSCOMPAPI MSCompStatus lznt1_inflate(mscomp_stream* stream, bool finish);
+MSCOMPAPI MSCompStatus lznt1_inflate(mscomp_stream* stream);
 MSCOMPAPI MSCompStatus lznt1_inflate_end(mscomp_stream* stream);
 
 EXTERN_C_END
