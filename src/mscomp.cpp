@@ -168,10 +168,10 @@ MSCompStatus ms_deflate_init(MSCompFormat format, mscomp_stream* stream)
 	if ((unsigned)format >= ARRAYSIZE(deflaters_init) || !deflaters_init[format]) { SET_ERROR(stream, "Error: Invalid format provided"); return MSCOMP_ARG_ERROR; }
 	return deflaters_init[format](stream);
 }
-MSCompStatus ms_deflate(mscomp_stream* stream, bool finish)
+MSCompStatus ms_deflate(mscomp_stream* stream, MSCompFlush flush)
 {
 	if (stream == NULL || (unsigned)stream->format >= ARRAYSIZE(deflaters) || !deflaters[stream->format]) { SET_ERROR(stream, "Error: Invalid stream provided"); return MSCOMP_ARG_ERROR; }
-	return deflaters[stream->format](stream, finish);
+	return deflaters[stream->format](stream, flush);
 }
 MSCompStatus ms_deflate_end(mscomp_stream* stream)
 {

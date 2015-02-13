@@ -203,6 +203,9 @@ MSCompStatus lznt1_deflate(mscomp_stream* stream, MSCompFlush flush)
 	if (flush == MSCOMP_FINISH && !state->out_avail)
 	{
 		state->finished = true;
+		// https://msdn.microsoft.com/library/jj679084.aspx: If an End_of_buffer terminal is added, the
+		// size of the final compressed data is considered not to include the size of the End_of_buffer terminal.
+		if (stream->out_avail >= 2) { stream->out[0] = stream->out[1] = 0; }
 		return MSCOMP_STREAM_END;
 	}
 	return MSCOMP_OK;
@@ -262,8 +265,9 @@ MSCompStatus lznt1_compress(const_bytes in, size_t in_len, bytes out, size_t* _o
 	
 	// Return insufficient buffer or the compressed size
 	if (UNLIKELY(in_pos < in_len)) { return MSCOMP_BUF_ERROR; }
-	// Clear up to 2 bytes for end-of-stream (not reported in size, not necessary, but could help)
-	//memset(out+out_pos, 0, MIN(out_len-out_pos, 2));
+	// https://msdn.microsoft.com/library/jj679084.aspx: If an End_of_buffer terminal is added, the
+	// size of the final compressed data is considered not to include the size of the End_of_buffer terminal.
+	if (out_len-out_pos >= 2) { out[out_pos] = out[out_pos+1] = 0; }
 	*_out_len = out_pos;
 	return MSCOMP_OK;
 }
