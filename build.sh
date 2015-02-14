@@ -1,4 +1,4 @@
-FLAGS="-DMSCOMP_API_EXPORT -DMSCOMP_WITHOUT_LZX -O3 -fno-tree-vectorize -march=core2 -Wall -s"
+FLAGS="-DMSCOMP_API_EXPORT -DMSCOMP_WITHOUT_LZX -O3 -march=core2 -Wall -s"
 FILES="src/*.cpp"
 OUT="MSCompression"
 

@@ -79,7 +79,6 @@ _Status: working_ - needs major speed improvements, does not create optional chu
  * Has a better compression ratio (average ~0.9% better, range -0.1% to 2.6%)
  * Uses about the same amount of memory
  * RTL requires at least 24 extra bytes in the compression buffer
- * BUG: GCC compiled code with -ftree-vectorize (included in -O3) causes "access violation reading 0x00000000"
 * Decompression:
  * To be tested
  * RTL does not allow the output buffer to be anything besides the exact size of the uncompressed data
