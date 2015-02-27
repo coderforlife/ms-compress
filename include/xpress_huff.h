@@ -15,9 +15,10 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-// Xpress Huffman Compression and Decompression Functions
-//
+/////////// Xpress Huffman Compression and Decompression Functions ////////////
 // This is the Xpress compression used in WIM files - not the hibernation file.
+//
+// See mscomp.h for function descriptions.
 //
 // The algorithm is documented in the MSDN article [MS-XCA]:
 // https://msdn.microsoft.com/library/hh554002.aspx

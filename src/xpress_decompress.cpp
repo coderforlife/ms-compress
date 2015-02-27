@@ -26,13 +26,13 @@
 typedef CircularBuffer<0x2000> Buffer;
 
 struct _mscomp_internal_state
-{ // 38-42 bytes (+padding)
+{ // 38-42 bytes (+padding) + buffer
 	uint32_t flagged, flags;
 	byte half_byte;
 	bool has_half_byte;
 	byte in[10];
 	size_t in_avail;
-	Buffer* buffer;
+	Buffer buffer;
 	uint_fast16_t copy_off;
 	uint32_t copy_len;
 };
@@ -54,10 +54,7 @@ MSCompStatus xpress_inflate_init(mscomp_stream* stream)
 	state->has_half_byte = false;
 	state->in_avail  = 0;
 	state->copy_len = 0;
-
-	void* buffer = malloc(sizeof(Buffer));
-	if (UNLIKELY(buffer == NULL)) { free(state); SET_ERROR(stream, "XPRESS Decompression Error: Unable to allocate buffer memory"); return MSCOMP_MEM_ERROR; }
-	state->buffer = new (buffer) Buffer();
+	new (&state->buffer) Buffer();
 
 	stream->state = state;
 	return MSCOMP_OK;
@@ -249,10 +246,10 @@ LABEL       if (UNLIKELY(in == in_end)) { ERROR("XPRESS Decompression Error: Inv
 	stream->in_total  += in_len;  stream->in_avail -= in_len; stream->in  = in; \
 	stream->out_total += out_len; stream->out_avail = 0;      stream->out = out_end
 #define SET_STREAM_ERROR(MSG) SET_ERROR(stream, MSG)
-#define READ_SYMBOL_PART_ERROR(MSG, NOT_ENOUGH_BYTES, ...) \
+#define READ_SYMBOL_PART_ERROR(MSG, NOT_ENOUGH_BYTES, BYTES_ADVANCED, ...) \
 	WARNINGS_PUSH() \
 	WARNINGS_IGNORE_CONDITIONAL_EXPR_CONSTANT() \
-	if (LIKELY(NOT_ENOUGH_BYTES)) { ADVANCE_IN(stream, to_copy); state->in_avail += to_copy; return MSCOMP_OK; } \
+	if (LIKELY(NOT_ENOUGH_BYTES)) { ADVANCE_IN(stream, to_copy); state->in_avail += to_copy; return !BYTES_ADVANCED && !stream->in_avail && !state->in_avail && set_bits_are_highest(state->flags) ? MSCOMP_POSSIBLE_STREAM_END : MSCOMP_OK; } \
 	WARNINGS_POP() \
 	SET_STREAM_ERROR(MSG)
 #define READ_SYMBOL_ERROR(MSG, NOT_ENOUGH_BYTES, BYTES_ADVANCED, HALF_BYTE_UPDATED) \
@@ -272,7 +269,7 @@ LABEL       if (UNLIKELY(in == in_end)) { ERROR("XPRESS Decompression Error: Inv
 		state->flags = flags; \
 		state->flagged = flagged; \
 		READ_ALL_IN_NO_SYNC(); \
-		return MSCOMP_OK; \
+		return !BYTES_ADVANCED && !stream->in_avail && !state->in_avail && set_bits_are_highest(state->flags) ? MSCOMP_POSSIBLE_STREAM_END : MSCOMP_OK; \
 	} \
 	WARNINGS_POP() \
 	SET_STREAM_ERROR(MSG);
@@ -285,7 +282,7 @@ MSCompStatus xpress_inflate(mscomp_stream* stream)
 	CHECK_STREAM_PLUS(stream, false, MSCOMP_XPRESS, stream->state == NULL);
 
 	mscomp_internal_state *state = stream->state;
-	Buffer* buf = state->buffer;
+	Buffer* const buf = &state->buffer;
 	const bytes out_start = stream->out;
 
 	// Copy data from the buffer to the output
@@ -385,7 +382,7 @@ MSCompStatus xpress_inflate(mscomp_stream* stream)
 MAIN_LOOP:
 		do
 		{
-			if (in == in_end) { READ_ALL_IN(); return MSCOMP_OK; } // We have read all the we can for now, save state and quit
+			if (in == in_end) { READ_ALL_IN(); return state->flagged && set_bits_are_highest(state->flags) ? MSCOMP_POSSIBLE_STREAM_END : MSCOMP_OK; } // We have read all the we can for now, save state and quit
 			else if (flagged) // Either: offset/length symbol, end of flags, or end of stream (checked above)
 			{
 				READ_SYMBOL_WITH_LABEL(READ_SYMBOL_ERROR, CHECKED_LENGTH);
@@ -431,8 +428,7 @@ MSCompStatus xpress_inflate_end(mscomp_stream* stream)
 	if (UNLIKELY(stream->in_avail || state->in_avail || !state->flagged || !set_bits_are_highest(state->flags))) { SET_ERROR(stream, "XPRESS Decompression Error: End prematurely called"); status = MSCOMP_DATA_ERROR; }
 
 	// Cleanup
-	state->buffer->~Buffer();
-	free(state->buffer);
+	state->buffer.~Buffer();
 	free(state);
 	stream->state = NULL;
 

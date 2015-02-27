@@ -75,6 +75,7 @@ typedef enum _MSCompStatus
 {
 	MSCOMP_OK					= 0,
 	MSCOMP_STREAM_END			= 1,
+	MSCOMP_POSSIBLE_STREAM_END	= 2,
 
 	MSCOMP_ERRNO				= -1,
 	MSCOMP_ARG_ERROR			= -2,

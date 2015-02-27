@@ -148,10 +148,10 @@
 	uint64_t FORCE_INLINE byte_swap(uint64_t x) { return _byteswap_uint64(x); }
 #elif defined(__GNUC__) // GCC and Clang
 	// see https://gcc.gnu.org/onlinedocs/gcc-4.5.0/gcc/Other-Builtins.html
-	#define ALWAYS(x)     if (!(x)) __builtin_unreachable()
+	#define ALWAYS(x)     if (!(x)) { __builtin_unreachable(); }
 	#define LIKELY(x)     __builtin_expect((x), 1)
 	#define UNLIKELY(x)   __builtin_expect((x), 0)
-	#define NEVER(x)      if (x) __builtin_unreachable()
+	#define NEVER(x)      if (x) { __builtin_unreachable(); }
 	#define UNREACHABLE() __builtin_unreachable()
 	int FORCE_INLINE rotl(uint8_t x,  int bits) { return ((x << bits) | (x >> (8  - bits))); } // the compiler detects these and optimizes, no need for a special builtin
 	int FORCE_INLINE rotl(uint16_t x, int bits) { return ((x << bits) | (x >> (16 - bits))); }
@@ -181,6 +181,14 @@
 	uint16_t FORCE_INLINE byte_swap(uint16_t x) { return (x<<8)|(x>>8); }
 	uint32_t FORCE_INLINE byte_swap(uint32_t x) { return (x<<24)|((x<<8)&0x00FF0000)|((x>>8)&0x0000FF00)|(x>>24); }
 	uint64_t FORCE_INLINE byte_swap(uint64_t x) { return (x<<56)|((x<<40)&0x00FF000000000000)|((x<<24)&0x0000FF0000000000)|((x<<8)&0x000000FF00000000)|((x>>8)&0x00000000FF000000)|((x>>24)&0x0000000000FF0000)|((x>>40)&0x000000000000FF00)|(x>>56); }
+#endif
+#ifdef DEBUG_ALWAYS_NEVER
+	#undef ALWAYS
+	#undef NEVER
+	#undef UNREACHABLE
+	#define ALWAYS(x)     if (!(x)) { printf("Not always: '%s' (%s:%d)\n", #x, __FILE__, __LINE__); }
+	#define NEVER(x)      if (x) { printf("Not never: '%s' (%s:%d)\n", #x, __FILE__, __LINE__); }
+	#define UNREACHABLE() printf("Should have been unreachable (%s:%d)\n", __FILE__, __LINE__);
 #endif
 // TODO: some other intrinsics to look into:
 //  __builtin_ffs       one plus the index of the least significant 1-bit of x, or if x is zero, returns zero (similar to ctz)

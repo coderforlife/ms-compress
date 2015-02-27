@@ -15,10 +15,11 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-// Xpress Compression and Decompression Functions
-//
+/////////////// Xpress Compression and Decompression Functions ////////////////
 // This is the LZ version of the Xpress algorithm, used for Windows XP and newer hibernation file,
 // Directory Replication Service (LDAP/RPC/AD), Windows Update Services, and Windows CE.
+//
+// See mscomp.h for function descriptions.
 //
 // The algorithm is documented in the MSDN article [MS-XCA]:
 // https://msdn.microsoft.com/library/hh554002.aspx

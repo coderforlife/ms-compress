@@ -15,19 +15,18 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-// LZNT1 Compression and Decompression Functions
-//
+//////////////// LZNT1 Compression and Decompression Functions ////////////////
 // This algorithm is used for NTFS file compression, Windows 2000 hibernation file, Active
-// Directory, File Replication Service, Windows Vista SuperFetch Files, and Windows Vista/7 bootmgr
+// Directory, File Replication Service, Windows Vista SuperFetch Files, and Windows Vista/7
+// bootmgr.
 //
-// Calculating uncompressed size takes much less time than decompression (especially for large files)
+// See mscomp.h for function descriptions.
 //
 // The algorithm is documented in the MSDN article [MS-XCA]:
 // https://msdn.microsoft.com/library/hh554002.aspx
 // which contains:
 //   Algorithm: https://msdn.microsoft.com/library/jj665697.aspx
 //   Example:   https://msdn.microsoft.com/library/jj711990.aspx
-// 
 //
 // Assumptions based on RtlCompressBuffer output on NT 3.51, NT 4 SP1, XP SP2, Win 7 SP1:
 //   All flags besides the compressed flag are always 011 (binary)

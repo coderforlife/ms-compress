@@ -217,15 +217,19 @@ if dll is not None:
                         ("out", c_void_p), ("out_avail", c_size_t), ("out_total", c_size_t),
                         ("error", c_char*256), ("warning", c_char*256),
                         ("state", c_void_p)]
-        
+
         compress     = _prep(dll.ms_compress,   [c_int, c_void_p, c_size_t, c_void_p, POINTER(c_size_t)])
         decompress   = _prep(dll.ms_decompress, [c_int, c_void_p, c_size_t, c_void_p, POINTER(c_size_t)])
         deflate_init = _prep(dll.ms_deflate_init, [c_int, POINTER(stream)])
-        deflate      = _prep(dll.ms_deflate,      [POINTER(stream), c_bool])
+        deflate      = _prep(dll.ms_deflate,      [POINTER(stream), c_int])
         deflate_end  = _prep(dll.ms_deflate_end,  [POINTER(stream)])
         inflate_init = _prep(dll.ms_inflate_init, [c_int, POINTER(stream)])
         inflate      = _prep(dll.ms_inflate,      [POINTER(stream)])
         inflate_end  = _prep(dll.ms_inflate_end,  [POINTER(stream)])
+
+        NO_FLUSH = 0
+        FLUSH = 2
+        FINISH = 4
 
         def __init__(self, format):
             self.format = c_int(format)
@@ -256,13 +260,13 @@ if dll is not None:
                     s.in_ = input_ptr
                     while s.in_avail != 0:
                         s.out, s.out_avail = output_ptr, output_len
-                        OpenSrc.deflate(s_ptr, False)
+                        OpenSrc.deflate(s_ptr, OpenSrc.NO_FLUSH)
                         output.write(buffer(output_buf, 0, output_len-s.out_avail))
                     s.in_avail = input.readinto(input_buf)
                 done = False
                 while not done:
                     s.out, s.out_avail = output_ptr, output_len
-                    done = bool(OpenSrc.deflate(s_ptr, True))
+                    done = OpenSrc.deflate(s_ptr, OpenSrc.FINISH) >= 1
                     output.write(buffer(output_buf, 0, output_len-s.out_avail))
             finally:
                 OpenSrc.deflate_end(s_ptr)
@@ -285,7 +289,7 @@ if dll is not None:
                 done = False
                 while not done:
                     s.out, s.out_avail = output_ptr, output_len
-                    done = bool(OpenSrc.inflate(s_ptr))
+                    done = OpenSrc.inflate(s_ptr) >= 1
                     output.write(buffer(output_buf, 0, output_len-s.out_avail))
             finally:
                 OpenSrc.inflate_end(s_ptr)
