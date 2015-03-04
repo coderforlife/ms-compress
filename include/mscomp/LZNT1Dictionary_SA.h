@@ -26,6 +26,10 @@
 //
 // This implementation is about half the speed of the default LZNT1 dictionary while using much less
 // memory and no dynamic allocations.
+//
+// One additional note is that while both this dictionary and the default dictionary will produce
+// "optimal" compression ratios, the output will not be identical since this algorithm will not
+// find the closest match of the best length, but only a match of the best length.
 
 #include "internal.h"
 #ifdef MSCOMP_WITHOUT_LZNT1_SA_DICT

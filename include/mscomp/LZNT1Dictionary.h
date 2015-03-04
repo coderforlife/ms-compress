@@ -21,11 +21,11 @@
 //
 // The base memory usage is 512 KB (or 768 KB on 64-bit systems). More memory is always allocated
 // but only as much as needed. Larger sized chunks will consume more memory. For a series of 4 KB
-// chunks (what LZNT1 uses), the extra consumed memory averages about 40 KB (80 KB on 64-bit), but
-// could theoretically grow to 4 MB (8 MB on 64-bit).
+// chunks (what LZNT1 uses), the extra consumed memory averages about 715 KB (1430 KB on 64-bit),
+// but could theoretically grow to 8 MB (16 MB on 64-bit).
 //
-// This implementation is about twice as fast as the SA version but consumes about 12-20x as much
-// memory on average (and up to 112-220x as much) and requires dynamic allocations.
+// This implementation is about twice as fast as the SA version but consumes about 30-55x as much
+// memory on average (and up to 210-420x as much) and requires dynamic allocations.
 
 #include "internal.h"
 #ifdef MSCOMP_WITH_LZNT1_SA_DICT
@@ -69,8 +69,7 @@ public:
 
 	INLINE ~LZNT1Dictionary()
 	{
-		uint32_t idx;
-		for (idx = 0; idx < 0x100*0x100; ++idx)
+		for (uint32_t idx = 0; idx < 0x100*0x100; ++idx)
 		{
 			free(this->entries[idx].pos);
 		}

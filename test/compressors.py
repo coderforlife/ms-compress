@@ -148,7 +148,7 @@ if isWindows:
             CompressBufferWorkSpaceSize = ULONG(0)
             CompressFragmentWorkSpaceSize = ULONG(0)
             Rtl.GetCompressionWorkSpaceSize(self.format_engine, byref(CompressBufferWorkSpaceSize), byref(CompressFragmentWorkSpaceSize))
-            self.ws = create_string_buffer(max(CompressBufferWorkSpaceSize.value, CompressFragmentWorkSpaceSize.value))
+            self.ws = create_string_buffer(CompressBufferWorkSpaceSize.value)
 
         def Compress(self, input, output_buf=None):
             len_input, comp_len = len(input), ULONG(0)
