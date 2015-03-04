@@ -26,4 +26,6 @@ ar rcs lib%OUT%64.a *.o
 del /F /Q *.o >NUL 2>&1
 
 :END
-pause
+SetLocal EnableDelayedExpansion
+set dblclkcmdline=%ComSpec% /c "%0 "
+if !cmdcmdline! == !dblclkcmdline! ( pause )
