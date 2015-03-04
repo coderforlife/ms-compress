@@ -15,21 +15,25 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-/////////////////// Dictionary /////////////////////////////////////////////////
-// The dictionary system used for LZNT1 compression.
-// Most of the compression time is spent in the dictionary - particularly Find (54%) and Add (37%)
+/////////////////// LZNT1 Dictionary //////////////////////////////////////////////////////////////
+// The dictionary system used for LZNT1 compression that favors speed over memory usage.
+// Most of the compression time is spent in the dictionary, particularly Find (54%) and Add (37%).
+//
+// The base memory usage is 512 KB (or 768 KB on 64-bit systems). More memory is always allocated
+// but only as much as needed. Larger sized chunks will consume more memory. For a series of 4 KB
+// chunks (what LZNT1 uses), the extra consumed memory averages about 40 KB (80 KB on 64-bit), but
+// could theoretically grow to 4 MB (8 MB on 64-bit).
+//
+// This implementation is about twice as fast as the SA version but consumes about 12-20x as much
+// memory on average (and up to 112-220x as much) and requires dynamic allocations.
 
-// Implementation designed for being extremely fast at the expense of memory
-// usage. The base memory usage is 512 KB (or 768 KB on 64-bit systems). More
-// memory is always allocated but only as much as needed. Larger sized chunks
-// will consume more memory. For a series of 4 KB chunks, the extra consumed
-// memory is around 20-80 KB. For a series of 64 KB chunks, it is 200-800 KB.
-
-// This implementation is ~30x faster than the original 576 KB fixed-size dictionary!
+#include "internal.h"
+#ifdef MSCOMP_WITH_LZNT1_SA_DICT
+#include "LZNT1Dictionary_SA.h"
+#endif
 
 #ifndef MSCOMP_LZNT1_DICTIONARY_H
 #define MSCOMP_LZNT1_DICTIONARY_H
-#include "internal.h"
 
 class LZNT1Dictionary // 512+ KB (768+ KB on 64-bit systems)
 {
@@ -43,7 +47,7 @@ private:
 		{
 			if (size >= this->cap)
 			{
-				const_bytes *temp = (const_bytes*)realloc((bytes*)this->pos, (this->cap=(this->cap?((this->cap==0x8000)?0xFFFF:(this->cap<<1)):8))*sizeof(const_bytes));
+				const_bytes *temp = (const_bytes*)realloc((bytes*)this->pos, (this->cap=(this->cap?(this->cap<<1):8))*sizeof(const_bytes));
 				if (UNLIKELY(temp == NULL)) { return false; }
 				this->pos = temp;
 			}
@@ -108,11 +112,10 @@ public:
 WARNINGS_PUSH()
 WARNINGS_IGNORE_POTENTIAL_UNINIT_VALRIABLE_USED()
 
-	// Finds the best symbol in the dictionary(ies) for the data
-	// The second dictionary may be NULL for independent chunks, or the dictionary for the previous chunk is overlap can occur
+	// Finds the best symbol in the dictionary for the data
 	// Returns the length of the string found, or 0 if nothing of length >= 3 was found
 	// offset is set to the offset from the current position to the string
-	INLINE uint_fast16_t Find(const_bytes data, const uint_fast16_t max_len, const_bytes search, uint_fast16_t* offset) const
+	INLINE int_fast16_t Find(const_bytes data, const int_fast16_t max_len, const_bytes search, int_fast16_t* offset) const
 	{
 		if (LIKELY(max_len >= 3 && data-search > 0))
 		{
@@ -123,7 +126,7 @@ WARNINGS_IGNORE_POTENTIAL_UNINIT_VALRIABLE_USED()
 			if (size) // a match is possible
 			{
 				const byte z = data[2];
-				uint_fast16_t l = 0, o;
+				int_fast16_t l = 0, o;
 				int_fast32_t ep = size - 1; // need to support all uint16 values and <0
 
 				// Try short repeats - this does not use the Dictionary at all
@@ -164,9 +167,9 @@ WARNINGS_IGNORE_POTENTIAL_UNINIT_VALRIABLE_USED()
 					if (ss[2] == z)
 					{
 						const_bytes s = ss+3;
-						uint_fast16_t i;
+						int_fast16_t i;
 						for (i = 3; i < max_len && data[i] == *s; i++, s++);
-						if (i > l) { o = (uint_fast16_t)(data-ss); l = i; if (l == max_len) { break; } }
+						if (i > l) { o = (int_fast16_t)(data-ss); l = i; if (l == max_len) { break; } }
 					}
 				}
 

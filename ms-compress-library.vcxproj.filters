@@ -36,9 +36,6 @@
     <ClInclude Include="include/xpress_huff.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include/mscomp/XpressDictionaryStatic.h">
-      <Filter>Internal</Filter>
-    </ClInclude>
     <ClInclude Include="include/mscomp/XpressDictionary.h">
       <Filter>Internal</Filter>
     </ClInclude>
@@ -61,6 +58,9 @@
       <Filter>Internal</Filter>
     </ClInclude>
     <ClInclude Include="include/mscomp/Bitstream.h">
+      <Filter>Internal</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mscomp\LZNT1Dictionary_SA.h">
       <Filter>Internal</Filter>
     </ClInclude>
   </ItemGroup>

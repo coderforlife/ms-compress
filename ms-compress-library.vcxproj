@@ -304,10 +304,10 @@
     <ClInclude Include="include/mscomp/LCG.h" />
     <ClInclude Include="include/mscomp/LZNT1Dictionary.h" />
     <ClInclude Include="include/mscomp/XpressDictionary.h" />
-    <ClInclude Include="include/mscomp/XpressDictionaryStatic.h" />
     <ClInclude Include="include/lznt1.h" />
     <ClInclude Include="include/xpress.h" />
     <ClInclude Include="include/xpress_huff.h" />
+    <ClInclude Include="include\mscomp\LZNT1Dictionary_SA.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src/mscomp.cpp" />

@@ -15,7 +15,7 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-// Configuration include file
+/////////////////// Configuration include file ////////////////////////////////////////////////////
 // There are various configurations you can make. This is accomplished by defining preprocessor
 // values like MSCOMP_WITH_x or MSCOMP_WITHOUT_x where x is one of the names below. By default, all
 // are enabled.
@@ -42,7 +42,6 @@
 #define MSCOMP_WITH_ERROR_MESSAGES
 #endif
 
-
 // WARNING_MESSAGES - Include textual warning messages
 // Includes detailed warning messages in the stream object (mainly for debugging). This makes the
 // stream object and compiled code larger. Warning information is never available without this.
@@ -63,4 +62,14 @@
 #endif
 #if !defined(MSCOMP_WITH_LZX) && !defined(MSCOMP_WITHOUT_LZX)
 //#define MSCOMP_WITH_LZX // not working yet - never enable!
+#endif
+
+
+////////// Compressor-specific options //////////
+
+// LZNT1_SA_DICT - Use the suffix array dictionary for LZNT1 compression
+// The LZNT1 SA is about half as fast as the default dictionary but uses much less memory and does
+// not dynamically allocate memory (so no memory errors, but needs at least 41 KB of stack space).
+#if !defined(MSCOMP_WITH_LZNT1_SA_DICT) && !defined(MSCOMP_WITHOUT_LZNT1_SA_DICT)
+#define MSCOMP_WITH_LZNT1_SA_DICT
 #endif
