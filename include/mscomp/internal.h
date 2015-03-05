@@ -232,7 +232,7 @@
 #define WARNINGS_IGNORE_ASSIGNMENT_WITHIN_COND_EXPR()       __pragma(warning(disable:4706))
 #define WARNINGS_IGNORE_TRUNCATED_OVERFLOW()                __pragma(warning(disable:4309))
 #define WARNINGS_IGNORE_ASSIGNMENT_OPERATOR_NOT_GENERATED() __pragma(warning(disable:4512))
-#define WARNINGS_IGNORE_POTENTIAL_UNINIT_VALRIABLE_USED()   __pragma(warning(disable:4701))
+#define WARNINGS_IGNORE_POTENTIAL_UNINIT_VALRIABLE_USED()   __pragma(warning(disable:4701 4703))
 #define WARNINGS_IGNORE_DIV_BY_0()				            __pragma(warning(disable:4723 4724))
 #elif defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6))
 #define WARNINGS_PUSH() _Pragma("GCC diagnostic push")
@@ -376,7 +376,7 @@
 		strm.out = out; \
 		strm.out_avail = *_out_len; \
 		status = name##_inflate(&strm); \
-		if (status != MSCOMP_OK) { name##_inflate_end(&strm); } \
+		if (status < 0) { name##_inflate_end(&strm); } \
 		else if ((status = name##_inflate_end(&strm)) == MSCOMP_OK) { *_out_len = strm.out_total; } \
 		return status; \
 	}
