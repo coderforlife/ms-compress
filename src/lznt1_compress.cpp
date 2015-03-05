@@ -36,6 +36,14 @@ struct _mscomp_internal_state
 	size_t out_pos, out_avail;
 };
 
+#ifdef MSCOMP_WITH_LZNT1_SA_DICT
+#define RETURN_IF_NOT_SA_DICT_AND_OUT_ZERO(x)
+#define CHECK_IF_NOT_SA_DICT(x) x
+#else
+#define RETURN_IF_NOT_SA_DICT_AND_OUT_ZERO(x) if (UNLIKELY(out_size == 0)) { return x; }
+#define CHECK_IF_NOT_SA_DICT(x)               if (UNLIKELY(!x)) { SET_ERROR(stream, "LZNT1 Compression Error: Unable to allocate dictionary memory"); return MSCOMP_MEM_ERROR; }
+#endif
+
 
 /////////////////// Compression Functions /////////////////////////////////////
 FORCE_INLINE static uint_fast16_t lznt1_compress_chunk(const_bytes const in, const uint_fast16_t in_len, bytes const out, const size_t out_len, LZNT1Dictionary* d)
@@ -44,7 +52,7 @@ FORCE_INLINE static uint_fast16_t lznt1_compress_chunk(const_bytes const in, con
 #ifdef MSCOMP_WITH_LZNT1_SA_DICT
 	d->Fill(in, in_len);
 #else
-	d->Reset();
+	if (UNLIKELY(!d->Fill(in, in_len))) { return 0; }
 #endif
 
 	while (LIKELY(out_pos < out_len && rem))
@@ -57,17 +65,9 @@ FORCE_INLINE static uint_fast16_t lznt1_compress_chunk(const_bytes const in, con
 
 			while (pow2 < in_pos) { pow2 <<= 1; mask3 = (mask3>>1)+1; --shift; }
 
-#ifdef MSCOMP_WITH_LZNT1_SA_DICT
 			int_fast16_t off, len = d->Find(in+in_pos, MIN(rem, mask3), &off);
-#else
-			int_fast16_t off, len = d->Find(in+in_pos, MIN(rem, mask3), in, &off);
-#endif
 			if (len > 0)
 			{
-#ifdef MSCOMP_WITHOUT_LZNT1_SA_DICT
-				if (UNLIKELY(!d->Add(in+in_pos, len, rem))) { return 0; } // And new entries
-#endif
-
 				// Write symbol that is a combination of offset and length
 				const uint16_t sym = (uint16_t)(((off-1) << shift) | (len-3));
 				SET_UINT16(bytes+pos, sym);
@@ -77,10 +77,6 @@ FORCE_INLINE static uint_fast16_t lznt1_compress_chunk(const_bytes const in, con
 			}
 			else
 			{
-#ifdef MSCOMP_WITHOUT_LZNT1_SA_DICT
-				if (UNLIKELY(!d->Add(in+in_pos, rem))) { return 0; } // And new entry
-#endif
-
 				// Copy directly
 				bytes[pos++] = in[in_pos++];
 				--rem;
@@ -96,13 +92,7 @@ FORCE_INLINE static uint_fast16_t lznt1_compress_chunk(const_bytes const in, con
 	// Return insufficient buffer or the compressed size
 	return rem ? in_len : out_pos;
 }
-static
-#ifdef MSCOMP_WITH_LZNT1_SA_DICT
-void
-#else
-bool
-#endif
-lznt1_compress_chunk_write(mscomp_stream* const stream, const_bytes const in, const uint_fast16_t in_len)
+static bool lznt1_compress_chunk_write(mscomp_stream* const stream, const_bytes const in, const uint_fast16_t in_len)
 {
 	mscomp_internal_state* state = stream->state;
 	bool out_buffering = stream->out_avail < in_len+2u;
@@ -110,9 +100,7 @@ lznt1_compress_chunk_write(mscomp_stream* const stream, const_bytes const in, co
 
 	// Compress the chunk
 	uint_fast16_t out_size = lznt1_compress_chunk(in, in_len, out+2, in_len, &state->d), flags;
-#ifdef MSCOMP_WITHOUT_LZNT1_SA_DICT
-	if (UNLIKELY(out_size == 0)) { return false; }
-#endif
+	RETURN_IF_NOT_SA_DICT_AND_OUT_ZERO(false);
 	if (out_size < in_len) // chunk is compressed
 	{
 		flags = 0xB000;
@@ -143,9 +131,7 @@ lznt1_compress_chunk_write(mscomp_stream* const stream, const_bytes const in, co
 		ADVANCE_OUT(stream, out_size);
 	}
 
-#ifdef MSCOMP_WITHOUT_LZNT1_SA_DICT
 	return true;
-#endif
 }
 MSCompStatus lznt1_deflate_init(mscomp_stream* const stream)
 {
@@ -163,12 +149,6 @@ MSCompStatus lznt1_deflate_init(mscomp_stream* const stream)
 	stream->state = state;
 	return MSCOMP_OK;
 }
-#ifdef MSCOMP_WITH_LZNT1_SA_DICT
-#define CHECK_MEM(x) x
-#else
-#define CHECK_MEM(x) if (UNLIKELY(!x)) { SET_ERROR(stream, "LZNT1 Compression Error: Unable to allocate dictionary memory"); return MSCOMP_MEM_ERROR; }
-#endif
-
 MSCompStatus lznt1_deflate(mscomp_stream* const stream, const MSCompFlush flush)
 {
 	CHECK_STREAM_PLUS(stream, true, MSCOMP_LZNT1, stream->state == NULL || stream->state->finished);
@@ -182,7 +162,7 @@ MSCompStatus lznt1_deflate(mscomp_stream* const stream, const MSCompFlush flush)
 			if (flush != MSCOMP_NO_FLUSH)
 			{
 				// Compress partial chunk
-				CHECK_MEM(lznt1_compress_chunk_write(stream, state->in, (uint_fast16_t)state->in_avail));
+				CHECK_IF_NOT_SA_DICT(lznt1_compress_chunk_write(stream, state->in, (uint_fast16_t)state->in_avail));
 				state->in_avail = 0;
 				state->in_needed = 0;
 				if (flush == MSCOMP_FINISH && !state->out_avail) { goto STREAM_END; }
@@ -193,14 +173,14 @@ MSCompStatus lznt1_deflate(mscomp_stream* const stream, const MSCompFlush flush)
 		else
 		{
 			// Compress the buffered input
-			CHECK_MEM(lznt1_compress_chunk_write(stream, state->in, CHUNK_SIZE));
+			CHECK_IF_NOT_SA_DICT(lznt1_compress_chunk_write(stream, state->in, CHUNK_SIZE));
 			state->in_avail = 0;
 		});
 
 	// Compress full chunks while there is room in the output buffer
 	while (stream->out_avail && stream->in_avail >= CHUNK_SIZE)
 	{
-		CHECK_MEM(lznt1_compress_chunk_write(stream, stream->in, CHUNK_SIZE));
+		CHECK_IF_NOT_SA_DICT(lznt1_compress_chunk_write(stream, stream->in, CHUNK_SIZE));
 		ADVANCE_IN(stream, CHUNK_SIZE);
 	}
 
@@ -211,7 +191,7 @@ MSCompStatus lznt1_deflate(mscomp_stream* const stream, const MSCompFlush flush)
 		if (flush != MSCOMP_NO_FLUSH)
 		{
 			// Compress a partial chunk
-			CHECK_MEM(lznt1_compress_chunk_write(stream, stream->in, (uint_fast16_t)stream->in_avail));
+			CHECK_IF_NOT_SA_DICT(lznt1_compress_chunk_write(stream, stream->in, (uint_fast16_t)stream->in_avail));
 		}
 		else
 		{
@@ -261,9 +241,7 @@ MSCompStatus lznt1_compress(const_bytes in, size_t in_len, bytes out, size_t* _o
 		// Compress the next chunk
 		const uint_fast16_t in_size = (uint_fast16_t)MIN(in_len-in_pos, 0x1000);
 		uint_fast16_t out_size = lznt1_compress_chunk(in+in_pos, in_size, out+out_pos+2, out_len-out_pos-2, &d), flags;
-#ifdef MSCOMP_WITHOUT_LZNT1_SA_DICT
-		if (UNLIKELY(out_size == 0)) { return MSCOMP_MEM_ERROR; }
-#endif
+		RETURN_IF_NOT_SA_DICT_AND_OUT_ZERO(MSCOMP_MEM_ERROR);
 		if (out_size < in_size) // chunk is compressed
 		{
 			flags = 0xB000;

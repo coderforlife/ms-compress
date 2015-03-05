@@ -17,7 +17,7 @@
 
 /////////////////// LZNT1 Dictionary - Suffix Array Version ///////////////////////////////////////
 // A dictionary system used for LZNT1 compression that balances speed and memory usage.
-// Most of the compression time is spent in the dictionary, particularly Find (XX%) and Fill (XX%).
+// Most of the compression time is spent in the dictionary, particularly Find (12%) and Fill (82%).
 //
 // This dictionary is based on a suffix+LCP array.
 //
@@ -386,7 +386,7 @@ private:
 	const_bytes data;
 	int_fast16_t len;
 	int16_t sa[0x1000], lcp[0x1000], sa_inv[0x1000];
-	INLINE const_bytes suf(const int_fast16_t i) const { return this->data+this->sa[i]; }
+	//INLINE const_bytes suf(const int_fast16_t i) const { return this->data+this->sa[i]; }
 	//INLINE static int_fast16_t match_length(const_bytes a, const_bytes b, const_bytes end)
 	//{
 	//	// The length of the match between a and b, up until end.
