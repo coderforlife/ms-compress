@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """
 test_speed.py compressor decompressor format times directory
 
