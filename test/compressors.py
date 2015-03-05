@@ -1,5 +1,5 @@
 from ctypes import c_size_t, c_int, c_void_p, c_ubyte, c_char_p, c_char, c_bool
-from ctypes import create_string_buffer, cast, POINTER, byref, windll, cdll, sizeof, memmove, Structure
+from ctypes import create_string_buffer, cast, POINTER, byref, cdll, sizeof, memmove, Structure
 from abc import ABCMeta, abstractmethod
 from warnings import warn
 from itertools import product
@@ -18,6 +18,7 @@ __all__ = ["CompressionFormat", "CompressionEngine", "Compressor", "StreamableCo
 # Copy, and CopyFast are always available
 isWindows = os.name == 'nt'
 if isWindows:
+    from ctypes import windll
     winVers = sys.getwindowsversion()
     isWindows8orNewer = (winVers.major == 6 and winVers.minor >= 2) or winVers.major > 6
 is64bit = (sizeof(c_void_p) == 8)
