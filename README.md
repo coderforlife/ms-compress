@@ -5,22 +5,25 @@ Open source implementations of Microsoft compression algorithms. The progress is
 ntdll.dll. Comparisons are made against the max compression engine for RTL functions.
 
 The quoted speeds are when running on Windows with a Core i7-3720QM 2.6 GHz CPU compiled using
-MinGW-W64/GCC v4.8.2 using profile-guided optimizations. A total of 42 files were compressed,
-totaling 67 MB. Each file was done 100 times. The files came from the following collections:
+MinGW-W64/GCC v4.9.2 using profile-guided optimizations. A total of 54 files were compressed,
+totaling 269 MB. Each file was done 10 times. The files came from the following collections:
 * [Calgary Corpus](http://corpus.canterbury.ac.nz/descriptions/#calgary)
 * [Canterbury Corpus](http://corpus.canterbury.ac.nz/descriptions/#cantrbry)
 * [Canterbury Large Corpus](http://corpus.canterbury.ac.nz/descriptions/#large)
 * [Maximum Compression's single file tests](http://www.maximumcompression.com)
+* [Silesia Corpus](http://sun.aei.polsl.pl/~sdeor/index.php?page=silesia)
 
-For comparison, the library includes a "no compression" engine and it operates at 2200 MB/s in the
+For comparison, the library includes a "no compression" engine and it operates at ~2000 MB/s in the
 same testing environment.
 
-Other algorithms not included (at least not yet):
- * [MSZIP](https://msdn.microsoft.com/library/bb417343.aspx#microsoftmszipdatacompressionformat) - essentially "deflate" (zlib) algorithm
- * [Quantum](http://en.wikipedia.org/wiki/Quantum_compression) - used in some very rare CAB files, not mentioned in the MSDN at all
- * [Delta/LZXD](https://msdn.microsoft.com/library/bb417345.aspx) - delta version of LZX used in Windows Updates
+Other Microsoft compression algorithms not included (at least not yet):
+ * [LZSS](http://www.cabextract.org.uk/libmspack/doc/szdd_kwaj_format.html) - used by COMPRESS.EXE and in HLP files, decompressor available as part of [libmspack](http://sourceforge.net/p/libmspack/code/HEAD/tree/libmspack/trunk/mspack/lzxd.c)
+ * [LZSS+Huffman](http://www.cabextract.org.uk/libmspack/doc/szdd_kwaj_format.html) - used by COMPRESS.EXE, decompressor available as part of [libmspack](http://sourceforge.net/p/libmspack/code/HEAD/tree/libmspack/trunk/mspack/kwajd.c)
+ * [MSZIP](https://msdn.microsoft.com/library/bb417343.aspx#microsoftmszipdatacompressionformat) - essentially "deflate" ([zlib](http://zlib.net)) algorithm
+ * [Quantum](http://en.wikipedia.org/wiki/Quantum_compression) - used in some very rare CAB files, not mentioned in the MSDN at all, decompressor available as part of [libmspack](http://sourceforge.net/p/libmspack/code/HEAD/tree/libmspack/trunk/mspack/qtmd.c)
+ * [Delta/LZXD](https://msdn.microsoft.com/library/bb417345.aspx) - delta version of LZX used in Windows Updates, decompressor available as part of [libmspack](http://sourceforge.net/p/libmspack/code/HEAD/tree/libmspack/trunk/mspack/oabd.c)
  * [RDC](https://msdn.microsoft.com/en-us/library/windows/desktop/aa372948.aspx) - similar to RSYNC
- * LZMS - new compression format used in WIM files
+ * LZMS - recently introduced compression format used in WIM files, available in [wimlib](http://wimlib.sourceforge.net/)
 
 
 LZNT1
@@ -33,11 +36,16 @@ and an [example](https://msdn.microsoft.com/library/jj711990.aspx)
 
 _Status: fully mature_ - no more significant changes likely
 
-* Compression:    34 MB/s, 44% CR
- * Much faster than RTL (average ~40x)
- * Slightly better compression ratio (only when last chunk is better off uncompressed, otherwise identical, ~2MB in 26GB)
- * Uses more memory than RTL (average ~1 MB total)
-* Decompression: 600 MB/s
+* Compression:       37 MB/s, 49% CR
+ * Much faster than RTL (average ~45x)
+ * Slightly better compression ratio (only when last chunk is better off uncompressed, otherwise identical, 374 bytes in 269 MB)
+ * Uses much more memory than RTL (average ~2 MB total and theoretically up to 2 GB)
+* Compression (SA):  15 MB/s, 49% CR
+ * Alternate compression algorithm favoring a speed/memory balance
+ * Much faster than RTL (average ~19x), but slower than the default (~0.42x)
+ * Identical compression ratio to the default
+ * Uses slightly less memory than RTL (~41 KB total), and much less than the default
+* Decompression:    540 MB/s
  * Faster than RTL (average ~1.4x)
  * Gets faster with better compressed data (RTL is reversed)
 
@@ -52,14 +60,15 @@ pseudo-code along with an [example](https://msdn.microsoft.com/library/hh553843.
 
 _Status: working_ - decompression is fully mature but compression needs major speed improvements and does not support streaming
 
-* Compression:    29 MB/s, 36% CR
- * Much slower than RTL (average ~0.27x)
- * Has a better compression ratio (average ~1.5% better)
- * Uses the same amount of memory
- * RTL cannot compress inputs of 7 bytes or less
- * RTL requires at least 24 extra bytes in the compression output buffer
-* Decompression: 830 MB/s
- * Slightly faster than RTL (average ~1.1x)
+* Compression:    29 MB/s, 39% CR
+ * Much slower than RTL (average ~0.26x)
+ * Has a better compression ratio (average ~1.3% better)
+ * Uses about the same amount of memory
+ * RTL bugs:
+  * cannot compress inputs of 7 bytes or less
+  * requires at least 24 extra bytes in the compression output buffer
+* Decompression: 735 MB/s
+ * Slightly faster than RTL (average ~1.04x)
 
 Xpress Huffman
 --------------
@@ -78,7 +87,7 @@ _Status: working_ - needs major speed improvements, does not create optional chu
  * Much slower than RTL (average ~0.22x, range 0.07x to 1.04x)
  * Has a better compression ratio (average ~0.9% better, range -0.1% to 2.6%)
  * Uses about the same amount of memory
- * RTL requires at least 24 extra bytes in the compression buffer
+ * RTL bug: requires at least 24 extra bytes in the compression buffer
 * Decompression:
  * To be tested
  * RTL does not allow the output buffer to be anything besides the exact size of the uncompressed data
@@ -87,7 +96,7 @@ LZX
 ---
 LZX compression used in WIM and CAB files with some minor differences between them.
 
-NOTE: this code is currently remove from the repository due to stability.
+NOTE: this code is currently removed from the repository due to stability issues.
 
 Microsoft document about the CAB LZX format: http://msdn.microsoft.com/en-us/library/bb417343.aspx#lzxdatacompressionformat
 
