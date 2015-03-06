@@ -58,17 +58,17 @@ Which includes [compression](https://msdn.microsoft.com/library/hh554053.aspx)
 and [decompression](https://msdn.microsoft.com/library/hh536411.aspx)
 pseudo-code along with an [example](https://msdn.microsoft.com/library/hh553843.aspx). 
 
-_Status: working_ - decompression is fully mature but compression needs major speed improvements and does not support streaming
+_Status: working_ - decompression is fully mature but compression needs speed improvements and does not support streaming
 
-* Compression:    29 MB/s, 39% CR
- * Much slower than RTL (average ~0.26x)
- * Has a better compression ratio (average ~1.3% better)
+* Compression:    87 MB/s, 39% CR
+ * Slower than RTL (average ~0.82x)
+ * Has a marginally better compression ratio
  * Uses about the same amount of memory
  * RTL bugs:
   * cannot compress inputs of 7 bytes or less
   * requires at least 24 extra bytes in the compression output buffer
-* Decompression: 735 MB/s
- * Slightly faster than RTL (average ~1.04x)
+* Decompression: 695 MB/s
+ * Essentially the same speed as RTL
 
 Xpress Huffman
 --------------
@@ -83,14 +83,14 @@ Additionally, a mostly complete pseudo-code decompression implementation is give
 
 _Status: working_ - needs major speed improvements, does not create optional chunk boundary spanning matches, and does not support streaming for compression or decompression
 
-* Compression:
- * Much slower than RTL (average ~0.22x, range 0.07x to 1.04x)
- * Has a better compression ratio (average ~0.9% better, range -0.1% to 2.6%)
+* Compression:    23 MB/s, 33% CR
+ * Much slower than RTL (average ~0.30x)
+ * Has a marginally better compression ratio
  * Uses about the same amount of memory
  * RTL bug: requires at least 24 extra bytes in the compression buffer
-* Decompression:
- * To be tested
- * RTL does not allow the output buffer to be anything besides the exact size of the uncompressed data
+* Decompression: 250 MB/s
+ * Much slower than RTL (average ~0.65x)
+ * RTL bug: does not allow the output buffer to be anything besides the exact size of the uncompressed data
 
 LZX
 ---
