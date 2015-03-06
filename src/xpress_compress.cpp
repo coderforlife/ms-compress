@@ -79,7 +79,7 @@ MSCompStatus xpress_deflate(mscomp_stream* stream, MSCompFlush flush)
 	// finding a partner for a half-byte the partner will be assumed to be 0x0 (forcing a length
 	// of 10 the next time a length 10+ match is found). This adds at most 2 bytes to the output
 	// for data that is already not compressing well (each time it occurs).
-#ifdef _DEBUG
+#ifdef _XDEBUG
 	CHECK_STREAM_PLUS(stream, true, MSCOMP_XPRESS, stream->state == NULL || stream->state->finished);
 
 	mscomp_internal_state *state = stream->state;
@@ -239,7 +239,7 @@ MSCompStatus xpress_deflate_end(mscomp_stream* stream)
 MSCompStatus xpress_compress(const_bytes in, size_t in_len, bytes out, size_t* _out_len)
 {
 	const size_t out_len = *_out_len;
-	const const_bytes                  in_end  = in +in_len,  in_end3  = in_end  - 3;
+	const const_bytes                  in_end  = in +in_len,  in_end2  = in_end  - 2;
 	const const_bytes out_start = out, out_end = out+out_len, out_end1 = out_end - 1;
 	const_bytes filled_to = in;
 
@@ -262,7 +262,7 @@ MSCompStatus xpress_compress(const_bytes in, size_t in_len, bytes out, size_t* _
 	*out++ = *in++;	// copy the first byte
 	flag_count = 1;
 
-	while (in < in_end3 && out < out_end1)
+	while (in < in_end2 && out < out_end1)
 	{
 		uint32_t len, off;
 		if (filled_to <= in) { filled_to = d.Fill(filled_to); }

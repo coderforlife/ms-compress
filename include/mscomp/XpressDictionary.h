@@ -44,7 +44,7 @@ class XpressDictionary
 {
 	//TODO: CASSERT(IS_POW2(ChunkSize));
 	CASSERT(MaxOffset <= ChunkSize);
-	CASSERT(HashBits >= 7 && HashBits <= 16);
+	CASSERT(HashBits >= 8 && HashBits <= 16);
 
 private:
 	// Window properties
@@ -58,7 +58,7 @@ private:
 	static const unsigned HashShift = (HashBits+2)/3;
 	FORCE_INLINE static uint_fast16_t HashUpdate(const uint_fast16_t h, const byte c) { return ((h<<HashShift) ^ c) & HashMask; }
 
-	const const_bytes start, end, end3;
+	const const_bytes start, end, end2;
 	const_bytes table[HashSize];
 	const_bytes window[WindowSize];
 	
@@ -84,7 +84,7 @@ private:
 public:
 	typedef XpressDictionaryLevel<Level> LevelConfig;
 
-	INLINE XpressDictionary(const const_bytes start, const const_bytes end) : start(start), end(end), end3(end - 3)
+	INLINE XpressDictionary(const const_bytes start, const const_bytes end) : start(start), end(end), end2(end - 2)
 	{
 		memset(this->table, 0, HashSize*sizeof(const_bytes));
 	}
@@ -93,7 +93,7 @@ public:
 	{
 		// equivalent to Add(data, ChunkSize)
 		uint32_t pos = WindowPos(data); // either 0x00000 or ChunkSize
-		const const_bytes end = ((data + ChunkSize) < this->end3) ? data + ChunkSize : this->end3;
+		const const_bytes end = ((data + ChunkSize) < this->end2) ? data + ChunkSize : this->end2;
 		uint_fast16_t hash = HashUpdate(data[0], data[1]);
 		while (data < end)
 		{
@@ -106,7 +106,7 @@ public:
 
 	INLINE void Add(const_bytes data)
 	{
-		if (data < this->end3)
+		if (data < this->end2)
 		{
 			// TODO: could make this more efficient by keeping track of the last hash
 			uint_fast16_t hash = HashUpdate(HashUpdate(data[0], data[1]), data[2]);
@@ -118,7 +118,7 @@ public:
 	INLINE void Add(const_bytes data, size_t len)
 	{
 		uint32_t pos = WindowPos(data);
-		const const_bytes end = ((data + len) < this->end3) ? data + len : this->end3;
+		const const_bytes end = ((data + len) < this->end2) ? data + len : this->end2;
 		uint_fast16_t hash = HashUpdate(data[0], data[1]);
 		while (data < end)
 		{
