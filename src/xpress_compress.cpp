@@ -23,10 +23,8 @@
 
 #include "../include/xpress.h"
 #include "../include/mscomp/XpressDictionary.h"
-//#include "../include/mscomp/XpressDictionaryStatic.h"
 
 typedef XpressDictionary<0x2000> Dictionary;
-//typedef XpressDictionaryStatic<0x2000> DictionaryStatic;
 
 size_t xpress_max_compressed_size(size_t in_len) { return in_len + 4 + 4 * (in_len / 32); }
 
@@ -259,7 +257,6 @@ MSCompStatus xpress_compress(const_bytes in, size_t in_len, bytes out, size_t* _
 		return MSCOMP_OK;
 	}
 	if (out_len < MIN_DATA) { PRINT_ERROR("Xpress Compression Error: Insufficient buffer"); return MSCOMP_BUF_ERROR; }
-	if (!d.Initialized()) { return MSCOMP_MEM_ERROR; }
 
 	out += 4;		// skip four for flags
 	*out++ = *in++;	// copy the first byte

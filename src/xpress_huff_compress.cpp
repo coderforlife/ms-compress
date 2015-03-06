@@ -247,8 +247,6 @@ MSCompStatus xpress_huff_compress(const_bytes in, size_t in_len, bytes out, size
 	Dictionary d(in, in_end);
 	Encoder encoder;
 
-	if (!d.Initialized()) { free(buf); return MSCOMP_MEM_ERROR; }
-
 	// Go through each chunk except the last
 	while (in_len > CHUNK_SIZE)
 	{

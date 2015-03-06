@@ -24,31 +24,44 @@
 #define MSCOMP_XPRESS_DICTIONARY_H
 #include "internal.h"
 
-#include "LCG.h"
+template<unsigned> class XpressDictionaryLevel { private: XpressDictionaryLevel(); };
+template<> struct XpressDictionaryLevel<1> { const static uint32_t NiceLength =  16, MaxChain =   4; };
+template<> struct XpressDictionaryLevel<2> { const static uint32_t NiceLength =  32, MaxChain =   8; };
+template<> struct XpressDictionaryLevel<3> { const static uint32_t NiceLength =  48, MaxChain =  11; };
+template<> struct XpressDictionaryLevel<4> { const static uint32_t NiceLength =  64, MaxChain =  16; };
+template<> struct XpressDictionaryLevel<5> { const static uint32_t NiceLength = 128, MaxChain =  32; };
+template<> struct XpressDictionaryLevel<6> { const static uint32_t NiceLength = 256, MaxChain =  64; };
+template<> struct XpressDictionaryLevel<7> { const static uint32_t NiceLength = 512, MaxChain = 128; };
+template<> struct XpressDictionaryLevel<8> { const static uint32_t NiceLength = UINT32_MAX, MaxChain = UINT32_MAX; };
 
-template<uint32_t MaxOffset, uint32_t ChunkSize = MaxOffset, uint32_t MaxHash = 0x8000>
-class XpressDictionary // 192 kb (on 32-bit) or 384 kb (on 64-bit)
+WARNINGS_PUSH()
+WARNINGS_IGNORE_ASSIGNMENT_OPERATOR_NOT_GENERATED()
+
+template<uint32_t MaxOffset, uint32_t ChunkSize = MaxOffset, unsigned HashBits = 15, unsigned Level = 3>
+class XpressDictionary
+	// when ChunkSize is 0x02000: 192 kb (or  384 kb on 64-bit) [Xpress]
+	// when ChunkSize is 0x10000: 640 kb (or 1280 kb on 64-bit) [Xpress Huffman]
 {
 	//TODO: CASSERT(IS_POW2(ChunkSize));
 	CASSERT(MaxOffset <= ChunkSize);
+	CASSERT(HashBits >= 7 && HashBits <= 16);
 
 private:
-	// Define a LCG-generate hash table
-WARNINGS_PUSH()
-WARNINGS_IGNORE_TRUNCATED_OVERFLOW()
-	typedef LCG<0x2a190348ul, 0x41C64E6Du, 12345u, 1ull << 32, 16, MaxHash> lcg;
-WARNINGS_POP()
+	// Window properties
+	static const uint32_t WindowSize = ChunkSize << 1;
+	static const uint32_t WindowMask = WindowSize-1;
+	INLINE uint32_t WindowPos(const_bytes x) const { return (uint32_t)((x - this->start) & WindowMask); } // { return (uint32_t)((x - this->start) % WindowSize); }
 
-	const_bytes start, end, end3;
-#ifdef LARGE_STACK
-	const_bytes table[MaxHash];
-	const_bytes window[ChunkSize*2];
-#else
-	const_bytes* table;
-	const_bytes* window;
-#endif
+	// The hashing function, which works progressively
+	static const uint32_t HashSize = 1 << HashBits;
+	static const uint32_t HashMask = HashSize - 1;
+	static const unsigned HashShift = (HashBits+2)/3;
+	FORCE_INLINE static uint_fast16_t HashUpdate(const uint_fast16_t h, const byte c) { return ((h<<HashShift) ^ c) & HashMask; }
+
+	const const_bytes start, end, end3;
+	const_bytes table[HashSize];
+	const_bytes window[WindowSize];
 	
-	INLINE uint32_t WindowPos(const_bytes x) const { return (uint32_t)((x - this->start) & ((ChunkSize << 1) - 1)); } // { return (uint32_t)((x - this->start) % (2 * ChunkSize)); }
 	INLINE static uint32_t GetMatchLength(const_bytes a, const_bytes b, const const_bytes end, const const_bytes end4)
 	{
 		// like memcmp but tells you the length of the match and optimized
@@ -69,41 +82,22 @@ WARNINGS_POP()
 	}
 
 public:
+	typedef XpressDictionaryLevel<Level> LevelConfig;
+
 	INLINE XpressDictionary(const const_bytes start, const const_bytes end) : start(start), end(end), end3(end - 3)
 	{
-#ifndef LARGE_STACK
-		this->table  = (const_bytes*)malloc(MaxHash    *sizeof(const_bytes));
-		this->window = (const_bytes*)malloc(ChunkSize*2*sizeof(const_bytes));
-		if (this->table == NULL || this->window == NULL)
-		{
-			free(this->table);
-			free(this->window);
-		}
-#endif
-		memset(this->table, 0, MaxHash*sizeof(const_bytes));
+		memset(this->table, 0, HashSize*sizeof(const_bytes));
 	}
-	
-#ifdef LARGE_STACK
-	INLINE bool Initialized() { return true; }
-#else
-	INLINE bool Initialized() { return this->table != NULL && this->window != NULL; }
-#endif
-
-#ifndef LARGE_STACK
-	INLINE ~XpressDictionary()
-	{
-		free(this->table);
-		free(this->window);
-	}
-#endif
 
 	INLINE const_bytes Fill(const_bytes data)
 	{
-		uint32_t pos = WindowPos(data); // either 0x00000 or 0x02000 / 0x10000
+		// equivalent to Add(data, ChunkSize)
+		uint32_t pos = WindowPos(data); // either 0x00000 or ChunkSize
 		const const_bytes end = ((data + ChunkSize) < this->end3) ? data + ChunkSize : this->end3;
+		uint_fast16_t hash = HashUpdate(data[0], data[1]);
 		while (data < end)
 		{
-			const uint_fast16_t hash = lcg::Hash(data);
+			hash = HashUpdate(hash, data[2]);
 			this->window[pos++] = this->table[hash];
 			this->table[hash] = data++;
 		}
@@ -114,7 +108,8 @@ public:
 	{
 		if (data < this->end3)
 		{
-			const uint_fast16_t hash = lcg::Hash(data);
+			// TODO: could make this more efficient by keeping track of the last hash
+			uint_fast16_t hash = HashUpdate(HashUpdate(data[0], data[1]), data[2]);
 			this->window[WindowPos(data)] = this->table[hash];
 			this->table[hash] = data++;
 		}
@@ -124,9 +119,10 @@ public:
 	{
 		uint32_t pos = WindowPos(data);
 		const const_bytes end = ((data + len) < this->end3) ? data + len : this->end3;
+		uint_fast16_t hash = HashUpdate(data[0], data[1]);
 		while (data < end)
 		{
-			const uint32_t hash = lcg::Hash(data);
+			hash = HashUpdate(hash, data[2]);
 			this->window[pos++] = this->table[hash];
 			this->table[hash] = data++;
 		}
@@ -141,18 +137,26 @@ public:
 #endif
 		const const_bytes xend = data - MaxOffset, end4 = end - 4;
 		const_bytes x;
-		uint32_t len = 2;
-		for (x = this->window[WindowPos(data)]; x >= xend; x = this->window[WindowPos(x)])
+		const uint16_t prefix = *(uint16_t*)data;
+		uint32_t len = 2, chain_length = LevelConfig::MaxChain;
+		for (x = this->window[WindowPos(data)]; chain_length && x >= xend; x = this->window[WindowPos(x)], --chain_length)
 		{
-			const uint32_t l = GetMatchLength(x, data, end, end4);
-			if (l > len)
+			if (*(uint16_t*)x == prefix)
 			{
-				*offset = (uint32_t)(data - x);
-				len = l;
+				// at this point the at least 3 bytes are matched (due to the hashing function forcing byte 3 to the same)
+				const uint32_t l = GetMatchLength(x, data, end, end4);
+				if (l > len)
+				{
+					*offset = (uint32_t)(data - x);
+					len = l;
+					if (len >= LevelConfig::NiceLength) { break; }
+				}
 			}
 		}
 		return len;
 	}
 };
+
+WARNINGS_POP()
 
 #endif
