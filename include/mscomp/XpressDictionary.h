@@ -50,7 +50,7 @@ private:
 	// Window properties
 	static const uint32_t WindowSize = ChunkSize << 1;
 	static const uint32_t WindowMask = WindowSize-1;
-	INLINE uint32_t WindowPos(const_bytes x) const { return (uint32_t)((x - this->start) & WindowMask); } // { return (uint32_t)((x - this->start) % WindowSize); }
+	FORCE_INLINE uint32_t WindowPos(const_bytes x) const { return (uint32_t)((x - this->start) & WindowMask); } // { return (uint32_t)((x - this->start) % WindowSize); }
 
 	// The hashing function, which works progressively
 	static const uint32_t HashSize = 1 << HashBits;
