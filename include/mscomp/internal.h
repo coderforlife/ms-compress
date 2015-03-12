@@ -146,6 +146,7 @@
 	uint16_t FORCE_INLINE byte_swap(uint16_t x) { return _byteswap_ushort(x); }
 	uint32_t FORCE_INLINE byte_swap(uint32_t x) { return _byteswap_ulong(x);  }
 	uint64_t FORCE_INLINE byte_swap(uint64_t x) { return _byteswap_uint64(x); }
+	#define PREVENT_LOOP_VECTORIZATION
 #elif defined(__GNUC__) // GCC and Clang
 	// see https://gcc.gnu.org/onlinedocs/gcc-4.5.0/gcc/Other-Builtins.html
 	#define ALWAYS(x)     if (!(x)) { __builtin_unreachable(); }
@@ -164,6 +165,7 @@
 	uint16_t FORCE_INLINE byte_swap(uint16_t x) { return (x<<8)|(x>>8); }
 	uint32_t FORCE_INLINE byte_swap(uint32_t x) { return (uint32_t)__builtin_bswap32((int32_t)x); }
 	uint64_t FORCE_INLINE byte_swap(uint64_t x) { return (uint64_t)__builtin_bswap64((int64_t)x); }
+	#define PREVENT_LOOP_VECTORIZATION __attribute__((optimize("no-tree-vectorize")))
 #else
 	#define ALWAYS(x)     
 	#define LIKELY(x)     x
@@ -181,6 +183,7 @@
 	uint16_t FORCE_INLINE byte_swap(uint16_t x) { return (x<<8)|(x>>8); }
 	uint32_t FORCE_INLINE byte_swap(uint32_t x) { return (x<<24)|((x<<8)&0x00FF0000)|((x>>8)&0x0000FF00)|(x>>24); }
 	uint64_t FORCE_INLINE byte_swap(uint64_t x) { return (x<<56)|((x<<40)&0x00FF000000000000)|((x<<24)&0x0000FF0000000000)|((x<<8)&0x000000FF00000000)|((x>>8)&0x00000000FF000000)|((x>>24)&0x0000000000FF0000)|((x>>40)&0x000000000000FF00)|(x>>56); }
+	#define PREVENT_LOOP_VECTORIZATION 
 #endif
 #ifdef DEBUG_ALWAYS_NEVER
 	#include <stdio.h>

@@ -18,6 +18,7 @@
 #define MSCOMP_HUFFMAN_ENCODER
 
 #include "internal.h"
+#include "sorting.h"
 #include "Bitstream.h"
 
 #define INVALID_SYMBOL 0xFFFF
@@ -29,82 +30,40 @@ private:
 	uint16_t codes[NumSymbols];
 	byte lens[NumSymbols];
 
-	// Merge-sorts syms[l, r) using conditions[syms[x]]
-	// Use merge-sort so that it is stable, keeping symbols in increasing order
-	template<typename T> // T is either uint32_t or byte
-	static void msort(uint16_t* syms, uint16_t* temp, T* conditions, uint_fast16_t l, uint_fast16_t r)
-	{
-		uint_fast16_t len = r - l;
-		if (len <= 1) { return; }
-	
-		// Not required to do these special in-place sorts, but is a bit more efficient
-		else if (len == 2)
-		{
-			if (conditions[syms[l+1]] < conditions[syms[ l ]]) { uint16_t t = syms[l+1]; syms[l+1] = syms[ l ]; syms[ l ] = t; }
-			return;
-		}
-		else if (len == 3)
-		{
-			if (conditions[syms[l+1]] < conditions[syms[ l ]]) { uint16_t t = syms[l+1]; syms[l+1] = syms[ l ]; syms[ l ] = t; }
-			if (conditions[syms[l+2]] < conditions[syms[l+1]]) { uint16_t t = syms[l+2]; syms[l+2] = syms[l+1]; syms[l+1] = t;
-				if (conditions[syms[l+1]]<conditions[syms[l]]) { uint16_t t = syms[l+1]; syms[l+1] = syms[ l ]; syms[ l ] = t; } }
-			return;
-		}
-	
-		// Merge-Sort
-		else
-		{
-			uint_fast16_t m = l + (len >> 1), i = l, j = l, k = m;
-		
-			// Divide and Conquer
-			msort(syms, temp, conditions, l, m);
-			msort(syms, temp, conditions, m, r);
-			memcpy(temp+l, syms+l, len*sizeof(uint16_t));
-		
-			// Merge
-			while (j < m && k < r) syms[i++] = (conditions[temp[k]] < conditions[temp[j]]) ? temp[k++] : temp[j++]; // if == then does j which is from the lower half, keeping stable
-				 if (j < m) memcpy(syms+i, temp+j, (m-j)*sizeof(uint16_t));
-			else if (k < r) memcpy(syms+i, temp+k, (r-k)*sizeof(uint16_t));
-		}
-	}
-
 public:
 	INLINE const const_bytes CreateCodes(uint32_t symbol_counts[]) // 3 kb stack
 	{
-		uint16_t* syms, syms_by_count[NumSymbols], syms_by_len[NumSymbols], temp[NumSymbols]; // 3*2*512 = 3 kb
-		uint_fast16_t i, j, len, pos, s;
-
 		memset(this->codes, 0, NumSymbols*sizeof(uint16_t));
 		memset(this->lens,  0, NumSymbols*sizeof(byte));
 
 		// Fill the syms_by_count, syms_by_length, and huffman_lens with the symbols that were found
-		for (i = 0, len = 0; i < NumSymbols; ++i) { if (symbol_counts[i]) { syms_by_count[len] = (uint16_t)i; syms_by_len[len++] = (uint16_t)i; this->lens[i] = kNumBitsMax; } }
-
+		uint16_t syms_by_count[NumSymbols], syms_by_len[NumSymbols], temp[NumSymbols]; // 3*2*512 = 3 kb
+		uint_fast16_t len = 0;
+		for (uint_fast16_t i = 0; i < NumSymbols; ++i) { if (symbol_counts[i]) { syms_by_count[len] = (uint16_t)i; syms_by_len[len++] = (uint16_t)i; this->lens[i] = kNumBitsMax; } }
 
 		////////// Get the Huffman lengths //////////
-		msort(syms = syms_by_count, temp, symbol_counts, 0, len); // sort by the counts
-		if (len == 1)
+		merge_sort(syms_by_count, temp, symbol_counts, len); // sort by the counts
+		if (UNLIKELY(len == 1))
 		{
-			this->lens[syms[0]] = 1; // never going to happen, but the code below would probably assign a length of 0 which is not right
+			this->lens[syms_by_count[0]] = 1; // never going to happen, but the code below would probably assign a length of 0 which is not right
 		}
 		else
 		{
 			///// Package-Merge Algorithm /////
 			typedef struct _collection // 516 bytes each
 			{
-				uint_fast16_t count;
 				byte symbols[NumSymbols];
+				uint_fast16_t count;
 			} collection;
 			collection* cols = (collection*)malloc(32*sizeof(collection)), *next_cols = (collection*)malloc(32*sizeof(collection)), *temp_cols; // 32.25 kb initial allocation
-			uint_fast16_t cols_cap = 32, cols_len = 0, cols_pos, next_cols_len = 0;
+			uint_fast16_t cols_cap = 32, cols_len = 0, next_cols_len = 0;
 		
 			if (!cols || !next_cols) { free(cols); free(next_cols); return NULL; }
 
 			// Start at the lowest value row, adding new collection
-			for (j = 0; j < kNumBitsMax; ++j)
+			for (uint_fast16_t j = 0; j < kNumBitsMax; ++j)
 			{
-				cols_pos = 0;
-				pos = 0;
+				uint_fast16_t cols_pos = 0, pos = 0;
 
 				// All but the last one/none get added to collections
 				while ((cols_len-cols_pos + len-pos) > 1)
@@ -122,21 +81,23 @@ public:
 						next_cols = temp_cols;
 					}
 					memset(next_cols+next_cols_len, 0, sizeof(collection));
-					for (i = 0; i < 2; ++i) // hopefully unrolled...
+					for (uint_fast16_t i = 0; i < 2; ++i) // hopefully unrolled...
 					{
-						if (pos >= len || (cols_pos < cols_len && cols[cols_pos].count < symbol_counts[syms[pos]]))
+						if (pos >= len || (cols_pos < cols_len && cols[cols_pos].count < symbol_counts[syms_by_count[pos]]))
 						{
 							// Add cols[cols_pos]
 							next_cols[next_cols_len].count += cols[cols_pos].count;
-							for (s = 0; s < NumSymbols; ++s)
+							for (uint_fast16_t s = 0; s < NumSymbols; ++s)
+							{
 								next_cols[next_cols_len].symbols[s] += cols[cols_pos].symbols[s];
+							}
 							++cols_pos;
 						}
 						else
 						{
 							// Add syms[pos]
-							next_cols[next_cols_len].count += symbol_counts[syms[pos]];
-							++next_cols[next_cols_len].symbols[syms[pos]];
+							next_cols[next_cols_len].count += symbol_counts[syms_by_count[pos]];
+							++next_cols[next_cols_len].symbols[syms_by_count[pos]];
 							++pos;
 						}
 					}
@@ -145,10 +106,14 @@ public:
 			
 				// Left over gets dropped
 				if (cols_pos < cols_len)
-					for (s = 0; s < NumSymbols; ++s)
-						this->lens[s] -= cols[cols_pos].symbols[s];
+				{
+					const byte* const syms = cols[cols_pos].symbols;
+					for (uint_fast16_t i = 0; i < NumSymbols; ++i) { this->lens[i] -= syms[i]; }
+				}
 				else if (pos < len)
-					--this->lens[syms[pos]];
+				{
+					--this->lens[syms_by_count[pos]];
+				}
 
 				// Move the next_collections to the current collections
 				temp_cols = cols; cols = next_cols; next_cols = temp_cols;
@@ -160,11 +125,11 @@ public:
 
 
 			////////// Create Huffman codes from lengths //////////
-			msort(syms = syms_by_len, temp, this->lens, 0, len); // Sort by the code lengths
-			for (i = 1; i < len; ++i)
+			merge_sort(syms_by_len, temp, this->lens, len); // Sort by the code lengths
+			for (uint_fast16_t i = 1; i < len; ++i)
 			{
 				// Code is previous code +1 with added zeroes for increased code length
-				this->codes[syms[i]] = (this->codes[syms[i-1]] + 1) << (this->lens[syms[i]] - this->lens[syms[i-1]]);
+				this->codes[syms_by_len[i]] = (this->codes[syms_by_len[i-1]] + 1) << (this->lens[syms_by_len[i]] - this->lens[syms_by_len[i-1]]);
 			}
 		}
 

@@ -234,6 +234,8 @@ static size_t xh_compress_encode(const_bytes in, size_t in_len, bytes out, size_
 	// Write end of stream symbol and return insufficient buffer or the compressed size
 	return rem > 0 ? 0 : bstr.Finish(); // make sure that the write stream is finished writing
 }
+PREVENT_LOOP_VECTORIZATION
+// TODO: GCC with -ftree-vectorize (default added with -O3) causes an access violation below
 MSCompStatus xpress_huff_compress(const_bytes in, size_t in_len, bytes out, size_t* _out_len)
 {
 	if (in_len == 0) { *_out_len = 0; return MSCOMP_OK; }
