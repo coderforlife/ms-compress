@@ -122,25 +122,53 @@
 	#define NEVER(x)      __assume(!(x))
 	#define UNREACHABLE() __assume(0)
 	#pragma intrinsic(_rotl, memset, memcpy)
-	int FORCE_INLINE rotl(uint8_t x,  int bits) { return _rotl8 (x, (unsigned char)bits); }
-	int FORCE_INLINE rotl(uint16_t x, int bits) { return _rotl16(x, (unsigned char)bits); }
-	int FORCE_INLINE rotl(uint32_t x, int bits) { return _rotl  (x, (unsigned char)bits); }
-	int FORCE_INLINE rotl(uint64_t x, int bits) { return (int)_rotl64(x, (unsigned char)bits); }
+	uint8_t  FORCE_INLINE rotl(uint8_t x,  int bits) { return _rotl8 (x, (unsigned char)bits); }
+	uint16_t FORCE_INLINE rotl(uint16_t x, int bits) { return _rotl16(x, (unsigned char)bits); }
+	uint32_t FORCE_INLINE rotl(uint32_t x, int bits) { return _rotl  (x, (unsigned char)bits); }
+	uint64_t FORCE_INLINE rotl(uint64_t x, int bits) { return _rotl64(x, (unsigned char)bits); }
 	#if defined(_M_ARM)
+		int FORCE_INLINE count_bits_set(uint8_t x)  { return _CountOneBits(x); }
+		int FORCE_INLINE count_bits_set(uint16_t x) { return _CountOneBits(x); }
 		int FORCE_INLINE count_bits_set(uint32_t x) { return _CountOneBits(x); }
 		int FORCE_INLINE count_bits_set(uint64_t x) { return _CountOneBits64(x); }
-		int FORCE_INLINE count_leading_zeros(uint32_t x) { return _CountLeadingZeros(x; }
-		int FORCE_INLINE count_leading_zeros(uint64_t x) { return _CountLeadingZeros64(x; }
+		int FORCE_INLINE count_leading_zeros(uint8_t x)  { return _CountLeadingZeros(x) - 24; }
+		int FORCE_INLINE count_leading_zeros(uint16_t x) { return _CountLeadingZeros(x) - 16; }
+		int FORCE_INLINE count_leading_zeros(uint32_t x) { return _CountLeadingZeros(x); }
+		int FORCE_INLINE count_leading_zeros(uint64_t x) { return _CountLeadingZeros64(x); }
+		int FORCE_INLINE log2(uint8_t x)  { return 31 - _CountLeadingZeros(x);   }
+		int FORCE_INLINE log2(uint16_t x) { return 31 - _CountLeadingZeros(x);   }
+		int FORCE_INLINE log2(uint32_t x) { return 31 - _CountLeadingZeros(x);   }
+		int FORCE_INLINE log2(uint64_t x) { return 63 - _CountLeadingZeros64(x); }
 	#elif defined(_M_IX86) || defined(_M_AMD64) || defined(_M_X64)
-		int FORCE_INLINE count_bits_set(uint16_t x) { return __popcnt16(x); } // TODO: only available if bit 23 of CPUInfo[2] (ECX) is set after __cpuid(int cpuInfo[4], 0x00000001) [Nephalem]
-		int FORCE_INLINE count_bits_set(uint32_t x) { return __popcnt(x); }   // TODO: only available if bit 23 of CPUInfo[2] (ECX) is set after __cpuid(int cpuInfo[4], 0x00000001) [Nephalem]
+		// TODO: lzcnt16/lzcnt/lzcnt64 are only available if bit 5 of CPUInfo[2] (ECX) is set after __cpuid(int cpuInfo[4], 0x80000001) [Haswell - 2013]
+		// TODO: popcnt16/popcnt/popcnt64 are only available if bit 23 of CPUInfo[2] (ECX) is set after __cpuid(int cpuInfo[4], 0x00000001) [Nephalem - 2008]
+		int FORCE_INLINE count_bits_set(uint8_t x)  { return __popcnt16(x); }
+		int FORCE_INLINE count_bits_set(uint16_t x) { return __popcnt16(x); }
+		int FORCE_INLINE count_bits_set(uint32_t x) { return __popcnt(x); }
+		int FORCE_INLINE count_leading_zeros(uint8_t x)  { unsigned long r; _BitScanReverse(&r, x); return (31-r); }
+		int FORCE_INLINE count_leading_zeros(uint16_t x) { unsigned long r; _BitScanReverse(&r, x); return (31-r); }
 		int FORCE_INLINE count_leading_zeros(uint32_t x) { unsigned long r; _BitScanReverse(&r, x); return (31-r); }
-		//int FORCE_INLINE count_leading_zeros(uint16_t x) { return __lzcnt16(x); } // TODO: only available if bit 5 of CPUInfo[2] (ECX) is set after __cpuid(int cpuInfo[4], 0x80000001) [Haswell]
-		//int FORCE_INLINE count_leading_zeros(uint32_t x) { return __lzcnt(x); }   // TODO: only available if bit 5 of CPUInfo[2] (ECX) is set after __cpuid(int cpuInfo[4], 0x80000001) [Haswell]
+		//int FORCE_INLINE count_leading_zeros(uint8_t x)  { return __lzcnt16(x); }
+		//int FORCE_INLINE count_leading_zeros(uint16_t x) { return __lzcnt16(x); }
+		//int FORCE_INLINE count_leading_zeros(uint32_t x) { return __lzcnt(x);   }
+		int FORCE_INLINE log2(uint8_t x)  { unsigned long r; _BitScanReverse(&r, x); return r; }
+		int FORCE_INLINE log2(uint16_t x) { unsigned long r; _BitScanReverse(&r, x); return r; }
+		int FORCE_INLINE log2(uint32_t x) { unsigned long r; _BitScanReverse(&r, x); return r; }
+		//int FORCE_INLINE log2(uint8_t x)  { return 15 - __lzcnt16(x); }
+		//int FORCE_INLINE log2(uint16_t x) { return 15 - __lzcnt16(x); }
+		//int FORCE_INLINE log2(uint32_t x) { return 31 - __lzcnt(x);   }
 		#if defined(_M_AMD64) || defined(_M_X64)
-			int FORCE_INLINE count_bits_set(uint64_t x) { return (int)__popcnt64(x); } // TODO: only available if bit 23 of CPUInfo[2] (ECX) is set after __cpuid(int cpuInfo[4], 0x00000001) [Nephalem]
+			int FORCE_INLINE count_bits_set(uint64_t x) { return (int)__popcnt64(x); }
 			int FORCE_INLINE count_leading_zeros(uint64_t x) { unsigned long r; _BitScanReverse64(&r, x); return (63-r); }
-			//int FORCE_INLINE count_leading_zeros(uint64_t x) { return __lzcnt64(x); }   // TODO: only available if bit 5 of CPUInfo[2] (ECX) is set after __cpuid(int cpuInfo[4], 0x80000001) [Haswell]
+			//int FORCE_INLINE count_leading_zeros(uint64_t x) { return __lzcnt64(x); }
+			int FORCE_INLINE log2(uint64_t x) { unsigned long r; _BitScanReverse64(&r, x); return r; }
+			//int FORCE_INLINE log2(uint64_t x) { return 63 - __lzcnt64(x); }
+		#else
+			int FORCE_INLINE count_bits_set(uint64_t x) { return __popcnt((uint32_t)x) + __popcnt((uint32_t)(x >> 32)); }
+			int FORCE_INLINE count_leading_zeros(uint64_t x) { unsigned long r; uint32_t y = (uint32_t)(x>>32); if (y) { _BitScanReverse(&r, y); return (31-r); } else { _BitScanReverse(&r, (uint32_t)x); return (63-r); } }
+			//int FORCE_INLINE count_leading_zeros(uint64_t x) { uint32_t y = (uint32_t)(x>>32); return y ? _lzcnt(y)+32 : __lzcnt((uint32_t)x); }
+			int FORCE_INLINE log2(uint64_t x) { unsigned long r; uint32_t y = (uint32_t)(x>>32); if (y) { _BitScanReverse(&r, y); return r+32; } else { _BitScanReverse(&r, (uint32_t)x); return r; } }
+			//int FORCE_INLINE log2(uint64_t x) { uint32_t y = (uint32_t)(x>>32); return y ? (63-_lzcnt(y)) : (31-__lzcnt((uint32_t)x)); }
 		#endif
 	#endif
 	uint16_t FORCE_INLINE byte_swap(uint16_t x) { return _byteswap_ushort(x); }
@@ -154,14 +182,22 @@
 	#define UNLIKELY(x)   __builtin_expect((x), 0)
 	#define NEVER(x)      if (x) { __builtin_unreachable(); }
 	#define UNREACHABLE() __builtin_unreachable()
-	int FORCE_INLINE rotl(uint8_t x,  int bits) { return ((x << bits) | (x >> (8  - bits))); } // the compiler detects these and optimizes, no need for a special builtin
-	int FORCE_INLINE rotl(uint16_t x, int bits) { return ((x << bits) | (x >> (16 - bits))); }
-	int FORCE_INLINE rotl(uint32_t x, int bits) { return ((x << bits) | (x >> (32 - bits))); }
-	int FORCE_INLINE rotl(uint64_t x, int bits) { return ((x << bits) | (x >> (64 - bits))); }
+	uint8_t  FORCE_INLINE rotl(uint8_t x,  int bits) { return ((x << bits) | (x >> (8  - bits))); } // the compiler detects these and optimizes, no need for a special builtin
+	uint16_t FORCE_INLINE rotl(uint16_t x, int bits) { return ((x << bits) | (x >> (16 - bits))); }
+	uint32_t FORCE_INLINE rotl(uint32_t x, int bits) { return ((x << bits) | (x >> (32 - bits))); }
+	uint64_t FORCE_INLINE rotl(uint64_t x, int bits) { return ((x << bits) | (x >> (64 - bits))); }
+	int FORCE_INLINE count_bits_set(uint8_t x)  { return __builtin_popcount(x); }
+	int FORCE_INLINE count_bits_set(uint16_t x) { return __builtin_popcount(x); }
 	int FORCE_INLINE count_bits_set(uint32_t x) { return __builtin_popcount(x); }
 	int FORCE_INLINE count_bits_set(uint64_t x) { return __builtin_popcountll(x); }
+	int FORCE_INLINE count_leading_zeros(uint8_t  x) { return __builtin_clz(x) - 24; }
+	int FORCE_INLINE count_leading_zeros(uint16_t x) { return __builtin_clz(x) - 16; }
 	int FORCE_INLINE count_leading_zeros(uint32_t x) { return __builtin_clz(x); }
 	int FORCE_INLINE count_leading_zeros(uint64_t x) { return __builtin_clzll(x); }
+	int FORCE_INLINE log2(uint8_t x)  { return 31 - __builtin_clz(x);   }
+	int FORCE_INLINE log2(uint16_t x) { return 31 - __builtin_clz(x);   }
+	int FORCE_INLINE log2(uint32_t x) { return 31 - __builtin_clz(x);   }
+	int FORCE_INLINE log2(uint64_t x) { return 63 - __builtin_clzll(x); }
 	uint16_t FORCE_INLINE byte_swap(uint16_t x) { return (x<<8)|(x>>8); }
 	uint32_t FORCE_INLINE byte_swap(uint32_t x) { return (uint32_t)__builtin_bswap32((int32_t)x); }
 	uint64_t FORCE_INLINE byte_swap(uint64_t x) { return (uint64_t)__builtin_bswap64((int64_t)x); }
@@ -172,17 +208,25 @@
 	#define UNLIKELY(x)   x
 	#define NEVER(x)      
 	#define UNREACHABLE()
-	int FORCE_INLINE rotl(uint8_t x,  int bits) { return ((x << bits) | (x >> (8  - bits))); }
-	int FORCE_INLINE rotl(uint16_t x, int bits) { return ((x << bits) | (x >> (16 - bits))); }
-	int FORCE_INLINE rotl(uint32_t x, int bits) { return ((x << bits) | (x >> (32 - bits))); }
-	int FORCE_INLINE rotl(uint64_t x, int bits) { return ((x << bits) | (x >> (64 - bits))); }
-	int FORCE_INLINE count_bits_set(uint32_t x) { x -= (x>>1)&0x55555555; x = (((x>>2)&0x33333333) + (x&0x33333333)); x = (((x>>4)+x)&0x0f0f0f0f); x += (x>>8); x += (x>>16); return x&0x0000003f; }
-	int FORCE_INLINE count_bits_set(uint64_t x) { x -= (x>>1)&0x5555555555555555ull;  x = ((x>>2)&0x3333333333333333ull) + (x&0x3333333333333333ull); return (int)(((((x>>4)+x)&0xf0f0f0f0f0f0f0full)*0x101010101010101ull)>>56); }
+	uint8_t  FORCE_INLINE rotl(uint8_t x,  int bits) { return ((x << bits) | (x >> (8  - bits))); }
+	uint16_t FORCE_INLINE rotl(uint16_t x, int bits) { return ((x << bits) | (x >> (16 - bits))); }
+	uint32_t FORCE_INLINE rotl(uint32_t x, int bits) { return ((x << bits) | (x >> (32 - bits))); }
+	uint64_t FORCE_INLINE rotl(uint64_t x, int bits) { return ((x << bits) | (x >> (64 - bits))); }
+	int FORCE_INLINE count_bits_set(uint8_t x)  { x -= (x>>1)&0x55; x = (((x>>2)&0x33) + (x&0x33)); x = (((x>>4)+x)&0x0f); return x&0x0f; }
+	int FORCE_INLINE count_bits_set(uint16_t x) { x -= (x>>1)&0x5555; x = (((x>>2)&0x3333) + (x&0x3333)); x = (((x>>4)+x)&0x0f0f); x += (x>>8); return x&0x1f; }
+	int FORCE_INLINE count_bits_set(uint32_t x) { x -= (x>>1)&0x55555555; x = (((x>>2)&0x33333333) + (x&0x33333333)); x = (((x>>4)+x)&0x0f0f0f0f); x += (x>>8); x += (x>>16); return x&0x3f; }
+	int FORCE_INLINE count_bits_set(uint64_t x) { x -= (x>>1)&0x5555555555555555ull; x = ((x>>2)&0x3333333333333333ull) + (x&0x3333333333333333ull); return (int)(((((x>>4)+x)&0xf0f0f0f0f0f0f0full)*0x101010101010101ull)>>56); }
+	int FORCE_INLINE count_leading_zeros(uint8_t x)  { x |= (x>>1); x |= (x>>2); x |= (x>>4); return 8 - count_bits_set(x); }
+	int FORCE_INLINE count_leading_zeros(uint16_t x) { x |= (x>>1); x |= (x>>2); x |= (x>>4); x |= (x>>8); return 16 - count_bits_set(x); }
 	int FORCE_INLINE count_leading_zeros(uint32_t x) { x |= (x>>1); x |= (x>>2); x |= (x>>4); x |= (x>>8); x |= (x>>16); return 32 - count_bits_set(x); }
-	int FORCE_INLINE count_leading_zeros(uint64_t x) { x |= (x >> 1); x |= (x >> 2); x |= (x >> 4); x |= (x >> 8); x |= (x >> 16); x |= (x >> 32); return 64 - count_bits_set(x); }
+	int FORCE_INLINE count_leading_zeros(uint64_t x) { x |= (x>>1); x |= (x>>2); x |= (x>>4); x |= (x>>8); x |= (x>>16); x |= (x>>32); return 64 - count_bits_set(x); }
+	int FORCE_INLINE log2(uint8_t x)  { x |= (x>>1); x |= (x>>2); x |= (x>>4); return count_bits_set(x) - 1; } // returns 0x0 - 0x7
+	int FORCE_INLINE log2(uint16_t x) { x |= (x>>1); x |= (x>>2); x |= (x>>4); x |= (x>>8); return count_bits_set(x) - 1; } // returns 0x0 - 0xF
+	int FORCE_INLINE log2(uint32_t x) { x |= (x>>1); x |= (x>>2); x |= (x>>4); x |= (x>>8); x |= (x>>16); return count_bits_set(x) - 1; } // returns 0x00 - 0x1F
+	int FORCE_INLINE log2(uint64_t x) { x |= (x>>1); x |= (x>>2); x |= (x>>4); x |= (x>>8); x |= (x>>16); x |= (x>>32); return count_bits_set(x) - 1; } // returns 0x0 - 0x3F
 	uint16_t FORCE_INLINE byte_swap(uint16_t x) { return (x<<8)|(x>>8); }
 	uint32_t FORCE_INLINE byte_swap(uint32_t x) { return (x<<24)|((x<<8)&0x00FF0000)|((x>>8)&0x0000FF00)|(x>>24); }
-	uint64_t FORCE_INLINE byte_swap(uint64_t x) { return (x<<56)|((x<<40)&0x00FF000000000000)|((x<<24)&0x0000FF0000000000)|((x<<8)&0x000000FF00000000)|((x>>8)&0x00000000FF000000)|((x>>24)&0x0000000000FF0000)|((x>>40)&0x000000000000FF00)|(x>>56); }
+	uint64_t FORCE_INLINE byte_swap(uint64_t x) { return (x<<56)|((x<<40)&0x00FF000000000000ull)|((x<<24)&0x0000FF0000000000ull)|((x<<8)&0x000000FF00000000ull)|((x>>8)&0x00000000FF000000ull)|((x>>24)&0x0000000000FF0000)|((x>>40)&0x000000000000FF00)|(x>>56); }
 	#define PREVENT_LOOP_VECTORIZATION 
 #endif
 #ifdef DEBUG_ALWAYS_NEVER

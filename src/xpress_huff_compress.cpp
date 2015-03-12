@@ -44,15 +44,6 @@ typedef HuffmanEncoder<15, SYMBOLS> Encoder;
 
 
 ////////////////////////////// Compression Functions ///////////////////////////////////////////////
-static const byte Log2Table[256] = 
-{
-#define LT(n) n, n, n, n, n, n, n, n, n, n, n, n, n, n, n, n
-	/*-1*/0, 0, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3,
-	LT(4), LT(5), LT(5), LT(6), LT(6), LT(6), LT(6),
-	LT(7), LT(7), LT(7), LT(7), LT(7), LT(7), LT(7), LT(7)
-#undef LT
-};
-INLINE static byte highbit(uint32_t x) { uint_fast16_t y = x >> 8; return y ? 8 + Log2Table[y] : Log2Table[x]; } // returns 0x0 - 0xF
 WARNINGS_PUSH()
 WARNINGS_IGNORE_POTENTIAL_UNINIT_VALRIABLE_USED()
 static size_t xh_compress_lz77(const_bytes in, int32_t /* * */ in_len, const_bytes in_end, bytes out, uint32_t symbol_counts[], Dictionary* d)
@@ -109,7 +100,7 @@ static size_t xh_compress_lz77(const_bytes in, int32_t /* * */ in_len, const_byt
 				mask |= 0x80000000; // set the highest bit
 
 				// Create a symbol from the offset and length
-				++symbol_counts[(highbit(off) << 4) | MIN(0xF, len) | 0x100];
+				++symbol_counts[(log2(off) << 4) | MIN(0xF, len) | 0x100];
 			}
 			else
 			{
@@ -195,7 +186,7 @@ static size_t xh_compress_encode(const_bytes in, size_t in_len, bytes out, size_
 				}
 
 				// Write the Huffman code then extra offset bits and length bytes
-				O = highbit(off);
+				O = (byte)log2(off);
 				// len is already -= 3
 				off &= OffsetMasks[O]; // (1 << O) - 1)
 				sym = (uint_fast16_t)((O << 4) | MIN(0xF, len) | 0x100);
