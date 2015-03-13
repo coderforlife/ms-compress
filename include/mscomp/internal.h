@@ -45,7 +45,7 @@
 	#error Unsupported char size
 #endif
 
-// Determine the endianness of the compilation, however this isn't very accurate
+///// Determine the endianness of the compilation, however this isn't very accurate /////
 // It would be much better to define LITTLE_ENDIAN, BIG_ENDIAN, or PDP_ENDIAN yourself
 // LITTLE_ENDIAN is what the program is developed for and tested with
 // BIG_ENDIAN and PDP_ENDIAN are untested
@@ -62,7 +62,7 @@
 	#endif
 #endif
 
-// Get ints from a byte stream
+///// Get ints from a byte stream /////
 // These assume that the byte stream is little-endian
 #if defined(BIG_ENDIAN)
 	#define GET_UINT16(x)		byte_swap(*(const uint16_t*)(x)) // or ((x)[0]|((x)[1]<<8))
@@ -84,7 +84,7 @@
 	#define SET_UINT32(x,val)	(*(uint32_t*)(x) = (uint32_t)(val))
 #endif
 
-// Determine the number of bits used by pointers
+///// Determine the number of bits used by pointers /////
 #ifndef PNTR_BITS
 	#if SIZE_MAX == UINT64_MAX
 		#define PNTR_BITS 64
@@ -97,7 +97,7 @@
 	#endif
 #endif
 
-// Get INLINE and FORCE_INLINE
+///// Get INLINE and FORCE_INLINE /////
 #if defined(_MSC_VER)
 #define INLINE __inline
 #define FORCE_INLINE __forceinline
@@ -112,7 +112,24 @@
 #define FORCE_INLINE INLINE
 #endif
 
-// Intrinsic and Builtin functions
+///// Intrinsic and Built-in functions /////
+// The available compiler hints are:
+// 	 LIKELY(x) / UNLIKELY(x)	- used in conditionals to tell the compiler the outcome is (un)likely
+//   ALWAYS(x) / NEVER(x)    - used to tell the compiler about known restrictions of variables
+//   ASSERT_ALWAYS(x)        - assert in DEBUG mode, ALWAYS in non-DEBUG
+//	 UNREACHABLE()           - tells the compiler that execution can never reach here
+// If compiled with DEBUG_ALWAYS_NEVER defined, ALWAYS/NEVER/UNREACHABLE print errors if they fail instead
+//
+// The available functions that may map to intrinsics are:
+// (all have uint8_t, uint16_t, and uint64_t argument overloads)
+//   uint32_t rotl(uint32_t x, int bits)      - rotate left with carry
+//   int count_bits_set(uint32_t x)           - count number of 1 bits
+//   int count_leading_zeros(uint32_t x)      - count number of most-significant zeros, undefined for 0
+//   int log2(uint32_t x)                     - get log-base-2 of an integer, undefined for 0
+//   uint32_t byte_swap(uint32_t x)           - swap the order of the bytes, not available for uint8_t
+//
+// To make log2 give 0 for 0 instead of be undefined, use it like log2(x|1)
+
 #if defined(_MSC_VER)
 	// see https://msdn.microsoft.com/en-us/library/hh977022.aspx
 	#include <intrin.h>
@@ -234,9 +251,9 @@
 	#undef ALWAYS
 	#undef NEVER
 	#undef UNREACHABLE
-	#define ALWAYS(x)     if (!(x)) { printf("Not always: '%s' (%s:%d)\n", #x, __FILE__, __LINE__); }
-	#define NEVER(x)      if (x) { printf("Not never: '%s' (%s:%d)\n", #x, __FILE__, __LINE__); }
-	#define UNREACHABLE() printf("Should have been unreachable (%s:%d)\n", __FILE__, __LINE__);
+	#define ALWAYS(x)     if (!(x)) { fprintf(stderr, "Not always: '%s' (%s:%d)\n", #x, __FILE__, __LINE__); }
+	#define NEVER(x)      if (x) { fprintf(stderr, "Not never: '%s' (%s:%d)\n", #x, __FILE__, __LINE__); }
+	#define UNREACHABLE() fprintf(stderr, "Should have been unreachable (%s:%d)\n", __FILE__, __LINE__);
 #endif
 #define ASSERT_ALWAYS(x)  assert(x); ALWAYS(x)
 // TODO: some other intrinsics to look into:
@@ -248,23 +265,23 @@
 //  __builtin_choose_expr  like the ? operator except the condition needs to be constant and has some other benefits
 //  __builtin_prefetch     pre-fetching data you will use can help
 
-// Get ARRAYSIZE
+///// Get ARRAYSIZE /////
 #ifndef ARRAYSIZE
 	#define ARRAYSIZE(x) sizeof(x)/sizeof(x[0])
 #endif
 
-// Get the minimum/maximum of 2
+///// Get the minimum/maximum of 2 /////
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 
-// Get SIZE_T format specifier
+///// Get SIZE_T format specifier /////
 #if defined(_WIN32) && (!defined(__USE_MINGW_ANSI_STDIO) || __USE_MINGW_ANSI_STDIO != 1)
 #define SSIZE_T_FMT "I"
 #else
 #define SSIZE_T_FMT "z"
 #endif
 
-// Compile it right
+///// Compile it right /////
 #if defined(__cplusplus_cli)
 #pragma unmanaged
 #endif
@@ -272,7 +289,7 @@
 #pragma optimize("t", on)
 #endif
 
-// Warning disable support
+///// Warning disable support /////
 #if defined(_MSC_VER)
 #define WARNINGS_PUSH() __pragma(warning(push))
 #define WARNINGS_POP()  __pragma(warning(pop))
@@ -302,7 +319,7 @@
 #define WARNINGS_IGNORE_DIV_BY_0()                          
 #endif
 
-// Compile-time assert
+///// Compile-time assert /////
 #ifdef _DEBUG
 #define CASSERT(expr)		char _UNIQUE_NAME[expr]
 #define _UNIQUE_NAME		_MAKE_NAME(__LINE__)
@@ -312,7 +329,7 @@
 #define CASSERT(expr)
 #endif
 
-// Error and Warning Messages
+///// Error and Warning Messages /////
 #if defined(MSCOMP_WITH_ERROR_MESSAGES) || defined(MSCOMP_WITH_WARNING_MESSAGES)
 #include <stdio.h>
 #if _MSC_VER
@@ -336,7 +353,7 @@
 #define INIT_STREAM_WARNING_MESSAGE(s)
 #endif
 
-// Stream initialization and checking
+///// Stream initialization and checking /////
 #define INIT_STREAM(s, c, f) \
 	if (UNLIKELY(s == NULL)) { SET_ERROR(s, "Error: Invalid stream provided"); return MSCOMP_ARG_ERROR; } \
 	s->format = f; s->compressing = c; \
@@ -355,7 +372,7 @@
 #define ADVANCE_OUT(s, x)     s->out += (x);          s->out_total += (x);          s->out_avail -= (x)
 #define ADVANCE_OUT_TO_END(s) s->out += s->out_avail; s->out_total += s->out_avail; s->out_avail  = 0
 
-// Dump data from internal output buffer to stream
+///// Dump data from internal output buffer to stream /////
 // Used by all inflate/deflate functions (except copy)
 #define DUMP_OUT(state, stream) \
 	if (state->out_avail) \
@@ -379,7 +396,7 @@
 		} \
 	}
 
-// Append data to internal input buffer
+///// Append data to internal input buffer /////
 // Used by all inflate/deflate functions (except copy)
 #define APPEND_IN(state, stream, OP) \
 	if (state->in_avail) \
@@ -399,7 +416,7 @@
 
 #define COPY_4x(out, in) out[0] = in[0]; out[1] = in[1]; out[2] = in[2]; out[3] = in[3]
 
-// Copies data very fast from a buffer to itself.
+///// Copies data very fast from a buffer to itself /////
 // This does limited checks for overruns. Before calling this there should be at least
 // FAST_COPY_ROOM available in out.
 //  * out - the destination buffer
