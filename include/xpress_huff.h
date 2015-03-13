@@ -44,7 +44,7 @@
 EXTERN_C_START
 
 MSCOMPAPI MSCompStatus xpress_huff_compress(const_bytes in, size_t in_len, bytes out, size_t* out_len);
-//MSCOMPAPI size_t xpress_huff_max_compressed_size(size_t in_len);
+MSCOMPAPI size_t xpress_huff_max_compressed_size(size_t in_len);
 
 MSCOMPAPI MSCompStatus xpress_huff_decompress(const_bytes in, size_t in_len, bytes out, size_t* out_len);
 

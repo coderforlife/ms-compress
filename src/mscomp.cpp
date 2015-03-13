@@ -90,7 +90,7 @@ static max_compressed_size_func max_compressed_sizers[] =
 	NULL,
 	IF_WITH_LZNT1(lznt1_max_compressed_size),
 	IF_WITH_XPRESS(xpress_max_compressed_size),
-	// TODO: IF_WITH_XPRESS_HUFF(xpress_huff_max_compressed_size),
+	IF_WITH_XPRESS_HUFF(xpress_huff_max_compressed_size),
 };
 
 MSCOMPAPI size_t ms_max_compressed_size(MSCompFormat format, size_t in_len)

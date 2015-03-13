@@ -42,6 +42,8 @@
 typedef XpressDictionary<MAX_OFFSET, CHUNK_SIZE> Dictionary;
 typedef HuffmanEncoder<15, SYMBOLS> Encoder;
 
+size_t xpress_huff_max_compressed_size(size_t in_len) { return in_len + 2 + HALF_SYMBOLS + HALF_SYMBOLS * (in_len / CHUNK_SIZE); }
+
 
 ////////////////////////////// Compression Functions ///////////////////////////////////////////////
 WARNINGS_PUSH()
