@@ -117,8 +117,8 @@
 	// see https://msdn.microsoft.com/en-us/library/hh977022.aspx
 	#include <intrin.h>
 	#define ALWAYS(x)     __assume(x)
-	#define LIKELY(x)     x
-	#define UNLIKELY(x)   x
+	#define LIKELY(x)     (x)
+	#define UNLIKELY(x)   (x)
 	#define NEVER(x)      __assume(!(x))
 	#define UNREACHABLE() __assume(0)
 	#pragma intrinsic(_rotl, memset, memcpy)
@@ -204,8 +204,8 @@
 	#define PREVENT_LOOP_VECTORIZATION __attribute__((optimize("no-tree-vectorize")))
 #else
 	#define ALWAYS(x)     
-	#define LIKELY(x)     x
-	#define UNLIKELY(x)   x
+	#define LIKELY(x)     (x)
+	#define UNLIKELY(x)   (x)
 	#define NEVER(x)      
 	#define UNREACHABLE()
 	uint8_t  FORCE_INLINE rotl(uint8_t x,  int bits) { return ((x << bits) | (x >> (8  - bits))); }
@@ -238,6 +238,7 @@
 	#define NEVER(x)      if (x) { printf("Not never: '%s' (%s:%d)\n", #x, __FILE__, __LINE__); }
 	#define UNREACHABLE() printf("Should have been unreachable (%s:%d)\n", __FILE__, __LINE__);
 #endif
+#define ASSERT_ALWAYS(x)  assert(x); ALWAYS(x)
 // TODO: some other intrinsics to look into:
 //  __builtin_ffs       one plus the index of the least significant 1-bit of x, or if x is zero, returns zero (similar to ctz)
 //  __builtin_ctz       the number of trailing 0-bits in x, starting at the least significant bit position; if x is 0, the result is undefined (similar to ffs)
@@ -395,6 +396,50 @@
 		} \
 		state->in_avail = 0; \
 	}
+
+#define COPY_4x(out, in) out[0] = in[0]; out[1] = in[1]; out[2] = in[2]; out[3] = in[3]
+
+// Copies data very fast from a buffer to itself.
+// This does limited checks for overruns. Before calling this there should be at least
+// FAST_COPY_ROOM available in out.
+//  * out - the destination buffer
+//  * in  - the source buffer
+//  * off - the offset between the buffers (out-in)
+//  * near_end - a pointer that is at least FAST_COPY_ROOM away from the end of the out buffer
+//  * SLOW_COPY - code to be run when copying is not complete and we are near the end of the buffer
+//                (typically a length check and a goto)
+// out and len are updated as necessary
+#define FAST_COPY(out, in, len, off, near_end, SLOW_COPY) \
+	/* Write up to 3 bytes for close offsets so that we have >=4 bytes to read in all cases */ \
+	switch (off) \
+	{ \
+	case 1: out[0] = out[1] = out[2] = in[0];       out += 3; len -= 3; break; \
+	case 2: out[0] = in[0]; out[1] = in[1];         out += 2; len -= 2; break; \
+	case 3: out[0]=in[0];out[1]=in[1];out[2]=in[2]; out += 3; len -= 3; break; \
+	} \
+	if (len) \
+	{ \
+		/* Write 8 bytes in groups of 4 (since we have >=4 bytes that can be read) */ \
+		uint32_t* out32 = (uint32_t*)out, *o32 = (uint32_t*)in; \
+		out += len; \
+		out32[0] = o32[0]; \
+		out32[1] = o32[1]; \
+		if (len > 8) \
+		{ \
+			out32 += 2; o32 += 2; len -= 8; \
+			\
+			/* Repeatedly write 16 bytes */ \
+			while (len > 16)  \
+			{ \
+				if (UNLIKELY((const_bytes)out32 >= near_end)) { out = (bytes)out32; SLOW_COPY; } \
+				COPY_4x(out32, o32); out32 += 4; o32 += 4; len -= 16; \
+			} \
+			/* Last 16 bytes */ \
+			if (UNLIKELY((const_bytes)out32 >= near_end)) { out = (bytes)out32; SLOW_COPY; } \
+			COPY_4x(out32, o32); \
+		} \
+	}
+#define FAST_COPY_ROOM (3+8)
 
 #define ALL_AT_ONCE_WRAPPER_COMPRESS(name) \
 	MSCompStatus name##_compress(const_bytes in, size_t in_len, bytes out, size_t* _out_len) \

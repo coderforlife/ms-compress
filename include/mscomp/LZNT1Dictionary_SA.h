@@ -72,10 +72,10 @@ private:
 				if (j < 0) { SA[i] = ~j; }
 				else if (j > 0)
 				{
-					assert(T[j] >= T[j + 1]); ALWAYS(T[j] >= T[j + 1]);
+					ASSERT_ALWAYS(T[j] >= T[j + 1]);
 					const char_t c0 = T[j];
 					if (c0 != c1) { B[c1] = (int16_t)(b - SA); b = SA + B[c1 = c0]; }
-					assert(i < (b - SA)); ALWAYS(i < (b - SA));
+					ASSERT_ALWAYS(i < (b - SA));
 					*b++ = (T[--j] < c1) ? ~j : j;
 					SA[i] = 0;
 				}
@@ -92,10 +92,10 @@ private:
 				int16_t j = SA[i];
 				if (j > 0)
 				{
-					assert(T[j] <= T[j + 1]); ALWAYS(T[j] <= T[j + 1]);
+					ASSERT_ALWAYS(T[j] <= T[j + 1]);
 					const char_t c0 = T[j];
 					if (c0 != c1) { B[c1] = (int16_t)(b - SA); b = SA + B[c1 = c0]; }
-					assert((b - SA) <= i); ALWAYS((b - SA) <= i);
+					ASSERT_ALWAYS((b - SA) <= i);
 					*--b = (T[--j] > c1) ? ~(j + 1) : j;
 					SA[i] = 0;
 				}
@@ -112,13 +112,13 @@ private:
 		{
 			int_fast16_t i;
 			int16_t p;
-			for (i = 0; (p = SA[i]) < 0; ++i) { SA[i] = ~p; assert((i + 1) < n); ALWAYS((i + 1) < n); }
+			for (i = 0; (p = SA[i]) < 0; ++i) { SA[i] = ~p; ASSERT_ALWAYS((i + 1) < n); }
 			if (i < m)
 			{
 				int_fast16_t j = i;
 				for (++i; ; ++i)
 				{
-					assert(i < n); ALWAYS(i < n);
+					ASSERT_ALWAYS(i < n);
 					if ((p = SA[i]) < 0)
 					{
 						SA[j++] = ~p; SA[i] = 0;
@@ -247,7 +247,7 @@ private:
 		ALWAYS(0 <= m && m <= n);
 		if (m > 1)
 		{
-			assert((n >> 1) <= (n - m)); ALWAYS((n >> 1) <= (n - m));
+			ASSERT_ALWAYS((n >> 1) <= (n - m));
 			const int_fast16_t name = LMSpostproc(T, SA, n, m);
 			ALWAYS(0 <= name && name <= n);
 			if (m > name)
@@ -302,7 +302,7 @@ private:
 
 		if (m > 1)
 		{
-			assert((n >> 1) <= (n - m)); ALWAYS((n >> 1) <= (n - m));
+			ASSERT_ALWAYS((n >> 1) <= (n - m));
 			const int_fast16_t name = LMSpostproc(T, SA, n, m);
 			ALWAYS(0 <= name && name <= n);
 			if (m > name)

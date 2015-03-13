@@ -37,7 +37,7 @@ struct _mscomp_internal_state
 static MSCompStatus lznt1_decompress_chunk(const_bytes in, const const_bytes in_end, bytes out, const const_bytes out_end, size_t* _out_len)
 {
 	const const_bytes                  in_endx  = in_end -0x11; // 1 + 8 * 2 from the end
-	const const_bytes out_start = out, out_endx = out_end-0x58; // 8 * (3 + 8) from the end
+	const const_bytes out_start = out, out_endx = out_end-8*FAST_COPY_ROOM;
 	byte flags, flagged;
 	
 	uint_fast16_t pow2 = 0x10, mask = 0xFFF, shift = 12;
@@ -61,55 +61,11 @@ static MSCompStatus lznt1_decompress_chunk(const_bytes in, const const_bytes in_
 				off = (sym>>shift)+1;
 				len = (sym&mask)+3;
 				in += 2;
-				const_bytes o = out-off;
+				const const_bytes o = out-off;
 				if (UNLIKELY(o < out_start)) { /*SET_ERROR(stream, "LZNT1 Decompression Error: Invalid data: Illegal offset (%p-%u < %p)", out, off, out_start);*/ return MSCOMP_DATA_ERROR; }
-
-				// Write up to 3 bytes for close offsets so that we have >=4 bytes to read in all cases
-				switch (off)
-				{
-				case 1: out[0] = out[1] = out[2] = o[0];     out += 3; len -= 3; break;
-				case 2: out[0] = o[0]; out[1] = o[1];        out += 2; len -= 2; break;
-				case 3: out[0]=o[0];out[1]=o[1];out[2]=o[2]; out += 3; len -= 3; break;
-				}
-				if (len)
-				{
-					// Write 8 bytes in groups of 4 (since we have >=4 bytes that can be read)
-					uint32_t* out32 = (uint32_t*)out, *o32 = (uint32_t*)o;
-					out += len;
-					out32[0] = o32[0];
-					out32[1] = o32[1];
-					if (len > 8)
-					{
-						out32 += 2; o32 += 2; len -= 8;
-						
-						// Repeatedly write 16 bytes
-						while (len > 16) 
-						{
-							if ((const_bytes)out32 >= out_endx)
-							{
-								//if (out > out_end) { printf("A %p %p %zu\n", out, out_end, out_end-out_start); return MSCOMP_BUF_ERROR; }
-								out = (bytes)out32;
-								goto CHECKED_COPY;
-							}
-							out32[0] = o32[0];
-							out32[1] = o32[1];
-							out32[2] = o32[2];
-							out32[3] = o32[3];
-							out32 += 4; o32 += 4; len -= 16;
-						}
-						// Last 16 bytes
-						if ((const_bytes)out32 >= out_endx)
-						{
-							//if (out > out_end) { printf("B %p %p %zu\n", out, out_end, out_end-out_start); return MSCOMP_BUF_ERROR; }
-							out = (bytes)out32;
-							goto CHECKED_COPY;
-						}
-						out32[0] = o32[0];
-						out32[1] = o32[1];
-						out32[2] = o32[2];
-						out32[3] = o32[3];
-					}
-				}
+				FAST_COPY(out, o, len, off, out_endx,
+						if (UNLIKELY(out + len > out_end)) { return (out - out_start) + len > CHUNK_SIZE ? MSCOMP_DATA_ERROR : MSCOMP_BUF_ERROR; }
+						goto CHECKED_COPY);
 			}
 			else { *out++ = *in++; } // Copy byte directly
 			flagged = flags & 0x01;
@@ -138,7 +94,7 @@ static MSCompStatus lznt1_decompress_chunk(const_bytes in, const const_bytes in_
 				}
 				in += 2;
 				if (UNLIKELY(out - off < out_start)) { /*SET_ERROR(stream, "LZNT1 Decompression Error: Invalid data: Illegal offset (%p-%u < %p)", out, off, out_start);*/ return MSCOMP_DATA_ERROR; }
-				//if (out + len > out_end) { printf("C %p %p %zu\n", out + len, out_end, out_end-out_start); return MSCOMP_BUF_ERROR; }
+				if (UNLIKELY(out + len > out_end)) { return (out - out_start) + len > CHUNK_SIZE ? MSCOMP_DATA_ERROR : MSCOMP_BUF_ERROR; }
 
 				// Copy bytes
 				if (off == 1)

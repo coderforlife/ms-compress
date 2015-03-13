@@ -114,8 +114,6 @@ LABEL       if (UNLIKELY(in == in_end)) { ERROR("XPRESS Decompression Error: Inv
 #define READ_SYMBOL(ERROR) _READ_SYMBOL(ERROR,)
 #define READ_SYMBOL_WITH_LABEL(ERROR, LABEL) _READ_SYMBOL(ERROR,LABEL:)
 
-#define COPY_4x_32(out, in) out[0] = in[0]; out[1] = in[1]; out[2] = in[2]; out[3] = in[3]
-
 #define IN_NEAR_END  0x054; // 4 + 32 * (2 + 0.5) from the end, or maybe 4 + 32 * (2 + 0.5 + 1 + 2 + 4) = 0x134
 #define OUT_NEAR_END 0x160; // 32 * (3 + 8) from the end
 #define INFLATE_FAST(ERROR, CHECKED_LENGTH, CHECKED_COPY) \
@@ -180,41 +178,9 @@ LABEL       if (UNLIKELY(in == in_end)) { ERROR("XPRESS Decompression Error: Inv
 					len += 0x7; \
 				} \
 				len += 0x3; \
-				\
-				const_bytes o = out-off; \
+				const const_bytes o = out-off; \
 				if (UNLIKELY(o < out_start)) { ERROR("XPRESS Decompression Error: Invalid data: Invalid offset"); return MSCOMP_DATA_ERROR; } \
-				\
-				/* Write up to 3 bytes for close offsets so that we have >=4 bytes to read in all cases */ \
-				switch (off) \
-				{ \
-				case 1: out[0] = out[1] = out[2] = o[0];     out += 3; len -= 3; break; \
-				case 2: out[0] = o[0]; out[1] = o[1];        out += 2; len -= 2; break; \
-				case 3: out[0]=o[0];out[1]=o[1];out[2]=o[2]; out += 3; len -= 3; break; \
-				} \
-				if (len) \
-				{ \
-					/* Write 8 bytes in groups of 4 (since we have >=4 bytes that can be read) */ \
-					uint32_t* out32 = (uint32_t*)out, *o32 = (uint32_t*)o; \
-					out += len; \
-					out32[0] = o32[0]; \
-					out32[1] = o32[1]; \
-					if (len > 8) \
-					{ \
-						out32 += 2; o32 += 2; len -= 8; \
-						\
-						/* Repeatedly write 16 bytes */ \
-						while (len > 16)  \
-						{ \
-							if (UNLIKELY((const_bytes)out32 >= out_endx)) { out = (bytes)out32; CHECKED_COPY; } \
-							COPY_4x_32(out32, o32); out32 += 4; o32 += 4; len -= 16; \
-						} \
-						/* Last 16 bytes */ \
-						if (UNLIKELY((const_bytes)out32 >= out_endx)) { out = (bytes)out32; CHECKED_COPY; } \
-						COPY_4x_32(out32, o32); \
-					} \
-				} \
-				flagged = flags & 0x80000000; \
-				flags <<= 1; \
+				FAST_COPY(out, o, len, off, out_endx, CHECKED_COPY); \
 			} \
 			else /* Copy up to 32 bytes directly */ \
 			{ \
@@ -223,7 +189,7 @@ LABEL       if (UNLIKELY(in == in_end)) { ERROR("XPRESS Decompression Error: Inv
 				flagged = 1; \
 				flags = (uint32_t)(((uint64_t)flags) << n); \
 				uint32_t* out32 = (uint32_t*)out, *const in32 = (uint32_t*const)in; \
-				COPY_4x_32(out32, in32); if (n > 16) { COPY_4x_32((out32+4), (in32+4)); } \
+				COPY_4x(out32, in32); if (n > 16) { COPY_4x((out32+4), (in32+4)); } \
 				out += n; in += n; \
 			} \
 		} while (LIKELY(flags)); \
@@ -450,7 +416,9 @@ MSCompStatus xpress_decompress(const_bytes in, size_t in_len, bytes out, size_t*
 		return MSCOMP_DATA_ERROR;
 	}
 
-	INFLATE_FAST(DO_NOTHING, goto CHECKED_LENGTH, goto CHECKED_COPY);
+	INFLATE_FAST(DO_NOTHING, goto CHECKED_LENGTH,
+		if (UNLIKELY(out + len > out_end)) { return MSCOMP_BUF_ERROR; }
+		goto CHECKED_COPY);
 
 	// Slower decompression but with full bounds checking
 	while (LIKELY(in + 4 <= in_end))
