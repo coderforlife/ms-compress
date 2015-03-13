@@ -83,13 +83,13 @@ Additionally, a mostly complete pseudo-code decompression implementation is give
 
 _Status: working_ - needs major speed improvements, does not create optional chunk boundary spanning matches, and does not support streaming for compression or decompression
 
-* Compression:    38 MB/s, 33% CR
-  * Much slower than RTL (average ~0.47x)
+* Compression:    39 MB/s, 33% CR
+  * Much slower than RTL (average ~0.48x)
   * Has a marginally better compression ratio
   * Uses about the same amount of memory
   * RTL bug: requires at least 24 extra bytes in the compression buffer
-* Decompression: 300 MB/s
-  * Slower than RTL (average ~0.76x)
+* Decompression: 320 MB/s
+  * Slower than RTL (average ~0.82x)
   * RTL bug: does not allow the output buffer to be anything besides the exact size of the uncompressed data
 
 LZX

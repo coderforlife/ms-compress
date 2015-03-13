@@ -86,8 +86,8 @@ public:
 
 	INLINE uint_fast16_t DecodeSymbol(InputBitstream *bits) const
 	{
-		uint_fast8_t n, r = bits->RemainingBits();
-		const uint32_t x = UNLIKELY(NumBitsMax > r) ? (bits->Peek(r) << (NumBitsMax - r)) : bits->Peek_non0(NumBitsMax);
+		uint_fast8_t n, r = bits->AvailableBits();
+		const uint32_t x = UNLIKELY(NumBitsMax > r) ? (bits->Peek(r) << (NumBitsMax - r)) : bits->Peek_Not0(NumBitsMax);
 		if (LIKELY(x < this->lims[NumTableBits])) { n = this->lens[x >> (NumBitsMax - NumTableBits)]; }
 		else { for (n = NumTableBits + 1; x >= this->lims[n]; ++n); }
 		bits->Skip(n);
@@ -98,21 +98,20 @@ public:
 	INLINE uint_fast16_t DecodeSymbolFast(InputBitstream *bits) const
 	{
 		uint_fast8_t n;
-		const uint32_t x = bits->Peek_non0(NumBitsMax);
+		const uint32_t x = bits->Peek_Not0(NumBitsMax);
 		if (LIKELY(x < this->lims[NumTableBits])) { n = this->lens[x >> (NumBitsMax - NumTableBits)]; }
 		else { for (n = NumTableBits + 1; x >= this->lims[n]; ++n); }
-		bits->Skip(n);
+		bits->Skip_Fast(n);
 		uint32_t s = this->poss[n] + ((x - this->lims[n-1]) >> (NumBitsMax-n));
 		return UNLIKELY(s >= NumSymbols) ? INVALID_SYMBOL : this->syms[s]; // TODO: can this ever happen?
 	}
 };
 
-// The Huffman Decoder I originally wrote
-// Does not use NumBitsMax and does not perform data checks during SetCodeLengths (always returns true)
-// It requires msort() from HuffmanEncoder to work.
+//// The Huffman Decoder I originally wrote
+//// Does not use NumBitsMax and does not perform data checks during SetCodeLengths (always returns true)
+//// The 7-zip one is about twice as fast.
 //
-// The 7-zip one is about twice as fast.
-//
+//#include "sorting.h"
 //template <int NumBitsMax, uint32_t NumSymbols>
 //class HuffmanDecoder
 //{
@@ -140,14 +139,14 @@ public:
 //	}
 //
 //public:
-//	INLINE bool SetCodeLengths(const bytes codeLengths) // 2 kb stack
+//	INLINE bool SetCodeLengths(const bytes code_lengths) // 2 kb stack
 //	{
 //		uint_fast16_t len = 0;
 //		uint16_t syms[NumSymbols], temp[NumSymbols]; // 2*2*512 = 2 kb
-//		for (uint_fast16_t i = 0; i < NumSymbols; ++i) { if (codeLengths[i] > 0) { syms[len++] = (uint16_t)i; } }
+//		for (uint_fast16_t i = 0; i < NumSymbols; ++i) { if (code_lengths[i] > 0) { syms[len++] = (uint16_t)i; } }
 //
 //		memset(n, 0, (2*NumSymbols-1)*sizeof(Node));
-//		msort(syms, temp, codeLengths, 0, len);
+//		merge_sort(syms, temp, code_lengths, len);
 //
 //		byte nbits = 1;
 //		uint_fast16_t npos = 1;
@@ -155,8 +154,8 @@ public:
 //		this->n[0].symbol = INVALID_SYMBOL;
 //		for (uint_fast16_t i = 0; i < len; ++i)
 //		{
-//			code <<= (codeLengths[syms[i]] - nbits);
-//			add_leaf(npos, code++, nbits = codeLengths[syms[i]], syms[i]);
+//			code <<= (code_lengths[syms[i]] - nbits);
+//			add_leaf(npos, code++, nbits = code_lengths[syms[i]], syms[i]);
 //		}
 //
 //		return true;
@@ -166,9 +165,16 @@ public:
 //	{
 //		Node *n = this->n;
 //		do {
-//			byte bit = bits->ReadBit();
-//			if (bit > 1) { return INVALID_SYMBOL; }
-//			n = n->child[bit];
+//			n = n->child[bits->ReadBit()];
+//		} while (n->symbol == INVALID_SYMBOL);
+//		return n->symbol;
+//	}
+//
+//	INLINE uint_fast16_t DecodeSymbolFast(InputBitstream *bits)
+//	{
+//		Node *n = this->n;
+//		do {
+//			n = n->child[bits->ReadBit_Fast()];
 //		} while (n->symbol == INVALID_SYMBOL);
 //		return n->symbol;
 //	}
