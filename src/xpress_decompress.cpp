@@ -181,6 +181,8 @@ LABEL			if (UNLIKELY(in + 2 > in_end)) { ERROR("XPRESS Decompression Error: Inva
 				const const_bytes o = out-off; \
 				if (UNLIKELY(o < out_start)) { ERROR("XPRESS Decompression Error: Invalid data: Invalid offset"); return MSCOMP_DATA_ERROR; } \
 				FAST_COPY(out, o, len, off, out_endx, CHECKED_COPY); \
+				flagged = flags & 0x80000000; \
+				flags <<= 1; \
 			} \
 			else /* Copy up to 32 bytes directly */ \
 			{ \

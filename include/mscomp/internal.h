@@ -427,6 +427,7 @@
 //                (typically a length check and a goto), it must jump (goto or return).
 // out and len are updated as copy progress is made
 #define FAST_COPY(out, in, len, off, near_end, SLOW_COPY) \
+{ \
 	/* Write up to 3 bytes for close offsets so that we have >=4 bytes to read in all cases */ \
 	switch (off) \
 	{ \
@@ -455,7 +456,8 @@
 			if (UNLIKELY((const_bytes)out32 >= near_end)) { out = (bytes)out32; SLOW_COPY; } \
 			COPY_4x(out32, o32); \
 		} \
-	}
+	} \
+}
 #define FAST_COPY_ROOM (3+8)
 
 #define ALL_AT_ONCE_WRAPPER_COMPRESS(name) \
