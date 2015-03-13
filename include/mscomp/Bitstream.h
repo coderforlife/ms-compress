@@ -17,7 +17,11 @@
 
 ////////////////////////////// Bitstreams //////////////////////////////////////////////////////////
 // A bitstream that allows either reading or writing, but not both at the same time.
-// It reads uint16s for bits and 16 bits can be reliably read at a time
+// It reads uint16s for bits and 16 bits can be reliably read at a time.
+// These are designed for speed and perform few checks. The burden of checking is on the caller.
+// See the functions for assumptions they make that should be checked by the caller (asserts check
+// these in the functions as well). Note that this->bits is >= 16 unless near the very end of the
+// stream.
 
 #ifndef MSCOMP_BITSTREAM_H
 #define MSCOMP_BITSTREAM_H
@@ -32,11 +36,11 @@ protected:
 	size_t index;	    // The current position of the stream
 	const size_t len;	// The length of the stream
 	uint32_t mask;		// The next bits to be read/written in the bitstream
-	byte bits;			// The number of bits in mask that are valid
-	INLINE Bitstream(size_t len, uint32_t mask, byte bits) : index(4), len(len), mask(mask), bits(bits) { assert(4 <= len); }
+	uint_fast8_t bits;	// The number of bits in mask that are valid
+	INLINE Bitstream(const size_t len, const uint32_t mask, const uint_fast8_t bits) : index(4), len(len), mask(mask), bits(bits) { assert(len >= 4); }
 public:
 	INLINE size_t RawPosition() { return this->index; }
-	INLINE byte RemainingBits() { return this->bits; }
+	INLINE uint_fast8_t RemainingBits() { return this->bits; }
 };
 
 // Reading functions:
@@ -45,10 +49,20 @@ class InputBitstream : public Bitstream
 private:
 	const const_bytes in;
 public:
-	INLINE InputBitstream(const_bytes in, size_t len) : Bitstream(len, (GET_UINT16(in) << 16) | GET_UINT16(in+2), 32), in(in) { assert(in); }
-	INLINE uint32_t Peek(byte n) const { assert(n <= 16); return (n > this->bits) ? 0xFFFFFFFF : ((n == 0) ? 0 : (this->mask >> (32 - n))); }
-	INLINE void Skip(byte n)
+	// Create an input bitstream
+	//   Assumption: in != NULL && len >= 4
+	INLINE InputBitstream(const_bytes in, const size_t len) : Bitstream(len, (GET_UINT16(in) << 16) | GET_UINT16(in+2), 32), in(in) { assert(in); }
+	// Peek at the next n bits of the stream
+	//   Assumption: n <= 16 && n <= this->bits
+	INLINE uint32_t Peek(const uint_fast8_t n) const { ASSERT_ALWAYS(n <= 16); ASSERT_ALWAYS(n <= this->bits); return n ? (this->mask >> (32 - n)) : 0; }
+	// Peek at the next n bits of the stream where n is at least 1
+	//   Assumption: n <= 16 && n <= this->bits && n > 0
+	INLINE uint32_t Peek_non0(const uint_fast8_t n) const { ASSERT_ALWAYS(n <= 16 && n > 0); ASSERT_ALWAYS(n <= this->bits); return this->mask >> (32 - n); }
+	// Skip the next n bits of the stream
+	//   Assumption: n <= 16 && n <= this->bits
+	INLINE void Skip(const uint_fast8_t n)
 	{
+		ASSERT_ALWAYS(n <= 16); ASSERT_ALWAYS(n <= this->bits);
 		this->mask <<= n;
 		this->bits -= n;
 		if (this->bits < 16 && this->index + 2 <= this->len)
@@ -58,16 +72,47 @@ public:
 			this->index += 2;
 		}
 	}
-	INLINE bool ReadBit() { byte x = 0xFF; if (this->bits) { x = (byte)(this->mask >> 31); this->Skip(1); } return x != 0; }
-	INLINE uint32_t ReadBits(byte n) { assert(n <= 16); uint32_t x = this->Peek(n); if (x != 0xFFFFFFFF) { this->Skip(n); } return x; }
-	INLINE uint32_t ReadManyBits(byte n) { assert(n > 16); return (this->ReadBits(n - 16) << 16) | this->ReadBits(16); }
-	INLINE uint32_t ReadUInt32() { return (this->ReadBits(16) << 16) | this->ReadBits(16); }
+	// Read the next bit of the stream (essentially Peek(1); Skip(1))
+	//   Assumption: 1 <= this->bits
+	INLINE bool ReadBit() { ASSERT_ALWAYS(this->bits); uint32_t x = this->mask; this->Skip(1); return (x & 0x80) != 0; }
+	// Read the next n bits of the stream, where n <= 16 (essentially Peek(n); Skip(n))
+	//   Assumption: n <= 16 && n <= this->bits
+	INLINE uint32_t ReadBits(const uint_fast8_t n)
+	{
+		ASSERT_ALWAYS(n <= 16); ASSERT_ALWAYS(n <= this->bits);
+		if (n == 0) { return 0; }
+		uint32_t x = this->mask >> (32 - n); this->Skip(n); return x;
+	}
+	// Read the next n bits of the stream, where 0 < n <= 16 (essentially Peek_non0(n); Skip(n))
+	//   Assumption: n <= 16 && n <= this->bits && n > 0
+	INLINE uint32_t ReadBits_non0(const uint_fast8_t n)
+	{
+		ASSERT_ALWAYS(n <= 16 && n > 0); ASSERT_ALWAYS(n <= this->bits);
+		uint32_t x = this->mask >> (32 - n); this->Skip(n); return x;
+	}
+	// Read the next n bits of the stream, where n > 16 (essentially ReadBits called twice)
+	//   Assumption: n > 16 && this->bits >= 16 && (this->RemainingRawBytes() >= 2 || this->bits == 32)
+	INLINE uint32_t ReadManyBits(const uint_fast8_t n)
+	{
+		ASSERT_ALWAYS(n > 16); ASSERT_ALWAYS(this->bits >= 16); ASSERT_ALWAYS(this->len - this->index >= 2 || this->bits == 32);
+		uint32_t x = (this->mask >> (32 - n)) & 0xFFFF0000; this->Skip(n-16); x |= this->mask >> 16; this->Skip(16); return x;
+	}
+	// Read the next 32 bits of the stream (essentially ReadManyBits(32))
+	//   Assumption: this->bits >= 16 && (this->RemainingRawBytes() >= 2 || this->bits == 32)
+	INLINE uint32_t ReadUInt32()
+	{
+		ASSERT_ALWAYS(this->bits >= 16); ASSERT_ALWAYS(this->len - this->index >= 2 || this->bits == 32);
+		uint32_t x = this->mask & 0xFFFF0000; this->Skip(16); x |= this->mask >> 16; this->Skip(16); return x;
+	}
 
-	INLINE const_bytes Get16BitAlignedByteStream(size_t nBytes)
+	// Gets a 16-bit aligned byte stream from the underlying stream.
+	// Any pre-read bits are returned (in multiples of 16 bits)
+	// This chunk of data is skipped, and the bit stream is restarted after it
+	INLINE const_bytes Get16BitAlignedByteStream(const size_t nBytes)
 	{
 		size_t start = this->index;
-		     if (this->bits == 32) { start -= 4; }
-		else if (this->bits >= 16) { start -= 2; }
+		     if (UNLIKELY(this->bits == 32)) { start -= 4; }
+		else if (LIKELY  (this->bits >= 16)) { start -= 2; }
 		if (start + nBytes > this->len) { return NULL; }
 		this->bits = 0;
 		this->index = start + nBytes + (nBytes & 1); // make sure the end is also 16-bit aligned
@@ -75,15 +120,24 @@ public:
 		return this->in + start;
 	}
 
-	INLINE size_t RemainingBytes() { return this->len - this->index + this->bits / 8; } // rounds down, but bits is typically between 16 and 32, adding 2 to 4 bytes
-	INLINE size_t RemainingRawBytes() { return this->len - this->index; }
+	// Get the remaining number of bytes, including any whole bytes retrievable from the pre-read bits
+	INLINE size_t RemainingBytes() const { return this->len - this->index + this->bits / 8; } // rounds down, but bits is typically between 16 and 32, adding 2 to 4 bytes
+	// Get the remaining number of raw bytes (disregards pre-read bits)
+	INLINE size_t RemainingRawBytes() const { return this->len - this->index; }
 
-	// Assume that you have already checked for necessary room
+	// Get the next raw byte (from the underlying stream, not the pre-read bits)
+	//   Assumption: this->RemainingRawBytes() >= 1
 	INLINE byte     ReadRawByte()   { assert(this->index + 1 <= this->len); return this->in[this->index++]; }
+	// Get the next raw uint16 (from the underlying stream, not the pre-read bits)
+	//   Assumption: this->RemainingRawBytes() >= 2
 	INLINE uint16_t ReadRawUInt16() { assert(this->index + 2 <= this->len); uint16_t x = GET_UINT16(this->in+this->index); this->index += 2; return x; }
+	// Get the next raw uint32 (from the underlying stream, not the pre-read bits)
+	//   Assumption: this->RemainingRawBytes() >= 4
 	INLINE uint32_t ReadRawUInt32() { assert(this->index + 4 <= this->len); uint32_t x = GET_UINT32(this->in+this->index); this->index += 4; return x; }
 
-	INLINE bool MaskIsZero() { return (this->mask>>(32-this->bits)) == 0; }
+	// Check if all pre-read bits are 0, essentially Peek(RemainingBits()) == 0
+	// If there are 0 pre-read bits, returns true
+	INLINE bool MaskIsZero() const { return this->bits == 0 || (this->mask>>(32-this->bits)) == 0; }
 };
 
 // Writing functions:

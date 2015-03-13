@@ -24,61 +24,61 @@
 
 #define INVALID_SYMBOL 0xFFFF
 
-template <byte kNumBitsMax, uint16_t NumSymbols>
+template <byte NumBitsMax, uint16_t NumSymbols> // for NumBitsMax = 15 and NumSymbols = 0x200 this takes 1.625 kb (+~0.15 during SetCodeLengths)
 class HuffmanDecoder
 {
-	CASSERT(kNumBitsMax <= 16);
+	CASSERT(NumBitsMax <= 16 && NumBitsMax > 0);
 
 private:
-	static const int kNumTableBits = 9;
+	static const int NumTableBits = 9; // or possibly (NumBitsMax+1)/2 + 1
 
-	uint32_t limits   [kNumBitsMax + 1];     // m_Limits[i] = value limit for symbols with length = i
-	uint32_t positions[kNumBitsMax + 1];     // m_Positions[i] = index in m_Symbols[] of first symbol with length = i
-	uint16_t symbols  [NumSymbols];
-	byte     lengths  [1 << kNumTableBits]; // Table oh length for short codes.
+	uint_fast16_t lims[NumBitsMax + 1]; // lims[i] = value limit for syms with length = i
+	uint_fast16_t poss[NumBitsMax + 1]; // poss[i] = index in syms[] of first symbol with length = i
+	uint16_t syms[NumSymbols];
+	byte     lens[1 << NumTableBits]; // table for short codes
 
 public:
-	INLINE bool SetCodeLengths(const const_bytes codeLengths)
+	INLINE bool SetCodeLengths(const const_bytes code_lengths)
 	{
-		memset(symbols, INVALID_SYMBOL, sizeof(symbols));
+		memset(this->syms, INVALID_SYMBOL, sizeof(this->syms));
 
 		// Get all length counts
-		uint_fast16_t lenCounts[kNumBitsMax + 1];
-		memset(lenCounts+1, 0, kNumBitsMax*sizeof(uint_fast16_t));
-		for (uint_fast16_t symbol = 0; symbol < NumSymbols; ++symbol)
+		uint_fast16_t cnts[NumBitsMax + 1];
+		memset(cnts+1, 0, NumBitsMax*sizeof(uint_fast16_t));
+		for (uint_fast16_t s = 0; s < NumSymbols; ++s)
 		{
-			byte len = codeLengths[symbol];
-			if (len > kNumBitsMax) { return false; }
-			++lenCounts[len];
+			byte len = code_lengths[s];
+			if (UNLIKELY(len > NumBitsMax)) { return false; }
+			++cnts[len];
 		}
-		lenCounts[0] = 0;
+		cnts[0] = 0;
 
-		// Get positions and limits
-		uint32_t tmpPositions[kNumBitsMax + 1];
-		this->positions[0] = this->limits[0] = 0;
-		uint32_t startPos = 0, index = 0;
-		const uint32_t kMaxValue = (1 << kNumBitsMax);
-		for (byte i = 1; i <= kNumBitsMax; i++)
+		// Get limits and lengths
+		const uint_fast16_t MaxValue = (1 << NumBitsMax);
+		uint_fast16_t last = 0, index = 0;
+		this->lims[0] = 0; this->lims[NumBitsMax] = MaxValue;
+		for (uint_fast8_t len = 1; len <= NumTableBits; ++len)
 		{
-			startPos += lenCounts[i] << (kNumBitsMax - i);
-			if (startPos > kMaxValue) { return false; }
-			this->limits[i] = (i == kNumBitsMax) ? kMaxValue : startPos;
-			this->positions[i] = this->positions[i - 1] + lenCounts[i - 1];
-			tmpPositions[i] = this->positions[i];
-			if (i <= kNumTableBits)
-			{
-				uint32_t limit = this->limits[i] >> (kNumBitsMax - kNumTableBits);
-				for (; index < limit; index++)
-					this->lengths[index] = i;
-			}
+			this->lims[len] = (last += (cnts[len] << (NumBitsMax - len)));
+			const uint_fast16_t limit = this->lims[len] >> (NumBitsMax - NumTableBits);
+			memset(this->lens+index, len, limit-index); index = limit;
 		}
+		for (uint_fast8_t len = NumTableBits + 1; len < NumBitsMax; ++len)
+		{
+			this->lims[len] = (last += (cnts[len] << (NumBitsMax - len)));
+		}
+		if (UNLIKELY(last + cnts[NumBitsMax] > MaxValue)) { return false; }
+
+		// Get positions
+		this->poss[0] = 0;
+		for (uint_fast8_t len = 1; len <= NumBitsMax; ++len) { this->poss[len] = this->poss[len-1] + cnts[len-1]; }
 
 		// Get symbols
-		for (uint_fast16_t symbol = 0; symbol < NumSymbols; symbol++)
+		memcpy(cnts, this->poss, sizeof(uint_fast16_t)*(NumBitsMax+1));
+		for (uint16_t s = 0; s < NumSymbols; ++s)
 		{
-			int len = codeLengths[symbol];
-			if (len != 0)
-				this->symbols[tmpPositions[len]++] = (uint16_t)symbol;
+			int len = code_lengths[s];
+			if (len) { this->syms[cnts[len]++] = s; }
 		}
 
 		return true;
@@ -86,25 +86,34 @@ public:
 
 	INLINE uint_fast16_t DecodeSymbol(InputBitstream *bits) const
 	{
-		byte numBits, remBits = bits->RemainingBits();
-		uint32_t value = (kNumBitsMax > remBits) ? (bits->Peek(remBits) << (kNumBitsMax - remBits)) : bits->Peek(kNumBitsMax);
-		if (value < this->limits[kNumTableBits])
-			numBits = this->lengths[value >> (kNumBitsMax - kNumTableBits)];
-		else
-			for (numBits = kNumTableBits + 1; value >= this->limits[numBits]; numBits++);
-		bits->Skip(numBits);
-		uint32_t index = this->positions[numBits] + ((value - this->limits[numBits - 1]) >> (kNumBitsMax - numBits));
-		return (index >= NumSymbols) ? INVALID_SYMBOL : this->symbols[index];
+		uint_fast8_t n, r = bits->RemainingBits();
+		const uint32_t x = UNLIKELY(NumBitsMax > r) ? (bits->Peek(r) << (NumBitsMax - r)) : bits->Peek_non0(NumBitsMax);
+		if (LIKELY(x < this->lims[NumTableBits])) { n = this->lens[x >> (NumBitsMax - NumTableBits)]; }
+		else { for (n = NumTableBits + 1; x >= this->lims[n]; ++n); }
+		bits->Skip(n);
+		uint32_t s = this->poss[n] + ((x - this->lims[n-1]) >> (NumBitsMax-n));
+		return UNLIKELY(s >= NumSymbols) ? INVALID_SYMBOL : this->syms[s]; // TODO: can this ever happen?
+	}
+	
+	INLINE uint_fast16_t DecodeSymbolFast(InputBitstream *bits) const
+	{
+		uint_fast8_t n;
+		const uint32_t x = bits->Peek_non0(NumBitsMax);
+		if (LIKELY(x < this->lims[NumTableBits])) { n = this->lens[x >> (NumBitsMax - NumTableBits)]; }
+		else { for (n = NumTableBits + 1; x >= this->lims[n]; ++n); }
+		bits->Skip(n);
+		uint32_t s = this->poss[n] + ((x - this->lims[n-1]) >> (NumBitsMax-n));
+		return UNLIKELY(s >= NumSymbols) ? INVALID_SYMBOL : this->syms[s]; // TODO: can this ever happen?
 	}
 };
 
 // The Huffman Decoder I originally wrote
-// Does not use kNumBitsMax and does not perform data checks during SetCodeLengths (always returns true)
+// Does not use NumBitsMax and does not perform data checks during SetCodeLengths (always returns true)
 // It requires msort() from HuffmanEncoder to work.
 //
 // The 7-zip one is about twice as fast.
 //
-//template <int kNumBitsMax, uint32_t NumSymbols>
+//template <int NumBitsMax, uint32_t NumSymbols>
 //class HuffmanDecoder
 //{
 //	// the maximum number of nodes in the Huffman code tree [for Xpress Huffman] is 2*SYMBOLS-1 = 1023, overall this is ~10kb or ~20kb (64-bit)
