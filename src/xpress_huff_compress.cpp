@@ -186,9 +186,9 @@ static size_t xh_compress_encode(const_bytes in, size_t in_len, bytes out, size_
 				}
 
 				// Write the Huffman code then extra offset bits and length bytes
-				O = (byte)log2(off);
+				O = (byte)log2((uint16_t)(off|1)); // |1 prevents taking log2 of 0 (undefined), and we get 0 for 0 (good)
 				// len is already -= 3
-				off &= OffsetMasks[O]; // (1 << O) - 1)
+				off &= OffsetMasks[O]; // (1 << O) - 1
 				sym = (uint_fast16_t)((O << 4) | MIN(0xF, len) | 0x100);
 				if (!encoder->EncodeSymbol(sym, &bstr))						{ break; }
 				if (len >= 0xF)
