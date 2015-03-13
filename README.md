@@ -60,14 +60,14 @@ pseudo-code along with an [example](https://msdn.microsoft.com/library/hh553843.
 
 _Status: working_ - decompression is fully mature but compression needs speed improvements and does not support streaming
 
-* Compression:    87 MB/s, 39% CR
-  * Slower than RTL (average ~0.82x)
+* Compression:    90 MB/s, 40% CR
+  * Slower than RTL (average ~0.81x)
   * Has a marginally better compression ratio
   * Uses about the same amount of memory
   * RTL bugs:
     * cannot compress inputs of 7 bytes or less
     * requires at least 24 extra bytes in the compression output buffer
-* Decompression: 695 MB/s
+* Decompression: 705 MB/s
   * Essentially the same speed as RTL
 
 Xpress Huffman
@@ -83,13 +83,13 @@ Additionally, a mostly complete pseudo-code decompression implementation is give
 
 _Status: working_ - needs major speed improvements, does not create optional chunk boundary spanning matches, and does not support streaming for compression or decompression
 
-* Compression:    23 MB/s, 33% CR
-  * Much slower than RTL (average ~0.30x)
+* Compression:    38 MB/s, 33% CR
+  * Much slower than RTL (average ~0.47x)
   * Has a marginally better compression ratio
   * Uses about the same amount of memory
   * RTL bug: requires at least 24 extra bytes in the compression buffer
-* Decompression: 250 MB/s
-  * Much slower than RTL (average ~0.65x)
+* Decompression: 300 MB/s
+  * Slower than RTL (average ~0.76x)
   * RTL bug: does not allow the output buffer to be anything besides the exact size of the uncompressed data
 
 LZX
