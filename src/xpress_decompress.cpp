@@ -92,10 +92,10 @@ MSCompStatus xpress_inflate_init(mscomp_stream* stream)
 		else { len = *(half_byte = in++) & 0xF; }; \
 		if (len == 0xF) \
 		{ \
-LABEL       if (UNLIKELY(in == in_end)) { ERROR("XPRESS Decompression Error: Invalid data: Unable to read a byte for length", true, 2, true); return MSCOMP_DATA_ERROR; } \
+			if (UNLIKELY(in == in_end)) { ERROR("XPRESS Decompression Error: Invalid data: Unable to read a byte for length", true, 2, true); return MSCOMP_DATA_ERROR; } \
 			if ((len = *(in++)) == 0xFF) \
 			{ \
-				if (UNLIKELY(in + 2 > in_end)) { ERROR("XPRESS Decompression Error: Invalid data: Unable to read two bytes for length", true, 3, true); return MSCOMP_DATA_ERROR; } \
+LABEL			if (UNLIKELY(in + 2 > in_end)) { ERROR("XPRESS Decompression Error: Invalid data: Unable to read two bytes for length", true, 3, true); return MSCOMP_DATA_ERROR; } \
 				len = GET_UINT16(in); in += 2; \
 				if (UNLIKELY(len == 0)) \
 				{ \
@@ -114,8 +114,8 @@ LABEL       if (UNLIKELY(in == in_end)) { ERROR("XPRESS Decompression Error: Inv
 #define READ_SYMBOL(ERROR) _READ_SYMBOL(ERROR,)
 #define READ_SYMBOL_WITH_LABEL(ERROR, LABEL) _READ_SYMBOL(ERROR,LABEL:)
 
-#define IN_NEAR_END  0x054; // 4 + 32 * (2 + 0.5) from the end, or maybe 4 + 32 * (2 + 0.5 + 1 + 2 + 4) = 0x134
-#define OUT_NEAR_END 0x160; // 32 * (3 + 8) from the end
+#define IN_NEAR_END  0x074; // 4 + 32 * (2 + 0.5 + 1) from the end, or maybe 4 + 32 * (2 + 0.5 + 1 + 2 + 4) = 0x134
+#define OUT_NEAR_END 32*FAST_COPY_ROOM;
 #define INFLATE_FAST(ERROR, CHECKED_LENGTH, CHECKED_COPY) \
 { /*
 	Fast decompression loop with many shortcuts and assumptions. Most of the decompression happens
@@ -165,9 +165,9 @@ LABEL       if (UNLIKELY(in == in_end)) { ERROR("XPRESS Decompression Error: Inv
 					else           { len = *(half_byte = in++) & 0xF; } \
 					if (len == 0xF) \
 					{ \
-						if (UNLIKELY(in + 7 > in_endx)) { CHECKED_LENGTH; } \
 						if ((len = *(in++)) == 0xFF) \
 						{ \
+							if (UNLIKELY(in + 6 > in_endx)) { CHECKED_LENGTH; } \
 							len = GET_UINT16(in); in += 2; \
 							if (UNLIKELY(len == 0)) { len = GET_UINT32(in); in += 4; } \
 							if (UNLIKELY(len < 0xF+0x7)) { ERROR("XPRESS Decompression Error: Invalid data: Invalid length"); return MSCOMP_DATA_ERROR; } \
