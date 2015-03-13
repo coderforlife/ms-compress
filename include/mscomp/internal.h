@@ -407,8 +407,8 @@
 //  * off - the offset between the buffers (out-in)
 //  * near_end - a pointer that is at least FAST_COPY_ROOM away from the end of the out buffer
 //  * SLOW_COPY - code to be run when copying is not complete and we are near the end of the buffer
-//                (typically a length check and a goto)
-// out and len are updated as necessary
+//                (typically a length check and a goto), it must jump (goto or return).
+// out and len are updated as copy progress is made
 #define FAST_COPY(out, in, len, off, near_end, SLOW_COPY) \
 	/* Write up to 3 bytes for close offsets so that we have >=4 bytes to read in all cases */ \
 	switch (off) \
