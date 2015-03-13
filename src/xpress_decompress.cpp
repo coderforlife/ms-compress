@@ -157,9 +157,9 @@ LABEL			if (UNLIKELY(in + 2 > in_end)) { ERROR("XPRESS Decompression Error: Inva
 			if (flagged) /* Either: offset/length symbol, end of flags, or end of stream (only happens in non-fast versions) */ \
 			{ \
 				/* Offset/length symbol */ \
-				uint16_t sym = GET_UINT16(in); in += 2; \
-				off = (sym >> 3) + 1; len = sym & 0x7; \
-				if (len == 0x7) \
+				const uint16_t sym = GET_UINT16(in); in += 2; \
+				off = (sym >> 3) + 1; \
+				if ((len = sym & 0x7) == 0x7) \
 				{ \
 					if (half_byte) { len = *half_byte >> 4; half_byte = NULL; } \
 					else           { len = *(half_byte = in++) & 0xF; } \

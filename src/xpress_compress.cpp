@@ -19,10 +19,11 @@
 
 #ifdef MSCOMP_WITH_XPRESS
 
-#define MIN_DATA	5
-
 #include "../include/xpress.h"
 #include "../include/mscomp/XpressDictionary.h"
+
+
+#define MIN_DATA	5
 
 typedef XpressDictionary<0x2000> Dictionary;
 
