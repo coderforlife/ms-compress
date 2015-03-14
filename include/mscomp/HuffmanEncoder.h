@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+// Adapted from bzip2. See http://www.bzip.org/.
+
 #ifndef MSCOMP_HUFFMAN_ENCODER
 #define MSCOMP_HUFFMAN_ENCODER
 
