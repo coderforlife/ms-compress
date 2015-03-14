@@ -36,11 +36,12 @@
 
 #define SYMBOLS			0x200
 #define HALF_SYMBOLS	0x100
+#define HUFF_BITS_MAX	15
 
 #define MIN_DATA		HALF_SYMBOLS + 4 // the 512 Huffman lens + 2 uint16s for minimal bitstream
 
 typedef XpressDictionary<MAX_OFFSET, CHUNK_SIZE> Dictionary;
-typedef HuffmanEncoder<15, SYMBOLS> Encoder;
+typedef HuffmanEncoder<HUFF_BITS_MAX, SYMBOLS> Encoder;
 
 size_t xpress_huff_max_compressed_size(size_t in_len) { return in_len + 2 + HALF_SYMBOLS + HALF_SYMBOLS * (in_len / CHUNK_SIZE); }
 
@@ -253,7 +254,6 @@ MSCompStatus xpress_huff_compress(const_bytes in, size_t in_len, bytes out, size
 	
 		////////// Create the Huffman codes/lens and write the Huffman prefix codes as lengths //////////
 		const_bytes lens = encoder.CreateCodes(symbol_counts);
-		if (lens == NULL) { PRINT_ERROR("Xpress Huffman Compression Error: Unable to allocate buffer memory\n"); free(buf); return MSCOMP_MEM_ERROR; }
 		for (uint_fast16_t i = 0, i2 = 0; i < HALF_SYMBOLS; ++i, i2+=2) { out[i] = (lens[i2+1] << 4) | lens[i2]; }
 
 		////////// Encode compressed data //////////
@@ -281,7 +281,6 @@ MSCompStatus xpress_huff_compress(const_bytes in, size_t in_len, bytes out, size
 
 		////////// Create the Huffman codes/lens and write the Huffman prefix codes as lengths //////////
 		const_bytes lens = encoder.CreateCodes(symbol_counts);
-		if (lens == NULL) { PRINT_ERROR("Xpress Huffman Compression Error: Unable to allocate buffer memory\n"); free(buf); return MSCOMP_MEM_ERROR; }
 		for (uint_fast16_t i = 0, i2 = 0; i < HALF_SYMBOLS; ++i, i2+=2) { out[i] = (lens[i2+1] << 4) | lens[i2]; }
 
 		////////// Encode compressed data //////////

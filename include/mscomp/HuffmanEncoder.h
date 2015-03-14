@@ -23,7 +23,7 @@
 
 #define INVALID_SYMBOL 0xFFFF
 
-template <byte kNumBitsMax, uint16_t NumSymbols>
+template <byte NumBitsMax, uint16_t NumSymbols>
 class HuffmanEncoder
 {
 private:
@@ -31,15 +31,15 @@ private:
 	byte lens[NumSymbols];
 
 public:
-	INLINE const const_bytes CreateCodes(uint32_t symbol_counts[]) // 3 kb stack
+	INLINE const const_bytes CreateCodes(uint32_t symbol_counts[NumSymbols]) // 519 kb stack
 	{
-		memset(this->codes, 0, NumSymbols*sizeof(uint16_t));
-		memset(this->lens,  0, NumSymbols*sizeof(byte));
+		memset(this->codes, 0, sizeof(this->codes));
+		memset(this->lens,  0, sizeof(this->lens));
 
 		// Fill the syms_by_count, syms_by_length, and huffman_lens with the symbols that were found
 		uint16_t syms_by_count[NumSymbols], syms_by_len[NumSymbols], temp[NumSymbols]; // 3*2*512 = 3 kb
 		uint_fast16_t len = 0;
-		for (uint_fast16_t i = 0; i < NumSymbols; ++i) { if (symbol_counts[i]) { syms_by_count[len] = (uint16_t)i; syms_by_len[len++] = (uint16_t)i; this->lens[i] = kNumBitsMax; } }
+		for (uint_fast16_t i = 0; i < NumSymbols; ++i) { if (symbol_counts[i]) { syms_by_count[len] = (uint16_t)i; syms_by_len[len++] = (uint16_t)i; this->lens[i] = NumBitsMax; } }
 
 		////////// Get the Huffman lengths //////////
 		merge_sort(syms_by_count, temp, symbol_counts, len); // sort by the counts
@@ -55,31 +55,17 @@ public:
 				byte symbols[NumSymbols];
 				uint_fast16_t count;
 			} collection;
-			collection* cols = (collection*)malloc(32*sizeof(collection)), *next_cols = (collection*)malloc(32*sizeof(collection)), *temp_cols; // 32.25 kb initial allocation
-			uint_fast16_t cols_cap = 32, cols_len = 0, next_cols_len = 0;
-		
-			if (!cols || !next_cols) { free(cols); free(next_cols); return NULL; }
+			collection _cols[512], *cols = _cols, _next_cols[512], *next_cols = _next_cols; // 2*516*512 = 516 kb
+			uint_fast16_t cols_len = 0, next_cols_len = 0;
 
 			// Start at the lowest value row, adding new collection
-			for (uint_fast16_t j = 0; j < kNumBitsMax; ++j)
+			for (uint_fast16_t j = 0; j < NumBitsMax; ++j)
 			{
 				uint_fast16_t cols_pos = 0, pos = 0;
 
 				// All but the last one/none get added to collections
 				while ((cols_len-cols_pos + len-pos) > 1)
 				{
-					if (cols_cap == next_cols_len)
-					{
-						cols_cap <<= 1;
-
-						temp_cols = (collection*)realloc(cols,      cols_cap*sizeof(collection));
-						if (temp_cols == NULL) { free(cols); free(next_cols); return NULL; }
-						cols      = temp_cols;
-
-						temp_cols = (collection*)realloc(next_cols, cols_cap*sizeof(collection));
-						if (temp_cols == NULL) { free(cols); free(next_cols); return NULL; }
-						next_cols = temp_cols;
-					}
 					memset(next_cols+next_cols_len, 0, sizeof(collection));
 					for (uint_fast16_t i = 0; i < 2; ++i) // hopefully unrolled...
 					{
@@ -116,12 +102,10 @@ public:
 				}
 
 				// Move the next_collections to the current collections
-				temp_cols = cols; cols = next_cols; next_cols = temp_cols;
+				collection* temp = cols; cols = next_cols; next_cols = temp;
 				cols_len = next_cols_len;
 				next_cols_len = 0;
 			}
-			free(cols);
-			free(next_cols);
 
 
 			////////// Create Huffman codes from lengths //////////
