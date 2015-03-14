@@ -49,6 +49,7 @@ static MSCompStatus xpress_huff_decompress_chunk(const_bytes* _in, const const_b
 	while (LIKELY(out < out_endx_chunk && bstr.RawStream() < in_endx))
 	{
 		sym = decoder->DecodeSymbolFast(&bstr);
+		// TODO: figure out if the following line can ever happen, if not it gives up to a 5 MB/s speedup
 		if (UNLIKELY(sym == INVALID_SYMBOL))	{ PRINT_ERROR("XPRESS Huffman Decompression Error: Invalid data: Unable to read enough bits for symbol\n"); return MSCOMP_DATA_ERROR; }
 		if (sym < 0x100) { *out++ = (byte)sym; }
 		else

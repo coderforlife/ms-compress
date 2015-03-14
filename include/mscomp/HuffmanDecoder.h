@@ -27,10 +27,11 @@
 template <byte NumBitsMax, uint16_t NumSymbols> // for NumBitsMax = 15 and NumSymbols = 0x200 this takes 1.625 kb (+~0.15 during SetCodeLengths)
 class HuffmanDecoder
 {
-	CASSERT(NumBitsMax <= 16 && NumBitsMax > 0);
+	CASSERT(NumBitsMax <= 16 && NumBitsMax > 2);
 
 private:
-	static const int NumTableBits = 9; // or possibly (NumBitsMax+1)/2 + 1
+	static const int NumTableBits = (NumBitsMax+1)/2 + 1; // = 9 for a NumBitsMax of 15 and 16
+	// TODO: increasing the value gives speedups but requires more space, eventually great increases in memory provide little increase in speed
 
 	uint_fast16_t lims[NumBitsMax + 1]; // lims[i] = value limit for syms with length = i
 	uint_fast16_t poss[NumBitsMax + 1]; // poss[i] = index in syms[] of first symbol with length = i
@@ -38,7 +39,7 @@ private:
 	byte     lens[1 << NumTableBits]; // table for short codes
 
 public:
-	INLINE bool SetCodeLengths(const const_bytes code_lengths)
+	INLINE bool SetCodeLengths(const const_byte code_lengths[NumSymbols])
 	{
 		memset(this->syms, INVALID_SYMBOL, sizeof(this->syms));
 
@@ -47,8 +48,9 @@ public:
 		memset(cnts+1, 0, NumBitsMax*sizeof(uint_fast16_t));
 		for (uint_fast16_t s = 0; s < NumSymbols; ++s)
 		{
-			byte len = code_lengths[s];
-			if (UNLIKELY(len > NumBitsMax)) { return false; }
+			const byte len = code_lengths[s];
+			//if (UNLIKELY(len > NumBitsMax)) { return false; } // TODO: Not needed for XPRESS Huffman, need to check if LZX needs it
+			ALWAYS(len <= NumBitsMax);
 			++cnts[len];
 		}
 		cnts[0] = 0;
@@ -87,23 +89,23 @@ public:
 	INLINE uint_fast16_t DecodeSymbol(InputBitstream *bits) const
 	{
 		uint_fast8_t n, r = bits->AvailableBits();
-		const uint32_t x = UNLIKELY(NumBitsMax > r) ? (bits->Peek(r) << (NumBitsMax - r)) : bits->Peek_Not0(NumBitsMax);
+		const uint32_t x = UNLIKELY(r < NumBitsMax) ? (bits->Peek(r) << (NumBitsMax - r)) : bits->Peek(NumBitsMax);
 		if (LIKELY(x < this->lims[NumTableBits])) { n = this->lens[x >> (NumBitsMax - NumTableBits)]; }
 		else { for (n = NumTableBits + 1; x >= this->lims[n]; ++n); }
 		bits->Skip(n);
 		uint32_t s = this->poss[n] + ((x - this->lims[n-1]) >> (NumBitsMax-n));
-		return UNLIKELY(s >= NumSymbols) ? INVALID_SYMBOL : this->syms[s]; // TODO: can this ever happen?
+		return UNLIKELY(s >= NumSymbols) ? INVALID_SYMBOL : this->syms[s]; // TODO: can this ever happen? does removing it make things faster?
 	}
 	
 	INLINE uint_fast16_t DecodeSymbolFast(InputBitstream *bits) const
 	{
 		uint_fast8_t n;
-		const uint32_t x = bits->Peek_Not0(NumBitsMax);
+		const uint32_t x = bits->Peek(NumBitsMax);
 		if (LIKELY(x < this->lims[NumTableBits])) { n = this->lens[x >> (NumBitsMax - NumTableBits)]; }
 		else { for (n = NumTableBits + 1; x >= this->lims[n]; ++n); }
 		bits->Skip_Fast(n);
 		uint32_t s = this->poss[n] + ((x - this->lims[n-1]) >> (NumBitsMax-n));
-		return UNLIKELY(s >= NumSymbols) ? INVALID_SYMBOL : this->syms[s]; // TODO: can this ever happen?
+		return UNLIKELY(s >= NumSymbols) ? INVALID_SYMBOL : this->syms[s]; // TODO: can this ever happen? does removing it make things faster?
 	}
 };
 
