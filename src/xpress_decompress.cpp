@@ -178,7 +178,7 @@ LABEL			if (UNLIKELY(in + 2 > in_end)) { ERROR("XPRESS Decompression Error: Inva
 					len += 0x7; \
 				} \
 				len += 0x3; \
-				const const_bytes o = out-off; \
+				const_bytes o = out-off; \
 				if (UNLIKELY(o < out_start)) { ERROR("XPRESS Decompression Error: Invalid data: Invalid offset"); return MSCOMP_DATA_ERROR; } \
 				FAST_COPY(out, o, len, off, out_endx, CHECKED_COPY); \
 				flagged = flags & 0x80000000; \
@@ -190,8 +190,7 @@ LABEL			if (UNLIKELY(in + 2 > in_end)) { ERROR("XPRESS Decompression Error: Inva
 				ALWAYS(0 < n && n <= 32); \
 				flagged = 1; \
 				flags = (uint32_t)(((uint64_t)flags) << n); \
-				uint32_t* out32 = (uint32_t*)out, *const in32 = (uint32_t*const)in; \
-				COPY_4x(out32, in32); if (n > 16) { COPY_4x((out32+4), (in32+4)); } \
+				COPY_128_FAST(out, in); if (n > 16) { COPY_128_FAST(out+16, in+16); } \
 				out += n; in += n; \
 			} \
 		} while (LIKELY(flags)); \

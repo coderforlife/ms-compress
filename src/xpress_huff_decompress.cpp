@@ -54,6 +54,7 @@ static MSCompStatus xpress_huff_decompress_chunk(const_bytes* _in, const const_b
 		if (sym < 0x100) { *out++ = (byte)sym; }
 		else
 		{
+			const uint_fast8_t off_bits = (uint_fast8_t)((sym>>4) & 0xF);
 			if ((len = sym & 0xF) == 0xF)
 			{
 				if ((len = bstr.ReadRawByte()) == 0xFF)
@@ -65,11 +66,9 @@ static MSCompStatus xpress_huff_decompress_chunk(const_bytes* _in, const const_b
 				len += 0xF;
 			}
 			len += 3;
-			{
-				const uint_fast8_t off_bits = (uint_fast8_t)((sym>>4) & 0xF);
-				off = bstr.ReadBits_Fast(off_bits) + (1 << off_bits);
-			}
-			const const_bytes o = out-off;
+			off = bstr.Peek(off_bits) + (1 << off_bits);
+			const_bytes o = out-off;
+			bstr.Skip_Fast(off_bits);
 			if (UNLIKELY(o < out_origin))		{ PRINT_ERROR("XPRESS Huffman Decompression Error: Invalid data: Invalid offset\n"); return MSCOMP_DATA_ERROR; }
 			FAST_COPY(out, o, len, off, out_endx,
 				if (UNLIKELY(out + len > out_end)) { return MSCOMP_BUF_ERROR; }
@@ -112,8 +111,8 @@ static MSCompStatus xpress_huff_decompress_chunk(const_bytes* _in, const const_b
 				if (UNLIKELY(off_bits > bstr.AvailableBits()))		{ PRINT_ERROR("XPRESS Huffman Decompression Error: Invalid data: Unable to read %u bits for offset\n", sym); return MSCOMP_DATA_ERROR; }
 				off = bstr.ReadBits_Fast(off_bits) + (1 << off_bits);
 			}
-			if (UNLIKELY((out-off) < out_origin))					{ PRINT_ERROR("XPRESS Huffman Decompression Error: Invalid data: Illegal offset (%p-%u < %p)\n", out, off, out_origin); return MSCOMP_DATA_ERROR; }
-			if (out + len > out_end)								{ PRINT_ERROR("XPRESS Huffman Decompression Error: Insufficient buffer\n"); return MSCOMP_BUF_ERROR; }
+			if (UNLIKELY(out - off < out_origin))					{ PRINT_ERROR("XPRESS Huffman Decompression Error: Invalid data: Illegal offset (%p-%u < %p)\n", out, off, out_origin); return MSCOMP_DATA_ERROR; }
+			if (UNLIKELY(out + len > out_end))						{ PRINT_ERROR("XPRESS Huffman Decompression Error: Insufficient buffer\n"); return MSCOMP_BUF_ERROR; }
 			if (off == 1)
 			{
 				memset(out, out[-1], len);

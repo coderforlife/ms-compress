@@ -58,12 +58,12 @@ static MSCompStatus lznt1_decompress_chunk(const_bytes in, const const_bytes in_
 				// Offset/length symbol
 				while (UNLIKELY(out > pow2_target)) { pow2 <<= 1; pow2_target = out_start + pow2; mask >>= 1; --shift; } // Update the current power of two available bytes
 				uint16_t sym = GET_UINT16(in);
-				off = (sym>>shift)+1;
-				len = (sym&mask)+3;
 				in += 2;
-				const const_bytes o = out-off;
+				len = (sym&mask)+3;
+				off = (sym>>shift)+1;
+				const_bytes o = out-off;
 				if (UNLIKELY(o < out_start)) { /*SET_ERROR(stream, "LZNT1 Decompression Error: Invalid data: Illegal offset (%p-%u < %p)", out, off, out_start);*/ return MSCOMP_DATA_ERROR; }
-				FAST_COPY(out, o, len, off, out_endx,
+				FAST_COPY_SHORT(out, o, len, off, out_endx,
 						if (UNLIKELY(out + len > out_end)) { return (out - out_start) + len > CHUNK_SIZE ? MSCOMP_DATA_ERROR : MSCOMP_BUF_ERROR; }
 						goto CHECKED_COPY);
 			}
@@ -88,7 +88,7 @@ static MSCompStatus lznt1_decompress_chunk(const_bytes in, const const_bytes in_
 				if (UNLIKELY(in + 2 > in_end)) { /*SET_ERROR(stream, "LZNT1 Decompression Error: Invalid data: Unable to read 2 bytes for offset/length");*/ return MSCOMP_DATA_ERROR; }
 				while (UNLIKELY(out > pow2_target)) { pow2 <<= 1; pow2_target = out_start + pow2; mask >>= 1; --shift; } // Update the current power of two available bytes
 				{
-					uint16_t sym = GET_UINT16(in);
+					const uint16_t sym = GET_UINT16(in);
 					off = (sym>>shift)+1;
 					len = (sym&mask)+3;
 				}
