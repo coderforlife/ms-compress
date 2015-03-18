@@ -167,7 +167,7 @@ static uint32_t xh_compress_no_matching(const_bytes in, int32_t in_len, bool is_
 	{
 		// Add the end of stream symbol
 		if (rem == 32) { *(uint32_t*)out = 1; out += 4; }
-		else { *(uint32_t*)(out - rem) = 1 << rem; }
+		else { *(uint32_t*)(out - rem - 4) = 1 << rem; }
 		*(uint32_t*)out = 0;
 		out += 3;
 		++symbol_counts[STREAM_END];
@@ -240,14 +240,8 @@ static void xh_compress_encode(const_bytes in, const const_bytes in_end, bytes o
 	bstr.Finish(); // make sure that the write stream is finished writing
 }
 
-//static /*NOINLINE*/ bytes xh_loop(bytes out, const_byte lens[SYMBOLS])
-//{
-//	for (const_bytes end = lens + SYMBOLS; lens < end; lens += 2) { *out++ = lens[0] | (lens[1] << 4); }
-//	return out;
-//}
-
 PREVENT_LOOP_VECTORIZATION
-// TODO: GCC with -ftree-vectorize (default added with -O3) causes an access violation below
+// TODO: GCC with -ftree-loop-vectorize (default added with -O3) causes an access violation below
 MSCompStatus xpress_huff_compress(const_bytes in, size_t in_len, bytes out, size_t* _out_len)
 {
 	if (in_len == 0) { *_out_len = 0; return MSCOMP_OK; }
@@ -286,7 +280,6 @@ MSCompStatus xpress_huff_compress(const_bytes in, size_t in_len, bytes out, size
 		////////// Output Huffman prefix codes as lengths and Encode compressed data //////////
 		if (out_len < HALF_SYMBOLS + comp_len) { PRINT_ERROR("Xpress Huffman Compression Error: Insufficient buffer\n"); free(buf); return MSCOMP_BUF_ERROR; }
 		for (const const_bytes end = lens + SYMBOLS; lens < end; lens += 2) { *out++ = lens[0] | (lens[1] << 4); }
-		//out = xh_loop(out, lens);
 		xh_compress_encode(buf, buf+buf_len, out, &encoder);
 		in += CHUNK_SIZE; in_len -= CHUNK_SIZE;
 		out += comp_len; out_len -= HALF_SYMBOLS + comp_len;

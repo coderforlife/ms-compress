@@ -92,9 +92,10 @@ public:
 		const uint32_t x = UNLIKELY(r < NumBitsMax) ? (bits->Peek(r) << (NumBitsMax - r)) : bits->Peek(NumBitsMax);
 		if (LIKELY(x < this->lims[NumTableBits])) { n = this->lens[x >> (NumBitsMax - NumTableBits)]; }
 		else { for (n = NumTableBits + 1; x >= this->lims[n]; ++n); }
+		if (UNLIKELY(n > r)) { return INVALID_SYMBOL; }
 		bits->Skip(n);
 		uint32_t s = this->poss[n] + ((x - this->lims[n-1]) >> (NumBitsMax-n));
-		return UNLIKELY(s >= NumSymbols) ? INVALID_SYMBOL : this->syms[s]; // TODO: can this ever happen? does removing it make things faster?
+		return UNLIKELY(s >= NumSymbols) ? INVALID_SYMBOL : this->syms[s];
 	}
 	
 	INLINE uint_fast16_t DecodeSymbolFast(InputBitstream *bits) const
