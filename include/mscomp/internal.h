@@ -522,8 +522,8 @@
 		strm.out = out; \
 		strm.out_avail = *_out_len; \
 		status = name##_inflate(&strm); \
-		if (status < 0) { name##_inflate_end(&strm); } \
-		else if ((status = name##_inflate_end(&strm)) == MSCOMP_OK) { *_out_len = strm.out_total; } \
+		if (UNLIKELY(status < 0)) { name##_inflate_end(&strm); } \
+		else if (LIKELY((status = name##_inflate_end(&strm)) == MSCOMP_OK)) { *_out_len = strm.out_total; } \
 		return status; \
 	}
 
