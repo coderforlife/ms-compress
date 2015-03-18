@@ -108,18 +108,25 @@
 #define __SSE__
 #endif
 #endif
+#ifdef __SSE__
+#include <xmmintrin.h>
+#endif
 
-///// Get INLINE and FORCE_INLINE /////
+///// Get NOINLINE, INLINE and FORCE_INLINE /////
 #if defined(_MSC_VER)
+#define NOINLINE __declspec(noinline)
 #define INLINE __inline
 #define FORCE_INLINE __forceinline
 #elif defined(__GNUC__)
+#define NOINLINE __attribute__((noinline))
 #define INLINE inline
 #define FORCE_INLINE inline __attribute__((always_inline))
 #elif (__STDC_VERSION__ >= 199901L)
+#define NOINLINE
 #define INLINE inline
 #define FORCE_INLINE INLINE
 #else
+#define NOINLINE
 #define INLINE
 #define FORCE_INLINE INLINE
 #endif
@@ -155,6 +162,7 @@
 	#else
 	#define PREFETCH(p)   
 	#endif
+	#define ASSUME_ALIGNED(p, n) ((void*)(p))
 	#pragma intrinsic(_rotl, memset, memcpy)
 	uint8_t  FORCE_INLINE rotl(uint8_t x,  int bits) { return _rotl8 (x, (unsigned char)bits); }
 	uint16_t FORCE_INLINE rotl(uint16_t x, int bits) { return _rotl16(x, (unsigned char)bits); }
@@ -217,6 +225,7 @@
 	#define NEVER(x)      if (x) { __builtin_unreachable(); }
 	#define UNREACHABLE() __builtin_unreachable()
 	#define PREFETCH(p)   __builtin_prefetch(p, 0, 0)
+	#define ASSUME_ALIGNED(p, n) __builtin_assume_aligned(p, n)
 	uint8_t  FORCE_INLINE rotl(uint8_t x,  int bits) { return ((x << bits) | (x >> (8  - bits))); } // the compiler detects these and optimizes, no need for a special builtin
 	uint16_t FORCE_INLINE rotl(uint16_t x, int bits) { return ((x << bits) | (x >> (16 - bits))); }
 	uint32_t FORCE_INLINE rotl(uint32_t x, int bits) { return ((x << bits) | (x >> (32 - bits))); }
@@ -244,6 +253,7 @@
 	#define NEVER(x)      
 	#define UNREACHABLE()
 	#define PREFETCH(p)
+	#define ASSUME_ALIGNED(p, n) ((void*)(p))
 	uint8_t  FORCE_INLINE rotl(uint8_t x,  int bits) { return ((x << bits) | (x >> (8  - bits))); }
 	uint16_t FORCE_INLINE rotl(uint16_t x, int bits) { return ((x << bits) | (x >> (16 - bits))); }
 	uint32_t FORCE_INLINE rotl(uint32_t x, int bits) { return ((x << bits) | (x >> (32 - bits))); }
@@ -440,12 +450,12 @@
 #define COPY_128_FAST(out, in) COPY_4x32(out, in)
 #endif
 
-#define FAST_COPY_ROOM 16 // (3+8)
+#define FAST_COPY_ROOM 16
 
 ///// Copies data very fast from a buffer to itself /////
 // This does limited checks for overruns. Before calling this there should be at least
-// FAST_COPY_ROOM available in out. The "SHORT" version is designed for shorter runs on average
-// (and when SSE is not available it is used all the time).
+// FAST_COPY_ROOM available in out. The "SHORT" version is designed for shorter runs on average.
+// (at the moment they are the same because the SSE version ended up being slower once correct).
 //  * out - the destination buffer
 //  * in  - the source buffer
 //  * off - the offset between the buffers (out-in)
@@ -464,9 +474,9 @@
 	} \
 	if (len) \
 	{ \
-		*((uint32_t*)(out+0)) = *((uint32_t*)(in+0));  /* now have >=8 bytes that can be read */ \
+		*((uint32_t*)(out+0)) = *((uint32_t*)(in+0)); \
 		*((uint32_t*)(out+4)) = *((uint32_t*)(in+4)); \
-		*((uint32_t*)(out+8)) = *((uint32_t*)(in+8));  /* now have >=16 bytes that can be read */ \
+		*((uint32_t*)(out+8)) = *((uint32_t*)(in+8));  /* now have >=16 bytes that can be read in chunks of 4 bytes */ \
 		if (len > 12) \
 		{ \
 			out += 12; in += 12; len -= 12; \
@@ -483,47 +493,7 @@
 		out += len; \
 	} \
 }
-#ifdef __SSE__
-#include <xmmintrin.h>
-#define FAST_COPY(out, in, len, off, near_end, SLOW_COPY) \
-{ \
-	/* Write up to 3 bytes for close offsets so that we have >=4 bytes to read in all cases */ \
-	switch (off) \
-	{ \
-	case 1: out[0] = out[1] = out[2] = in[0];       out += 3; len -= 3; break; \
-	case 2: out[0] = in[0]; out[1] = in[1];         out += 2; len -= 2; break; \
-	case 3: out[0]=in[0];out[1]=in[1];out[2]=in[2]; out += 3; len -= 3; break; \
-	} \
-	if (len) \
-	{ \
-		*((uint32_t*)(out+0)) = *((uint32_t*)(in+0));  /* now have >=8 bytes that can be read */ \
-		*((uint64_t*)(out+4)) = *((uint64_t*)(in+4));  /* now have >=16 bytes that can be read */ \
-		if (len > 12) \
-		{ \
-			out += 12; in += 12; len -= 12; \
-			if (UNLIKELY(out >= near_end)) { SLOW_COPY; } \
-			_mm_storeu_ps((float*)out, _mm_loadu_ps((float*)in)); \
-			if (len > 16) \
-			{ \
-				const size_t misalign = 0x10 - (((size_t)in) & 0xF); \
-				out += misalign; in += misalign; len -= misalign; \
-				if (UNLIKELY(out >= near_end)) { SLOW_COPY; } \
-				/* Repeatedly write 16 bytes with a 16-byte aligned 'in' */ \
-				while (len > 16) \
-				{ \
-					_mm_storeu_ps((float*)out, _mm_load_ps((float*)in)); out += 16; in += 16; len -= 16; \
-					if (UNLIKELY(out >= near_end)) { SLOW_COPY; } \
-				} \
-				/* Last 16 bytes */ \
-				_mm_storeu_ps((float*)out, _mm_load_ps((float*)in)); \
-			} \
-		} \
-		out += len; \
-	} \
-}
-#else
 #define FAST_COPY(out, in, len, off, near_end, SLOW_COPY) FAST_COPY_SHORT(out, in, len, off, near_end, SLOW_COPY)
-#endif
 
 #define ALL_AT_ONCE_WRAPPER_COMPRESS(name) \
 	MSCompStatus name##_compress(const_bytes in, size_t in_len, bytes out, size_t* _out_len) \
