@@ -227,6 +227,9 @@ if dll is not None:
         inflate_init = _prep(dll.ms_inflate_init, [c_int, POINTER(stream)])
         inflate      = _prep(dll.ms_inflate,      [POINTER(stream)])
         inflate_end  = _prep(dll.ms_inflate_end,  [POINTER(stream)])
+        max_compressed_size = dll.ms_max_compressed_size
+        max_compressed_size.restype = c_size_t
+        max_compressed_size.argtypes = [c_int, c_size_t]
 
         NO_FLUSH = 0
         FLUSH = 2
@@ -234,6 +237,11 @@ if dll is not None:
 
         def __init__(self, format):
             self.format = c_int(format)
+
+        def MaxCompressedSize(self, input_len):
+            val = OpenSrc.max_compressed_size(self.format, input_len)
+            if val == (0xFFFFFFFFFFFFFFFF if is64bit else 0xFFFFFFFF): raise ValueError()
+            return val
 
         def Compress(self, input, output_buf=None):
             len_input = len(input)
