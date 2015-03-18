@@ -242,8 +242,8 @@ LABEL			if (UNLIKELY(in + 2 > in_end)) { ERROR("XPRESS Decompression Error: Inva
 	SET_STREAM_ERROR(MSG);
 #define DO_NOTHING(...)
 
-WARNINGS_PUSH();
-WARNINGS_IGNORE_POTENTIAL_UNINIT_VALRIABLE_USED();
+WARNINGS_PUSH()
+WARNINGS_IGNORE_POTENTIAL_UNINIT_VALRIABLE_USED()
 MSCompStatus xpress_inflate(mscomp_stream* stream)
 {
 	CHECK_STREAM_PLUS(stream, false, MSCOMP_XPRESS, stream->state == NULL);
@@ -384,7 +384,7 @@ COPY_BYTE:
 	READ_ALL_IN();
 	return MSCOMP_OK;
 }
-WARNINGS_POP();
+WARNINGS_POP()
 MSCompStatus xpress_inflate_end(mscomp_stream* stream)
 {
 	CHECK_STREAM_PLUS(stream, false, MSCOMP_XPRESS, stream->state == NULL);

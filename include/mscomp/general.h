@@ -67,7 +67,7 @@ typedef enum _MSCompFormat {
 	MSCOMP_RESERVED		= 1, // Called COMPRESSION_FORMAT_DEFAULT in MSDN but can never be used
 	MSCOMP_LZNT1		= 2, // COMPRESSION_FORMAT_LZNT1
 	MSCOMP_XPRESS		= 3, // COMPRESSION_FORMAT_XPRESS
-	MSCOMP_XPRESS_HUFF	= 4, // COMPRESSION_FORMAT_XPRESS_HUFF
+	MSCOMP_XPRESS_HUFF	= 4  // COMPRESSION_FORMAT_XPRESS_HUFF
 } MSCompFormat;
 
 // Error Codes
@@ -81,7 +81,7 @@ typedef enum _MSCompStatus
 	MSCOMP_ARG_ERROR			= -2,
 	MSCOMP_DATA_ERROR			= -3,
 	MSCOMP_MEM_ERROR			= -4,
-	MSCOMP_BUF_ERROR			= -5,
+	MSCOMP_BUF_ERROR			= -5
 } MSCompStatus;
 
 // Flush Codes
@@ -89,7 +89,7 @@ typedef enum _MSCompFlush
 {
 	MSCOMP_NO_FLUSH  = 0,
 	MSCOMP_FLUSH     = 2,
-	MSCOMP_FINISH    = 4,
+	MSCOMP_FINISH    = 4
 } MSCompFlush;
 
 // Compression Stream Object

@@ -56,7 +56,7 @@ public:
 }
 
 public:
-	INLINE const const_bytes CreateCodes(uint32_t symbol_counts[NumSymbols]) // 17 kb stack (for NumSymbols == 0x200)
+	INLINE const_bytes CreateCodes(uint32_t symbol_counts[NumSymbols]) // 17 kb stack (for NumSymbols == 0x200)
 	{
 		// Creates Length-Limited Huffman Codes using an optimized version of the original Huffman algorithm
 		// Does not always produce optimal codes
@@ -127,7 +127,7 @@ public:
 		return this->lens;
 	}
 
-	INLINE const const_bytes CreateCodesSlow(uint32_t symbol_counts[NumSymbols]) // 519 kb stack (for NumSymbols == 0x200)
+	INLINE const_bytes CreateCodesSlow(uint32_t symbol_counts[NumSymbols]) // 519 kb stack (for NumSymbols == 0x200)
 	{
 		// Creates Length-Limited Huffman Codes using the package-merge algorithm
 		// Always produces optimal codes but is significantly slower than the Huffman algorithm
