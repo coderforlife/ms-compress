@@ -24,8 +24,7 @@
 template <byte NumBitsMax, uint16_t NumSymbols>
 class HuffmanEncoder
 {
-public:
-	// TODO: private:
+private:
 	uint16_t codes[NumSymbols];
 	byte lens[NumSymbols];
 
@@ -56,7 +55,7 @@ public:
 }
 
 public:
-	INLINE const_bytes CreateCodes(uint32_t symbol_counts[NumSymbols]) // 17 kb stack (for NumSymbols == 0x200)
+	const_bytes CreateCodes(uint32_t symbol_counts[NumSymbols]) // 17 kb stack (for NumSymbols == 0x200)
 	{
 		// Creates Length-Limited Huffman Codes using an optimized version of the original Huffman algorithm
 		// Does not always produce optimal codes
@@ -127,7 +126,7 @@ public:
 		return this->lens;
 	}
 
-	INLINE const_bytes CreateCodesSlow(uint32_t symbol_counts[NumSymbols]) // 519 kb stack (for NumSymbols == 0x200)
+	const_bytes CreateCodesSlow(uint32_t symbol_counts[NumSymbols]) // 519 kb stack (for NumSymbols == 0x200)
 	{
 		// Creates Length-Limited Huffman Codes using the package-merge algorithm
 		// Always produces optimal codes but is significantly slower than the Huffman algorithm
@@ -218,7 +217,7 @@ public:
 		return this->lens;
 	}
 
-	INLINE void EncodeSymbol(uint_fast16_t sym, OutputBitstream *bits) const { bits->WriteBits(this->codes[sym], this->lens[sym]); }
+	FORCE_INLINE void EncodeSymbol(uint_fast16_t sym, OutputBitstream *bits) const { bits->WriteBits(this->codes[sym], this->lens[sym]); }
 };
 
 #undef HEAP_PUSH

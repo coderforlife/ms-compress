@@ -244,7 +244,7 @@ LABEL			if (UNLIKELY(in + 2 > in_end)) { ERROR("XPRESS Decompression Error: Inva
 
 WARNINGS_PUSH()
 WARNINGS_IGNORE_POTENTIAL_UNINIT_VALRIABLE_USED()
-MSCompStatus xpress_inflate(mscomp_stream* stream)
+ENTRY_POINT MSCompStatus xpress_inflate(mscomp_stream* stream)
 {
 	CHECK_STREAM_PLUS(stream, false, MSCOMP_XPRESS, stream->state == NULL);
 
@@ -402,7 +402,7 @@ MSCompStatus xpress_inflate_end(mscomp_stream* stream)
 	return status;
 }
 #ifdef MSCOMP_WITH_OPT_DECOMPRESS
-MSCompStatus xpress_decompress(const_bytes in, size_t in_len, bytes out, size_t* _out_len)
+ENTRY_POINT MSCompStatus xpress_decompress(const_bytes in, size_t in_len, bytes out, size_t* _out_len)
 {
 	const size_t out_len = *_out_len;
 	const const_bytes                  in_end  = in +in_len,  in_endx  = in_end -IN_NEAR_END;

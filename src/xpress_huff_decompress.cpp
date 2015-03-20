@@ -66,9 +66,8 @@ static MSCompStatus xpress_huff_decompress_chunk(const_bytes* _in, const const_b
 				len += 0xF;
 			}
 			len += 3;
-			off = bstr.Peek(off_bits) + (1 << off_bits);
+			off = bstr.ReadBits_Fast(off_bits) | (1 << off_bits);
 			const_bytes o = out-off;
-			bstr.Skip_Fast(off_bits);
 			if (UNLIKELY(o < out_origin))		{ PRINT_ERROR("XPRESS Huffman Decompression Error: Invalid data: Invalid offset\n"); return MSCOMP_DATA_ERROR; }
 			FAST_COPY(out, o, len, off, out_endx,
 				if (UNLIKELY(out + len > out_end)) { return MSCOMP_BUF_ERROR; }
@@ -134,7 +133,7 @@ CHECKED_COPY:	for (end = out + len; out < end; ++out) { *out = *(out-off); }
 	}
 	return MSCOMP_OK;
 }
-MSCompStatus xpress_huff_decompress(const_bytes in, size_t in_len, bytes out, size_t* out_len)
+ENTRY_POINT MSCompStatus xpress_huff_decompress(const_bytes in, size_t in_len, bytes out, size_t* out_len)
 {
 	const const_bytes                  in_end  = in  + in_len;
 	const const_bytes out_start = out, out_end = out + *out_len;

@@ -43,7 +43,7 @@
 typedef XpressDictionary<MAX_OFFSET, CHUNK_SIZE> Dictionary;
 typedef HuffmanEncoder<HUFF_BITS_MAX, SYMBOLS> Encoder;
 
-size_t xpress_huff_max_compressed_size(size_t in_len) { return in_len + 2 + (HALF_SYMBOLS + 2) + (HALF_SYMBOLS + 2) * (in_len / CHUNK_SIZE); }
+size_t xpress_huff_max_compressed_size(size_t in_len) { return in_len + 4 + (HALF_SYMBOLS + 2) + (HALF_SYMBOLS + 2) * (in_len / CHUNK_SIZE); }
 
 
 ////////////////////////////// Compression Functions ///////////////////////////////////////////////
@@ -240,9 +240,7 @@ static void xh_compress_encode(const_bytes in, const const_bytes in_end, bytes o
 	bstr.Finish(); // make sure that the write stream is finished writing
 }
 
-PREVENT_LOOP_VECTORIZATION
-// TODO: GCC with -ftree-loop-vectorize (default added with -O3) causes an access violation below
-MSCompStatus xpress_huff_compress(const_bytes in, size_t in_len, bytes out, size_t* _out_len)
+ENTRY_POINT MSCompStatus xpress_huff_compress(const_bytes in, size_t in_len, bytes out, size_t* _out_len)
 {
 	if (in_len == 0) { *_out_len = 0; return MSCOMP_OK; }
 
@@ -305,12 +303,12 @@ MSCompStatus xpress_huff_compress(const_bytes in, size_t in_len, bytes out, size
 		////////// Guarantee Max Compression Size //////////
 		// This is required to guarantee max compressed size
 		// It is very rare that it is used (mainly medium-high uncompressible data)
-		if (UNLIKELY(comp_len > in_len+4)) // +4 for alignment and end-of-stream
+		if (UNLIKELY(comp_len > in_len+6)) // +4 to 5 for alignment and end-of-stream
 		{
 			buf_len = xh_compress_no_matching(in, in_len, true, buf, symbol_counts);
 			lens = encoder.CreateCodesSlow(symbol_counts);
 			comp_len = xh_calc_compressed_len_no_matching(lens, symbol_counts);
-			assert(comp_len <= in_len+4);
+			assert(comp_len <= in_len+6);
 		}
 
 		////////// Output Huffman prefix codes as lengths and Encode compressed data //////////

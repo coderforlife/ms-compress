@@ -216,7 +216,6 @@
 	uint16_t FORCE_INLINE byte_swap(uint16_t x) { return _byteswap_ushort(x); }
 	uint32_t FORCE_INLINE byte_swap(uint32_t x) { return _byteswap_ulong(x);  }
 	uint64_t FORCE_INLINE byte_swap(uint64_t x) { return _byteswap_uint64(x); }
-	#define PREVENT_LOOP_VECTORIZATION
 #elif defined(__GNUC__) // GCC and Clang
 	// see https://gcc.gnu.org/onlinedocs/gcc-4.5.0/gcc/Other-Builtins.html
 	#define ALWAYS(x)     if (!(x)) { __builtin_unreachable(); }
@@ -245,7 +244,6 @@
 	uint16_t FORCE_INLINE byte_swap(uint16_t x) { return (x<<8)|(x>>8); }
 	uint32_t FORCE_INLINE byte_swap(uint32_t x) { return (uint32_t)__builtin_bswap32((int32_t)x); }
 	uint64_t FORCE_INLINE byte_swap(uint64_t x) { return (uint64_t)__builtin_bswap64((int64_t)x); }
-	#define PREVENT_LOOP_VECTORIZATION __attribute__((optimize("no-tree-vectorize")))
 #else
 	#define ALWAYS(x)     
 	#define LIKELY(x)     (x)
@@ -273,7 +271,6 @@
 	uint16_t FORCE_INLINE byte_swap(uint16_t x) { return (x<<8)|(x>>8); }
 	uint32_t FORCE_INLINE byte_swap(uint32_t x) { return (x<<24)|((x<<8)&0x00FF0000)|((x>>8)&0x0000FF00)|(x>>24); }
 	uint64_t FORCE_INLINE byte_swap(uint64_t x) { return (x<<56)|((x<<40)&0x00FF000000000000ull)|((x<<24)&0x0000FF0000000000ull)|((x<<8)&0x000000FF00000000ull)|((x>>8)&0x00000000FF000000ull)|((x>>24)&0x0000000000FF0000)|((x>>40)&0x000000000000FF00)|(x>>56); }
-	#define PREVENT_LOOP_VECTORIZATION 
 #endif
 #ifdef DEBUG_ALWAYS_NEVER
 	#include <stdio.h>
@@ -315,6 +312,15 @@
 #endif
 #if defined(_MSC_VER) && defined(NDEBUG)
 #pragma optimize("t", on)
+#endif
+#if defined(__GNUC__) && defined(__MINGW32__)
+// GCC assumes a 16-byte aligned stack, Windows only guarantees 4-byte alignment, we need to tell
+// GCC to fix all entry points to have a 16-byte alignment (but once aligned, we are good to go).
+// ENTRY_POINT only needs to be used on functions that may use SSE instructions in their call stack
+// and that can be called directly by outside code (export, callback, or main function). 
+#define ENTRY_POINT __attribute__((force_align_arg_pointer))
+#else
+#define ENTRY_POINT
 #endif
 
 ///// Warning disable support /////
@@ -492,7 +498,7 @@
 #define FAST_COPY(out, in, len, off, near_end, SLOW_COPY) FAST_COPY_SHORT(out, in, len, off, near_end, SLOW_COPY)
 
 #define ALL_AT_ONCE_WRAPPER_COMPRESS(name) \
-	MSCompStatus name##_compress(const_bytes in, size_t in_len, bytes out, size_t* _out_len) \
+	ENTRY_POINT MSCompStatus name##_compress(const_bytes in, size_t in_len, bytes out, size_t* _out_len) \
 	{ \
 		mscomp_stream strm; \
 		MSCompStatus status = name##_deflate_init(&strm); \
@@ -508,7 +514,7 @@
 	}
 
 #define ALL_AT_ONCE_WRAPPER_DECOMPRESS(name) \
-	MSCompStatus name##_decompress(const_bytes in, size_t in_len, bytes out, size_t* _out_len) \
+	ENTRY_POINT MSCompStatus name##_decompress(const_bytes in, size_t in_len, bytes out, size_t* _out_len) \
 	{ \
 		mscomp_stream strm; \
 		MSCompStatus status = name##_inflate_init(&strm); \

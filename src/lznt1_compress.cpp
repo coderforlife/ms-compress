@@ -149,7 +149,7 @@ MSCompStatus lznt1_deflate_init(mscomp_stream* const stream)
 	stream->state = state;
 	return MSCOMP_OK;
 }
-MSCompStatus lznt1_deflate(mscomp_stream* const stream, const MSCompFlush flush)
+ENTRY_POINT MSCompStatus lznt1_deflate(mscomp_stream* const stream, const MSCompFlush flush)
 {
 	CHECK_STREAM_PLUS(stream, true, MSCOMP_LZNT1, stream->state == NULL || stream->state->finished);
 
@@ -230,7 +230,7 @@ MSCompStatus lznt1_deflate_end(mscomp_stream* stream)
 	return status;
 }
 #ifdef MSCOMP_WITH_OPT_COMPRESS
-MSCompStatus lznt1_compress(const_bytes in, size_t in_len, bytes out, size_t* _out_len)
+ENTRY_POINT MSCompStatus lznt1_compress(const_bytes in, size_t in_len, bytes out, size_t* _out_len)
 {
 	const size_t out_len = *_out_len;
 	size_t out_pos = 0, in_pos = 0;

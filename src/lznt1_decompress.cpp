@@ -222,7 +222,7 @@ MSCompStatus lznt1_inflate_init(mscomp_stream* stream)
 	stream->state = state;
 	return MSCOMP_OK;
 }
-MSCompStatus lznt1_inflate(mscomp_stream* stream)
+ENTRY_POINT MSCompStatus lznt1_inflate(mscomp_stream* stream)
 {
 	CHECK_STREAM_PLUS(stream, false, MSCOMP_LZNT1, stream->state == NULL);
 
@@ -281,7 +281,7 @@ MSCompStatus lznt1_inflate_end(mscomp_stream* stream)
 	return status;
 }
 #ifdef NOT_OPTIMAL___MSCOMP_WITH_OPT_DECOMPRESS // NOTE: the "optimized" version is actually slower!
-MSCompStatus lznt1_decompress(const_bytes in, size_t in_len, bytes out, size_t* _out_len)
+ENTRY_POINT MSCompStatus lznt1_decompress(const_bytes in, size_t in_len, bytes out, size_t* _out_len)
 {
 	const size_t out_len = *_out_len;
 	const const_bytes in_end  = in  + in_len-1;

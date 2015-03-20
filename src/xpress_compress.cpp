@@ -72,7 +72,7 @@ MSCompStatus xpress_deflate_init(mscomp_stream* stream)
 	return MSCOMP_MEM_ERROR;
 #endif
 }
-MSCompStatus xpress_deflate(mscomp_stream* stream, MSCompFlush flush)
+ENTRY_POINT MSCompStatus xpress_deflate(mscomp_stream* stream, MSCompFlush flush)
 {
 	// There will be one conceptual difference between the streaming and non-streaming versions.
 	// The streaming version has to deal with the fact that the two partnered half-bytes might be
@@ -237,7 +237,7 @@ MSCompStatus xpress_deflate_end(mscomp_stream* stream)
 }
 
 #ifdef MSCOMP_WITH_OPT_COMPRESS
-MSCompStatus xpress_compress(const_bytes in, size_t in_len, bytes out, size_t* _out_len)
+ENTRY_POINT MSCompStatus xpress_compress(const_bytes in, size_t in_len, bytes out, size_t* _out_len)
 {
 	const size_t out_len = *_out_len;
 	const const_bytes                  in_end  = in +in_len,  in_end2  = in_end  - 2;
