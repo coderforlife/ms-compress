@@ -61,7 +61,6 @@ elif len(repeats) > 2 or any(t <= 0 for t in repeats):
     sys.exit()
 comp_repeats, decomp_repeats = repeats
 
-
 # Lock to a single core (reduces context switches, picks highest affinity bit)
 # Only available if the affinity module has been installed
 try:
@@ -133,6 +132,6 @@ for root, dirs, files in os.walk(path):
         gc.collect() # manual collection when not timing Compress or Decompress
 #print >> sys.stderr, '%8.3f Done!' % (clock() - start_time)
 mb_size = full_size / (1024.0 * 1024.0)
-print >> sys.stderr, '          Files: %5d   CR:%7.3f%%' % (nfiles, 100 if full_size == 0 else (compressed_size * 100.0 / full_size))
-print >> sys.stderr, '          Compressed to   %10d bytes in %7.3f secs - %7.3f MB/s' % (compressed_size*comp_repeats, comp_time, 0 if comp_time == 0 else mb_size*comp_repeats / comp_time)
-print >> sys.stderr, '          Decompressed to %10d bytes in %7.3f secs - %7.3f MB/s' % (full_size*decomp_repeats, decomp_time, 0 if decomp_time == 0 else mb_size*decomp_repeats / decomp_time)
+print >> sys.stderr, '    Files: %5d   CR:%7.3f%%' % (nfiles, 100 if full_size == 0 else (compressed_size * 100.0 / full_size))
+print >> sys.stderr, '    Compressed to   %10d bytes in %7.3f secs - %7.3f MB/s' % (compressed_size*comp_repeats, comp_time, 0 if comp_time == 0 else mb_size*comp_repeats / comp_time)
+print >> sys.stderr, '    Decompressed to %10d bytes in %7.3f secs - %7.3f MB/s' % (full_size*decomp_repeats, decomp_time, 0 if decomp_time == 0 else mb_size*decomp_repeats / decomp_time)
