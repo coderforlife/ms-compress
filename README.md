@@ -62,12 +62,12 @@ _Status: working_ - decompression is fully mature but compression needs speed im
 
 * Compression:    90 MB/s, 40% CR
   * Slower than RTL (average ~0.81x)
-  * Has a marginally better compression ratio
-  * Uses about the same amount of memory
+  * Has a marginally better compression ratio than RTL
+  * Uses about the same amount of memory as RTL
   * RTL bugs:
     * cannot compress inputs of 7 bytes or less
     * requires at least 24 extra bytes in the compression output buffer
-* Decompression: 705 MB/s
+* Decompression: 725 MB/s
   * Essentially the same speed as RTL
 
 Xpress Huffman
@@ -83,13 +83,13 @@ Additionally, a mostly complete pseudo-code decompression implementation is give
 
 _Status: working_ - needs major speed improvements, does not create optional chunk boundary spanning matches, and does not support streaming for compression or decompression
 
-* Compression:    39 MB/s, 33% CR
-  * Much slower than RTL (average ~0.48x)
-  * Has a marginally better compression ratio
-  * Uses about the same amount of memory
+* Compression:    55 MB/s, 33% CR
+  * Much slower than RTL (average ~0.67)
+  * Has a marginally better compression ratio than RTL
+  * Uses about the same amount of memory as RTL
   * RTL bug: requires at least 24 extra bytes in the compression buffer
-* Decompression: 320 MB/s
-  * Slower than RTL (average ~0.82x)
+* Decompression: 310 MB/s
+  * Slower than RTL (average ~0.78x)
   * RTL bug: does not allow the output buffer to be anything besides the exact size of the uncompressed data
 
 LZX
