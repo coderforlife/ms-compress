@@ -76,7 +76,7 @@ public:
 		for (uint_fast8_t len = 1; len <= NumBitsMax; ++len) { this->poss[len] = this->poss[len-1] + cnts[len-1]; }
 
 		// Get symbols
-		memcpy(cnts, this->poss, sizeof(uint_fast16_t)*(NumBitsMax+1));
+		memcpy(cnts, this->poss, sizeof(this->poss));
 		for (uint16_t s = 0; s < NumSymbols; ++s)
 		{
 			int len = code_lengths[s];
