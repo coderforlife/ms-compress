@@ -63,12 +63,18 @@
 #endif
 
 ///// Get ints from a byte stream /////
-// These assume that the byte stream is little-endian
+// These assume that the byte stream is little-endian (except RAW which don't care)
+#if defined(MSCOMP_WITH_UNALIGNED_ACCESS)
+#define GET_UINT16_RAW(x)		(*(const uint16_t*)(x))
+#define GET_UINT32_RAW(x)		(*(const uint32_t*)(x))
+#define SET_UINT16_RAW(x,val)	(*(uint16_t*)(x) = (uint16_t)(val))
+#define SET_UINT32_RAW(x,val)	(*(uint32_t*)(x) = (uint32_t)(val))
 #if defined(BIG_ENDIAN)
-	#define GET_UINT16(x)		byte_swap(*(const uint16_t*)(x)) // or ((x)[0]|((x)[1]<<8))
-	#define GET_UINT32(x)		byte_swap(*(const uint32_t*)(x)) // or ((x)[0]|((x)[1]<<8)|((x)[2]<<16)|((x)[3]<<24))
-	#define SET_UINT16(x,val)	(*(uint16_t*)(x) = byte_swap((uint16_t)(val))) // or (((byte*)(x))[0]=(byte)(val), ((byte*)(x))[1]=(byte)((val) >> 8))
-	#define SET_UINT32(x,val)	(*(uint32_t*)(x) = byte_swap((uint32_t)(val))) // or (((byte*)(x))[0]=(byte)(val), ((byte*)(x))[1]=(byte)((val) >> 8), ((byte*)(x))[2]=(byte)((val) >> 16), ((byte*)(x))[3]=(byte)((val) >> 24))
+	// These could also use the without-unaligned-access versions always
+	#define GET_UINT16(x)		byte_swap(*(const uint16_t*)(x))
+	#define GET_UINT32(x)		byte_swap(*(const uint32_t*)(x))
+	#define SET_UINT16(x,val)	(*(uint16_t*)(x) = byte_swap((uint16_t)(val)))
+	#define SET_UINT32(x,val)	(*(uint32_t*)(x) = byte_swap((uint32_t)(val)))
 #elif defined(PDP_ENDIAN) // for 16-bit ints its the same as little-endian
 	#define GET_UINT16(x)		(*(const uint16_t*)(x))
 	#define GET_UINT32(x)		(*(const uint16_t*)(x)|(*(const uint16_t*)((x)+2)<<16))
@@ -82,6 +88,31 @@
 	#define GET_UINT32(x)		(*(const uint32_t*)(x))
 	#define SET_UINT16(x,val)	(*(uint16_t*)(x) = (uint16_t)(val))
 	#define SET_UINT32(x,val)	(*(uint32_t*)(x) = (uint32_t)(val))
+#endif
+#else
+#define GET_UINT16_RAW(x)		((((byte*)(x))[0]<<8)|((byte*)(x))[1])
+#define GET_UINT32_RAW(x)		((((byte*)(x))[0]<<24)|(((byte*)(x))[1]<<16)|(((byte*)(x))[2]<<8)|((byte*)(x))[3])
+#define SET_UINT16_RAW(x,val)	(((byte*)(x))[0]=(byte)((val)>>8), ((byte*)(x))[1]=(byte)(val))
+#define SET_UINT32_RAW(x,val)	(((byte*)(x))[0]=(byte)((val)>>24), ((byte*)(x))[1]=(byte)((val)>>16), ((byte*)(x))[2]=(byte)((val)>>8), ((byte*)(x))[3]=(byte)(val))
+#if defined(BIG_ENDIAN)
+	#define GET_UINT16(x)		(((byte*)(x))[0]|(((byte*)(x))[1]<<8))
+	#define GET_UINT32(x)		(((byte*)(x))[0]|(((byte*)(x))[1]<<8)|(((byte*)(x))[2]<<16)|(((byte*)(x))[3]<<24))
+	#define SET_UINT16(x,val)	(((byte*)(x))[0]=(byte)(val), ((byte*)(x))[1]=(byte)((val)>>8))
+	#define SET_UINT32(x,val)	(((byte*)(x))[0]=(byte)(val), ((byte*)(x))[1]=(byte)((val)>>8), ((byte*)(x))[2]=(byte)((val)>>16), ((byte*)(x))[3]=(byte)((val)>>24))
+#elif defined(PDP_ENDIAN) // for 16-bit ints its the same as little-endian
+	#define GET_UINT16(x)		((((byte*)(x))[0]<<8)|((byte*)(x))[1])
+	#define GET_UINT32(x)		((((byte*)(x))[0]<<8)|((byte*)(x))[1]|(((byte*)(x))[2]<<24)|(((byte*)(x))[3]<<16))
+	#define SET_UINT16(x,val)	(((byte*)(x))[0]=(byte)((val)>>8), ((byte*)(x))[1]=(byte)(val))
+	#define SET_UINT32(x,val)	(((byte*)(x))[0]=(byte)((val)>>8), ((byte*)(x))[1]=(byte)(val), ((byte*)(x))[2]=(byte)((val)>>24), ((byte*)(x))[3]=(byte)((val)>>16))
+#else
+	#ifndef LITTLE_ENDIAN
+		#define LITTLE_ENDIAN
+	#endif
+	#define GET_UINT16(x)		((((byte*)(x))[0]<<8)|((byte*)(x))[1])
+	#define GET_UINT32(x)		((((byte*)(x))[0]<<24)|(((byte*)(x))[1]<<16)|(((byte*)(x))[2]<<8)|((byte*)(x))[3])
+	#define SET_UINT16(x,val)	(((byte*)(x))[0]=(byte)((val)>>8), ((byte*)(x))[1]=(byte)(val))
+	#define SET_UINT32(x,val)	(((byte*)(x))[0]=(byte)((val)>>24), ((byte*)(x))[1]=(byte)((val)>>16), ((byte*)(x))[2]=(byte)((val)>>8), ((byte*)(x))[3]=(byte)(val))
+#endif
 #endif
 
 ///// Determine the number of bits used by pointers /////
@@ -444,10 +475,22 @@
 		state->in_avail = 0; \
 	}
 
-#define COPY_4x(out, in)   out[0] = in[0]; out[1] = in[1]; out[2] = in[2]; out[3] = in[3]
-#define COPY_4x32(out, in) COPY_4x(((uint32_t*)(out)), ((uint32_t*)(in)))
-#ifdef __SSE__
-#define COPY_128_FAST(out, in) _mm_storeu_ps((float*)(out), _mm_loadu_ps((float*)(in)));
+// COPY_4x - Copy the next 4 indices (0 through 3) of the pointer in to the pointer out
+#define COPY_4x(out, in)    (out)[0] = (in)[0]; (out)[1] = (in)[1]; (out)[2] = (in)[2]; (out)[3] = (in)[3]
+
+#if defined(MSCOMP_WITH_UNALIGNED_ACCESS)
+// COPY_32 - Copy a 32-bit value from the pointer in to the pointer out
+#define COPY_32(out, in)    *(uint32_t*)(out) = *(uint32_t*)(in)
+// COPY_4x32 - Copy 4 32-bit values from the pointer in to the pointer out
+#define COPY_4x32(out, in)  COPY_4x(((uint32_t*)(out)), ((uint32_t*)(in)))
+#else
+#define COPY_32(out, in)    COPY_4x((byte*)(out), (byte*)(in))
+#define COPY_4x32(out, in)  COPY_32(((uint32_t*)(out)), ((uint32_t*)(in))); COPY_32(((uint32_t*)(out))+1, ((uint32_t*)(in))+1); COPY_32(((uint32_t*)(out))+2, ((uint32_t*)(in))+2); COPY_32(((uint32_t*)(out))+3, ((uint32_t*)(in))+3)
+#endif
+
+// COPY_128_FAST - Copy a 128-bit value from the pointer in to the pointer out
+#if defined(__SSE__) && defined(MSCOMP_WITH_UNALIGNED_ACCESS)
+#define COPY_128_FAST(out, in) _mm_storeu_ps((float*)(out), _mm_loadu_ps((float*)(in)))
 #else
 #define COPY_128_FAST(out, in) COPY_4x32(out, in)
 #endif
@@ -476,9 +519,9 @@
 	} \
 	if (len) \
 	{ \
-		*((uint32_t*)(out+0)) = *((uint32_t*)(in+0)); \
-		*((uint32_t*)(out+4)) = *((uint32_t*)(in+4)); \
-		*((uint32_t*)(out+8)) = *((uint32_t*)(in+8));  /* now have >=16 bytes that can be read in chunks of 4 bytes */ \
+		COPY_32(out+0, in+0); \
+		COPY_32(out+4, in+4); \
+		COPY_32(out+8, in+8); /* now have >=16 bytes that can be read in chunks of 4 bytes */ \
 		if (len > 12) \
 		{ \
 			out += 12; in += 12; len -= 12; \

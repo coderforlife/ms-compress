@@ -143,7 +143,7 @@ public:
 	FORCE_INLINE void Finish()
 	{
 		SET_UINT16(this->pntr[0], this->mask >> 16); // if !bits then mask is 0 anyways
-		*this->pntr[1] = 0;
+		SET_UINT16_RAW(this->pntr[1], 0);
 	}
 };
 

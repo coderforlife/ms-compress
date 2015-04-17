@@ -62,17 +62,23 @@ private:
 	const_bytes table[HashSize];
 	const_bytes window[WindowSize];
 	
+#ifdef MSCOMP_WITH_UNALIGNED_ACCESS
 	INLINE static uint32_t GetMatchLength(const_bytes a, const_bytes b, const const_bytes end, const const_bytes end4)
+#else
+	INLINE static uint32_t GetMatchLength(const_bytes a, const_bytes b, const const_bytes end)
+#endif
 	{
 		// like memcmp but tells you the length of the match and optimized
 		// assumptions: a < b < end, end4 = end - 4
 		const const_bytes b_start = b;
 		byte a0, b0;
+#ifdef MSCOMP_WITH_UNALIGNED_ACCESS
 		while (b < end4 && *((uint32_t*)a) == *((uint32_t*)b))
 		{
 			a += sizeof(uint32_t);
 			b += sizeof(uint32_t);
 		}
+#endif
 		do
 		{
 			a0 = *a++;
@@ -135,16 +141,28 @@ public:
 #else
 		const const_bytes end = ((data + UINT32_MAX) < data || (data + UINT32_MAX) >= this->end) ? this->end : data + UINT32_MAX; // if overflow or past end use the end
 #endif
+#ifdef MSCOMP_WITH_UNALIGNED_ACCESS
 		const const_bytes xend = data - MaxOffset, end4 = end - 4;
-		const_bytes x;
 		const uint16_t prefix = *(uint16_t*)data;
+#else
+		const const_bytes xend = data - MaxOffset;
+		const byte prefix0 = data[0], prefix1 = data[1];
+#endif
+		const_bytes x;
 		uint32_t len = 2, chain_length = LevelConfig::MaxChain;
 		for (x = this->window[WindowPos(data)]; chain_length && x >= xend; x = this->window[WindowPos(x)], --chain_length)
 		{
+#ifdef MSCOMP_WITH_UNALIGNED_ACCESS
 			if (*(uint16_t*)x == prefix)
 			{
 				// at this point the at least 3 bytes are matched (due to the hashing function forcing byte 3 to the same)
 				const uint32_t l = GetMatchLength(x, data, end, end4);
+#else
+			if (x[0] == prefix0 && x[1] == prefix1)
+			{
+				// at this point the at least 3 bytes are matched (due to the hashing function forcing byte 3 to the same)
+				const uint32_t l = GetMatchLength(x, data, end);
+#endif
 				if (l > len)
 				{
 					*offset = (uint32_t)(data - x);

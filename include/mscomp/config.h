@@ -20,11 +20,17 @@
 // values like MSCOMP_WITH_x or MSCOMP_WITHOUT_x where x is one of the names below. By default, all
 // are enabled.
 
+// UNALIGNED_ACCESS - Allow unaligned access
+// Without this option everything possibly unaligned is done with byte-level operations
+#if !defined(MSCOMP_WITH_UNALIGNED_ACCESS) && !defined(MSCOMP_WITHOUT_UNALIGNED_ACCESS)
+#define MSCOMP_WITH_UNALIGNED_ACCESS
+#endif
+
 // OPT_COMPRESS - Optimize compress(...)
 // Without this option the single-call compressors are simple wrappers around the stream functions,
 // otherwise they are specialized for single-calls.
 #if !defined(MSCOMP_WITH_OPT_COMPRESS) && !defined(MSCOMP_WITHOUT_OPT_COMPRESS)
-#define MSCOMP_WITH_OPT_COMPRESS       
+#define MSCOMP_WITH_OPT_COMPRESS
 #endif
 
 // OPT_DECOMPRESS - Optimize decompress(...)
