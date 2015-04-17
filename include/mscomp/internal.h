@@ -77,9 +77,9 @@
 	#define SET_UINT32(x,val)	(*(uint32_t*)(x) = byte_swap((uint32_t)(val)))
 #elif defined(PDP_ENDIAN) // for 16-bit ints its the same as little-endian
 	#define GET_UINT16(x)		(*(const uint16_t*)(x))
-	#define GET_UINT32(x)		(*(const uint16_t*)(x)|(*(const uint16_t*)((x)+2)<<16))
+	#define GET_UINT32(x)		((*(const uint16_t*)(x)<<16)|*(const uint16_t*)((x)+2))
 	#define SET_UINT16(x,val)	(*(uint16_t*)(x) = (uint16_t)(val))
-	#define SET_UINT32(x,val)	(*(uint16_t*)(x) = (uint16_t)(val), *(((uint16_t*)(x))+1) = (uint16_t)((val) >> 16))
+	#define SET_UINT32(x,val)	(*(uint16_t*)(x) = (uint16_t)((val) >> 16), *(((uint16_t*)(x))+1) = (uint16_t)(val))
 #else
 	#ifndef LITTLE_ENDIAN
 		#define LITTLE_ENDIAN
@@ -90,28 +90,28 @@
 	#define SET_UINT32(x,val)	(*(uint32_t*)(x) = (uint32_t)(val))
 #endif
 #else
-#define GET_UINT16_RAW(x)		((((byte*)(x))[0]<<8)|((byte*)(x))[1])
-#define GET_UINT32_RAW(x)		((((byte*)(x))[0]<<24)|(((byte*)(x))[1]<<16)|(((byte*)(x))[2]<<8)|((byte*)(x))[3])
-#define SET_UINT16_RAW(x,val)	(((byte*)(x))[0]=(byte)((val)>>8), ((byte*)(x))[1]=(byte)(val))
-#define SET_UINT32_RAW(x,val)	(((byte*)(x))[0]=(byte)((val)>>24), ((byte*)(x))[1]=(byte)((val)>>16), ((byte*)(x))[2]=(byte)((val)>>8), ((byte*)(x))[3]=(byte)(val))
+#define GET_UINT16_RAW(x)		(((byte*)(x))[0]|(((byte*)(x))[1]<<8))
+#define GET_UINT32_RAW(x)		(((byte*)(x))[0]|(((byte*)(x))[1]<<8)|(((byte*)(x))[2]<<16)|(((byte*)(x))[3]<<24))
+#define SET_UINT16_RAW(x,val)	(((byte*)(x))[0]=(byte)(val), ((byte*)(x))[1]=(byte)((val)>>8))
+#define SET_UINT32_RAW(x,val)	(((byte*)(x))[0]=(byte)(val), ((byte*)(x))[1]=(byte)((val)>>8), ((byte*)(x))[2]=(byte)((val)>>16), ((byte*)(x))[3]=(byte)((val)>>24))
 #if defined(BIG_ENDIAN)
-	#define GET_UINT16(x)		(((byte*)(x))[0]|(((byte*)(x))[1]<<8))
-	#define GET_UINT32(x)		(((byte*)(x))[0]|(((byte*)(x))[1]<<8)|(((byte*)(x))[2]<<16)|(((byte*)(x))[3]<<24))
-	#define SET_UINT16(x,val)	(((byte*)(x))[0]=(byte)(val), ((byte*)(x))[1]=(byte)((val)>>8))
-	#define SET_UINT32(x,val)	(((byte*)(x))[0]=(byte)(val), ((byte*)(x))[1]=(byte)((val)>>8), ((byte*)(x))[2]=(byte)((val)>>16), ((byte*)(x))[3]=(byte)((val)>>24))
-#elif defined(PDP_ENDIAN) // for 16-bit ints its the same as little-endian
 	#define GET_UINT16(x)		((((byte*)(x))[0]<<8)|((byte*)(x))[1])
-	#define GET_UINT32(x)		((((byte*)(x))[0]<<8)|((byte*)(x))[1]|(((byte*)(x))[2]<<24)|(((byte*)(x))[3]<<16))
-	#define SET_UINT16(x,val)	(((byte*)(x))[0]=(byte)((val)>>8), ((byte*)(x))[1]=(byte)(val))
-	#define SET_UINT32(x,val)	(((byte*)(x))[0]=(byte)((val)>>8), ((byte*)(x))[1]=(byte)(val), ((byte*)(x))[2]=(byte)((val)>>24), ((byte*)(x))[3]=(byte)((val)>>16))
+	#define GET_UINT32(x)		((((byte*)(x))[0]<<24)|(((byte*)(x))[1]<<16)|(((byte*)(x))[2]<<8)|((byte*)(x))[3])
+	#define SET_UINT16(x,val)	(((byte*)(x))[0]=(byte)((val)>>8), ((byte*)(x))[1]=(byte)((val)>>0))
+	#define SET_UINT32(x,val)	(((byte*)(x))[0]=(byte)((val)>>24), ((byte*)(x))[1]=(byte)((val)>>16), ((byte*)(x))[2]=(byte)((val)>>8), ((byte*)(x))[3]=(byte)(val))
+#elif defined(PDP_ENDIAN) // for 16-bit ints its the same as little-endian
+	#define GET_UINT16(x)		(((byte*)(x))[0]|(((byte*)(x))[1]<<8))
+	#define GET_UINT32(x)		((((byte*)(x))[0]<<16)|(((byte*)(x))[1]<<24)|((byte*)(x))[2]|(((byte*)(x))[3]<<8))
+	#define SET_UINT16(x,val)	(((byte*)(x))[0]=(byte)(val), ((byte*)(x))[1]=(byte)((val)>>8))
+	#define SET_UINT32(x,val)	(((byte*)(x))[0]=(byte)((val)>>16), ((byte*)(x))[1]=(byte)((val)>>24), ((byte*)(x))[2]=(byte)(val), ((byte*)(x))[3]=(byte)((val)>>8))
 #else
 	#ifndef LITTLE_ENDIAN
 		#define LITTLE_ENDIAN
 	#endif
-	#define GET_UINT16(x)		((((byte*)(x))[0]<<8)|((byte*)(x))[1])
-	#define GET_UINT32(x)		((((byte*)(x))[0]<<24)|(((byte*)(x))[1]<<16)|(((byte*)(x))[2]<<8)|((byte*)(x))[3])
-	#define SET_UINT16(x,val)	(((byte*)(x))[0]=(byte)((val)>>8), ((byte*)(x))[1]=(byte)(val))
-	#define SET_UINT32(x,val)	(((byte*)(x))[0]=(byte)((val)>>24), ((byte*)(x))[1]=(byte)((val)>>16), ((byte*)(x))[2]=(byte)((val)>>8), ((byte*)(x))[3]=(byte)(val))
+	#define GET_UINT16(x)		(((byte*)(x))[0]|(((byte*)(x))[1]<<8))
+	#define GET_UINT32(x)		(((byte*)(x))[0]|(((byte*)(x))[1]<<8)|(((byte*)(x))[2]<<16)|(((byte*)(x))[3]<<24))
+	#define SET_UINT16(x,val)	(((byte*)(x))[0]=(byte)(val), ((byte*)(x))[1]=(byte)((val)>>8))
+	#define SET_UINT32(x,val)	(((byte*)(x))[0]=(byte)(val), ((byte*)(x))[1]=(byte)((val)>>8), ((byte*)(x))[2]=(byte)((val)>>16), ((byte*)(x))[3]=(byte)((val)>>24))
 #endif
 #endif
 

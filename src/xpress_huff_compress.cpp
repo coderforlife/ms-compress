@@ -104,9 +104,9 @@ static size_t xh_compress_lz77(const_bytes in, int32_t /* * */ in_len, const_byt
 				off ^= 1 << off_bits; // clear highest bit
 
 				// Write symbol / offset / length
-				*out = sym; *(uint16_t*)(out+1) = (uint16_t)off; out += 3;
-				if (UNLIKELY(len > 0xFFFF)) { *out = 0xFF; *(uint16_t*)(out+1) = 0; *(uint32_t*)(out+3) = len; out += 7; }
-				else if (len >= 0xFF + 0xF) { *out = 0xFF; *(uint16_t*)(out+1) = (uint16_t)len; out += 3; }
+				*out = sym; SET_UINT16_RAW(out+1, off); out += 3;
+				if (UNLIKELY(len > 0xFFFF)) { *out = 0xFF; SET_UINT16_RAW(out+1, 0); SET_UINT32_RAW(out+3, len); out += 7; }
+				else if (len >= 0xFF + 0xF) { *out = 0xFF; SET_UINT16_RAW(out+1, len); out += 3; }
 				else if (len >= 0xF)        { *out++ = (byte)(len - 0xF); }
 			}
 			else
@@ -118,7 +118,7 @@ static size_t xh_compress_lz77(const_bytes in, int32_t /* * */ in_len, const_byt
 		}
 
 		// Save mask
-		*mask_out = mask;
+		SET_UINT32_RAW(mask_out, mask);
 	}
 	
 	// Set the total number of bytes read from in
@@ -130,7 +130,7 @@ static size_t xh_compress_lz77(const_bytes in, int32_t /* * */ in_len, const_byt
 		if (i == 32)
 		{
 			// Need to add a new mask since the old one is full with just one bit set
-			*(uint32_t*)out = 1;
+			SET_UINT32_RAW(out, 1);
 			out += 4;
 		}
 		else
@@ -138,11 +138,11 @@ static size_t xh_compress_lz77(const_bytes in, int32_t /* * */ in_len, const_byt
 			// Add to the old mask
 			mask |= 1 << i; // set the highest bit
 		}
-		*(uint32_t*)out = 0;
+		SET_UINT32_RAW(out, 0);
 		out += 3;
 		++symbol_counts[STREAM_END];
 	}
-	*mask_out = mask;
+	SET_UINT32_RAW(mask_out, mask);
 
 	// Return the number of bytes in the output
 	return out - out_orig;
@@ -155,20 +155,20 @@ static uint32_t xh_compress_no_matching(const_bytes in, int32_t in_len, bool is_
 	memset(symbol_counts, 0, SYMBOLS*sizeof(uint32_t));
 	while (in < in_endx)
 	{
-		*(uint32_t*)out = 0; out += 4;
+		SET_UINT32_RAW(out, 0); out += 4;
 		memcpy(out, in, 32); out += 32;
 		for (uint_fast8_t i = 0; i < 32; ++i) { ++symbol_counts[*in++]; }
 	}
 	const size_t rem = in_end - in; // 1 - 32
-	*(uint32_t*)out = 0; out += 4;
+	SET_UINT32_RAW(out, 0); out += 4;
 	memcpy(out, in, rem); out += rem;
 	for (uint_fast8_t i = 0; in < in_end; ++i) { ++symbol_counts[*in++]; }
 	if (is_end)
 	{
 		// Add the end of stream symbol
-		if (rem == 32) { *(uint32_t*)out = 1; out += 4; }
-		else { *(uint32_t*)(out - rem - 4) = 1 << rem; }
-		*(uint32_t*)out = 0;
+		if (rem == 32) { SET_UINT32_RAW(out, 1); out += 4; }
+		else { const uint32_t mask = 1 << rem; SET_UINT32_RAW(out - rem - 4, mask); }
+		SET_UINT32_RAW(out, 0);
 		out += 3;
 		++symbol_counts[STREAM_END];
 	}
@@ -199,13 +199,13 @@ static void xh_compress_encode(const_bytes in, const const_bytes in_end, bytes o
 		// Bit mask tells us how to handle the next 32 symbols, go through each bit
 		uint_fast16_t i;
 		uint32_t mask;
-		for (i = 32, mask = *(uint32_t*)in, in += 4; mask && in < in_end; --i, mask >>= 1)
+		for (i = 32, mask = GET_UINT32_RAW(in), in += 4; mask && in < in_end; --i, mask >>= 1)
 		{
 			if (mask & 1) // offset / length symbol
 			{
 				// Get the LZ77 sym and offset
-				byte sym = *in++;
-				uint_fast16_t off = *(uint16_t*)in; in += 2;
+				const byte sym = *in++;
+				const uint_fast16_t off = GET_UINT16_RAW(in); in += 2;
 
 				// Write the Huffman code
 				encoder->EncodeSymbol(0x100 | sym, &bstr);
@@ -213,13 +213,13 @@ static void xh_compress_encode(const_bytes in, const const_bytes in_end, bytes o
 				// Write extra length bytes
 				if ((sym & 0xF) == 0xF)
 				{
-					byte len8 = *in++;
+					const byte len8 = *in++;
 					bstr.WriteRawByte(len8);
 					if (len8 == 0xFF)
 					{
-						uint16_t len16 = *(uint16_t*)in; in += 2;
+						const uint16_t len16 = GET_UINT16_RAW(in); in += 2;
 						bstr.WriteRawUInt16(len16);
-						if (UNLIKELY(len16 == 0)) { bstr.WriteRawUInt32(*(uint32_t*)in); in += 4; }
+						if (UNLIKELY(len16 == 0)) { bstr.WriteRawUInt32(GET_UINT32_RAW(in)); in += 4; }
 					}
 				}
 

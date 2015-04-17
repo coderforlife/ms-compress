@@ -42,6 +42,7 @@ def decompress(fullpath, data, compressed, name1, compressor, name2):
             print >> sys.stderr, 'Error: %s failed to %s decompress %s compressed data (length %d != %d)' % (fullpath, name2, name1, len(data), len(decomp))
         elif data != decomp:
             print >> sys.stderr, 'Error: %s failed to %s decompress %s compressed data (content mismatch)' % (fullpath, name2, name1)
+        del decomp
     except Exception as ex:
         if len(ex.args) <= 0: raise
         print >> sys.stderr, 'Error: %s failed to %s decompress %s compressed data (%s)' % (fullpath, name2, name1, ex.args[0])
@@ -75,23 +76,23 @@ for root, dirs, files in os.walk(path):
                 compressed = compressor1.Compress(data)
                 for name2, compressor2 in compressors.iteritems():
                     decompress(fullpath, data, compressed, name1, compressor2, name2)
-                    if isinstance(compressor2, StreamableCompressor):
-                        decompress_stream(fullpath, data, compressed, name1, compressor2, name2)
+##                    if isinstance(compressor2, StreamableCompressor):
+##                        decompress_stream(fullpath, data, compressed, name1, compressor2, name2)
+                del compressed
             except Exception as ex:
                 if len(ex.args) <= 0: raise
                 print >> sys.stderr, 'Error: %s failed to %s compress (%s)' % (fullpath, name1, ex.args[0])
-
-            if isinstance(compressor1, StreamableCompressor):
-                try:
-                    compressed = io.BytesIO()
-                    compressor1.CompressStream(io.BytesIO(data), compressed, 100*1024+1, 100*1024+1)
-                    compressed = compressed.getvalue()
-                    for name2, compressor2 in compressors.iteritems():
-                        decompress(fullpath, data, compressed, name1, compressor2, name2)
-                        if isinstance(compressor2, StreamableCompressor):
-                            decompress_stream(fullpath, data, compressed, name1, compressor2, name2)
-                except Exception as ex:
-                    if len(ex.args) <= 0: raise
-                    print >> sys.stderr, 'Error: %s failed to %s stream-compress (%s)' % (fullpath, name1, ex.args[0])
-                    
+##            if isinstance(compressor1, StreamableCompressor):
+##                try:
+##                    compressed = io.BytesIO()
+##                    compressor1.CompressStream(io.BytesIO(data), compressed, 100*1024+1, 100*1024+1)
+##                    compressed = compressed.getvalue()
+##                    for name2, compressor2 in compressors.iteritems():
+##                        decompress(fullpath, data, compressed, name1, compressor2, name2)
+##                        if isinstance(compressor2, StreamableCompressor):
+##                            decompress_stream(fullpath, data, compressed, name1, compressor2, name2)
+##                except Exception as ex:
+##                    if len(ex.args) <= 0: raise
+##                    print >> sys.stderr, 'Error: %s failed to %s stream-compress (%s)' % (fullpath, name1, ex.args[0])
+        del data
 print '%8.2f Done' % (clock() - start_time)
