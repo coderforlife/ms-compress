@@ -1,4 +1,4 @@
-FLAGS="-DMSCOMP_API_EXPORT -DMSCOMP_WITHOUT_LZX -O3 -march=core2 -Wall -s"
+FLAGS="-DMSCOMP_API_EXPORT -DMSCOMP_WITHOUT_LZX -O3 -march=native -mtune=generic -Wall -fno-exceptions -fno-rtti -fomit-frame-pointer"
 FILES="src/*.cpp"
 OUT="MSCompression"
 
