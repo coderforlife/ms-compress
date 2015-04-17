@@ -67,7 +67,7 @@ try:
     import affinity
     mask, i = affinity.get_process_affinity_mask(os.getpid()), -1
     while mask: mask >>= 1; i += 1
-    affinity.set_process_affinity_mask(os.getpid(), 1 << i)
+    affinity.set_process_affinity_mask(os.getpid(), 1 << (i-(i&1)))
 except: pass
 
 # Attempt to increase the priority to very high
