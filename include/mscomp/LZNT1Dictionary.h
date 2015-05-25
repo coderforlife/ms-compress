@@ -41,9 +41,9 @@ private:
 	// An entry within the dictionary, using a dynamically resized array of positions
 	struct Entry // 6+ bytes (10+ bytes on 64-bit systems)
 	{
-		const_bytes* pos;
+		const_rest_bytes* pos;
 		int16_t cap;
-		INLINE bool add(const const_bytes data, const int16_t size)
+		INLINE bool add(const const_rest_bytes data, const int16_t size)
 		{
 			if (size >= this->cap)
 			{
@@ -78,12 +78,12 @@ public:
 
 	// Fills the dictionary, ready to start a new chunk
 	// This should also be called before any Find
-	bool Fill(const_bytes data, const int_fast16_t len)
+	bool Fill(const_rest_bytes data, const int_fast16_t len)
 	{
 		this->data = data;
-		Entry* const entries = this->entries;
-		int16_t* const sizes = this->sizes;
-		memset(this->sizes, 0, 0x100*0x100*sizeof(uint16_t));
+		Entry* const RESTRICT entries = this->entries;
+		int16_t* const RESTRICT sizes = this->sizes;
+		memset(sizes, 0, 0x100*0x100*sizeof(uint16_t));
 		uint16_t idx = data[0];
 		for (const_bytes end = data + len - 2; data < end; ++data)
 		{
@@ -99,25 +99,25 @@ WARNINGS_IGNORE_POTENTIAL_UNINIT_VALRIABLE_USED()
 	// Finds the best symbol in the dictionary for the data
 	// Returns the length of the string found, or 0 if nothing of length >= 3 was found
 	// offset is set to the offset from the current position to the string
-	int_fast16_t Find(const_bytes data, const int_fast16_t max_len, int_fast16_t* offset) const
+	int_fast16_t Find(const_rest_bytes data, const int_fast16_t max_len, int_fast16_t* RESTRICT offset) const
 	{
 		if (LIKELY(max_len >= 3 && data > this->data))
 		{
 			const uint_fast16_t idx = data[0] << 8 | data[1];
 			const byte z = data[2];
 			const int_fast16_t size = this->sizes[idx] - 1;
-			const const_bytes* pos = this->entries[idx].pos;
+			const const_rest_bytes* RESTRICT pos = this->entries[idx].pos;
 			int_fast16_t len = 0;
-			const_bytes found;
+			const_rest_bytes found;
 
 			// Do an exhaustive search (with the possible positions)
 			for (int_fast16_t j = 0; j < size && pos[j] < data; ++j)
 			{
-				const const_bytes ss = pos[j];
+				const const_rest_bytes ss = pos[j];
 				if (ss[2] == z)
 				{
 					int_fast16_t i = 3;
-					for (const_bytes s = ss+3; i < max_len && data[i] == *s; ++i, ++s);
+					for (const_rest_bytes s = ss+3; i < max_len && data[i] == *s; ++i, ++s);
 					if (i > len) { found = ss; len = i; if (len == max_len) { break; } }
 				}
 			}

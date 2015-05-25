@@ -53,8 +53,9 @@ private:
 	#define get_bucket_starts(C, B, k) do { int16_t sum = 0; for (int_fast16_t i = 0; i < k; ++i) { sum += C[i]; B[i] = sum - C[i]; } } while (0)
 	#define get_bucket_ends(C, B, k)   do { int16_t sum = 0; for (int_fast16_t i = 0; i < k; ++i) { sum += C[i]; B[i] = sum;        } } while (0)
 	template<typename char_t>
-	static INLINE void LMSsort(const char_t* const T, int16_t* const SA, const int16_t* const C, int16_t* const B, const int_fast16_t n, const int_fast16_t k)
+	static INLINE void LMSsort(const char_t* RESTRICT const T, int16_t* RESTRICT const SA, const int16_t* RESTRICT const C, int16_t* RESTRICT const B, const int_fast16_t n, const int_fast16_t k)
 	{
+		// TODO: can SA/b be restricted?
 		ALWAYS(T); ALWAYS(SA); ALWAYS(C); ALWAYS(B);
 		if (sizeof(char_t) == sizeof(byte)) { ALWAYS(1 < n && n <= 0x1000 && k == 0x100); }
 		else { ALWAYS(1 < n && n <= 0x800 && 0 < k && k < n); }
@@ -64,7 +65,7 @@ private:
 		{
 			int_fast16_t j = n - 1;
 			char_t c1 = T[j];
-			int16_t* b = SA + B[c1];
+			int16_t* RESTRICT b = SA + B[c1];
 			*b++ = (int16_t)((T[--j] < c1) ? ~j : j);
 			for (int_fast16_t i = 0; i < n; ++i)
 			{
@@ -86,7 +87,7 @@ private:
 		get_bucket_ends(C, B, k); /* find ends of buckets */
 		{
 			char_t c1 = 0;
-			int16_t* b = SA + B[c1];
+			int16_t* RESTRICT b = SA + B[c1];
 			for (int_fast16_t i = n - 1; i >= 0; --i)
 			{
 				int16_t j = SA[i];
@@ -103,7 +104,7 @@ private:
 		}
 	}
 	template<typename char_t>
-	static INLINE int_fast16_t LMSpostproc(const char_t* const T, int16_t* const SA, int_fast16_t n, int_fast16_t m)
+	static INLINE int_fast16_t LMSpostproc(const char_t* RESTRICT const T, int16_t* RESTRICT const SA, int_fast16_t n, int_fast16_t m)
 	{
 		ALWAYS(T); ALWAYS(SA); ALWAYS(1 < m && 2*m <= n);
 		if (sizeof(char_t) == sizeof(byte)) { ALWAYS(1 < n && n <= 0x1000); } else { ALWAYS(1 < n && n <= 0x800); }
@@ -165,15 +166,16 @@ private:
 		return name;
 	}
 	template<typename char_t>
-	static INLINE int_fast16_t stage1sort(const char_t* const T, int16_t* const SA, const int16_t* const C, int16_t* const B, const int_fast16_t n, const int_fast16_t k)
+	static INLINE int_fast16_t stage1sort(const char_t* RESTRICT const T, int16_t* RESTRICT const SA, const int16_t* RESTRICT const C, int16_t* RESTRICT const B, const int_fast16_t n, const int_fast16_t k)
 	{
+		// TODO: can SA/b be restricted?
 		ALWAYS(T); ALWAYS(SA); ALWAYS(C); ALWAYS(B);
 		if (sizeof(char_t) == sizeof(byte)) { ALWAYS(1 < n && n <= 0x1000 && k == 0x100); }
 		else { ALWAYS(1 < n && n <= 0x800 && 0 < k && k < n); }
 
 		get_bucket_ends(C, B, k); /* find ends of buckets */
 		memset(SA, 0, n*sizeof(int16_t));
-		int16_t *b = SA + n - 1;
+		int16_t* RESTRICT b = SA + n - 1;
 		int_fast16_t m = 0, j = n, i = n - 1;
 		char_t c0 = T[i], c1;
 		do { c1 = c0; } while ((--i >= 0) && ((c0 = T[i]) >= c1));
@@ -192,8 +194,9 @@ private:
 		return m;
 	}
 	template<typename char_t>
-	static INLINE void induceSA(const char_t* const T, int16_t* const SA, const int16_t* const C, int16_t* const B, const int_fast16_t n, const int_fast16_t k)
+	static INLINE void induceSA(const char_t* RESTRICT const T, int16_t* RESTRICT const SA, const int16_t* RESTRICT const C, int16_t* RESTRICT const B, const int_fast16_t n, const int_fast16_t k)
 	{
+		// TODO: can SA/b be restricted?
 		ALWAYS(T); ALWAYS(SA); ALWAYS(C); ALWAYS(B); ALWAYS(1 < n && n <= 0x1000);
 		if (sizeof(char_t) == sizeof(byte)) { ALWAYS(k == 0x100); } else { ALWAYS(0 < k && k < n); }
 
@@ -202,7 +205,7 @@ private:
 		{
 			const int_fast16_t j = n - 1;
 			char_t c1 = T[j];
-			int16_t* b = SA + B[c1];
+			int16_t* RESTRICT b = SA + B[c1];
 			*b++ = (int16_t)(((j > 0) && (T[j - 1] < c1)) ? ~j : j);
 			for (int_fast16_t i = 0; i < n; ++i)
 			{
@@ -221,7 +224,7 @@ private:
 		get_bucket_ends(C, B, k); /* find ends of buckets */
 		{
 			char_t c1 = 0;
-			int16_t* b = SA + B[0];
+			int16_t* RESTRICT b = SA + B[0];
 			for (int_fast16_t i = n - 1; 0 <= i; --i)
 			{
 				int16_t j = SA[i];
@@ -235,8 +238,9 @@ private:
 			}
 		}
 	}
-	static INLINE void suffixsort(const int16_t* const T, int16_t* const SA, const int_fast16_t n, const int_fast16_t k)
+	static INLINE void suffixsort(const int16_t* RESTRICT const T, int16_t* RESTRICT const SA, const int_fast16_t n, const int_fast16_t k)
 	{
+		// TODO: can SA/RA be restricted?
 		ALWAYS(T); ALWAYS(SA); ALWAYS(1 < n && n <= 0x800); ALWAYS(0 < k && k < n);
 
 		/* stage 1: reduce the problem by at least 1/2 sort all the S-substrings */
@@ -253,7 +257,7 @@ private:
 			if (m > name)
 			{
 				/* stage 2: solve the reduced problem recurse if names are not yet unique */
-				int16_t * const RA = SA + n - m;
+				int16_t* RESTRICT const RA = SA + n - m;
 				for (int_fast16_t i = m + (n >> 1) - 1, j = m - 1; i >= m; --i) { if (SA[i]) { RA[j--] = SA[i] - 1; } }
 				suffixsort(RA, SA, m, name);
 
@@ -288,8 +292,9 @@ private:
 		/* stage 3: induce the result for the original problem */
 		induceSA(T, SA, C, B, n, k);
 	}
-	static INLINE void sais(const const_bytes T, int16_t* const SA, const int_fast16_t n)
+	static INLINE void sais(const const_rest_bytes T, int16_t* RESTRICT const SA, const int_fast16_t n)
 	{
+		// TODO: can SA/RA be restricted?
 		ALWAYS(T); ALWAYS(SA); ALWAYS(0 < n && n <= 0x1000);
 		if (UNLIKELY(n == 1)) { SA[0] = 0; return; }
 
@@ -308,7 +313,7 @@ private:
 			if (m > name)
 			{
 				/* stage 2: solve the reduced problem recurse if names are not yet unique */
-				int16_t* const RA = SA + n - m;
+				int16_t* RESTRICT const RA = SA + n - m;
 				for (int_fast16_t i = m + (n>>1) - 1, j = m - 1; i >= m; --i) { if (SA[i]) { RA[j--] = SA[i] - 1; } }
 				suffixsort(RA, SA, m, name);
 
@@ -353,7 +358,7 @@ private:
 	// Creates the LCP (longest common prefix) array from the suffix array in O(n) time with 4n memory (~16kb).
 	// Uses the Phi algorithm of Karkkainen, Manzini & Puglisi (2009). It calculates the PLCP first and converts it to the LCP.
 	// Another choice would be to use Fischer (2011) which actually calculates the LCP as part of the SA-IS algorithm.
-	INLINE static void calc_lcp(const const_bytes T, const int16_t * const SA, int16_t * const lcp, const int_fast16_t n)
+	INLINE static void calc_lcp(const const_bytes T, const int16_t* RESTRICT const SA, int16_t* RESTRICT const lcp, const int_fast16_t n)
 	{
 		// Compute Phi
 		int16_t phi[0x1000];
@@ -365,7 +370,7 @@ private:
 		for (int_fast16_t i = 0, l = 0; i < n; ++i)
 		{
 			const int16_t ip = phi[i];
-			const_bytes Ti = T + i, Tphi = T + ip;
+			const_rest_bytes Ti = T + i, Tphi = T + ip;
 			const int_fast16_t max_l = n - MAX(i, ip);
 			while (l < max_l && Ti[l] == Tphi[l]) { ++l; }
 			plcp[i] = (int16_t)l;
@@ -375,7 +380,7 @@ private:
 		// Compute LCP
 		for (int_fast16_t i = 1; i < n; ++i) { lcp[i] = plcp[SA[i]]; }
 	}
-	//INLINE static void calc_lcp_bf(const const_bytes T, const int16_t * const SA, int16_t * const lcp, const int_fast16_t n)
+	//INLINE static void calc_lcp_bf(const const_rest_bytes T, const int16_t* RESTRICT const SA, int16_t* RESTRICT const lcp, const int_fast16_t n)
 	//{
 	//	// The naive way to calculate the LCP array, runs in O(n^2) time with essentially no extra memory.
 	//	const_bytes end = T+n;
@@ -383,11 +388,11 @@ private:
 	//}
 
 	///// Dictionary Data /////
-	const_bytes data;
+	const_rest_bytes data;
 	int_fast16_t len;
 	int16_t sa[0x1000], lcp[0x1000], sa_inv[0x1000];
 	//INLINE const_bytes suf(const int_fast16_t i) const { return this->data+this->sa[i]; }
-	//INLINE static int_fast16_t match_length(const_bytes a, const_bytes b, const_bytes end)
+	//INLINE static int_fast16_t match_length(const_rest_bytes a, const_rest_bytes b, const_bytes end)
 	//{
 	//	// The length of the match between a and b, up until end.
 	//	// a, b, and end must be from the same memory chunk.
@@ -399,7 +404,7 @@ private:
 
 public:
 	INLINE LZNT1Dictionary() { this->lcp[0] = 0; }
-	INLINE void Fill(const_bytes data, const int_fast16_t len)
+	INLINE void Fill(const_rest_bytes data, const int_fast16_t len)
 	{
 		this->data = data;
 		this->len = len;
@@ -420,13 +425,13 @@ public:
 	// Returns the length of the string found, or 0 if nothing of length >= 3 was found
 	// offset is set to the offset from the current position to the string
 WARNINGS_IGNORE_POTENTIAL_UNINIT_VALRIABLE_USED()
-	INLINE int_fast16_t Find(const_bytes data, const int_fast16_t max_len, int_fast16_t* offset) const
+	INLINE int_fast16_t Find(const_rest_bytes data, const int_fast16_t max_len, int_fast16_t* RESTRICT offset) const
 	{
 		const int_fast16_t pos = (int_fast16_t)(data - this->data);
 		if (LIKELY(max_len >= 3 && pos))
 		{
 			const int_fast16_t sa_inv = this->sa_inv[pos], n = this->len;
-			const int16_t *const sa = this->sa, *lcp = this->lcp;
+			const int16_t* RESTRICT const sa = this->sa, *RESTRICT lcp = this->lcp;
 			
 			// The found match (if len>2)
 			int_fast16_t len = 2, found;

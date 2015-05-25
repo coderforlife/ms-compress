@@ -34,7 +34,7 @@ struct _mscomp_internal_state
 
 
 /////////////////// Decompression Functions ///////////////////////////////////
-static MSCompStatus lznt1_decompress_chunk(const_bytes in, const const_bytes in_end, bytes out, const const_bytes out_end, size_t* _out_len)
+static MSCompStatus lznt1_decompress_chunk(const_rest_bytes in, const const_bytes in_end, rest_bytes out, const const_bytes out_end, size_t* RESTRICT _out_len)
 {
 	const const_bytes                  in_endx  = in_end -0x11; // 1 + 8 * 2 from the end
 	const const_bytes out_start = out, out_endx = out_end-8*FAST_COPY_ROOM;
@@ -61,7 +61,7 @@ static MSCompStatus lznt1_decompress_chunk(const_bytes in, const const_bytes in_
 				in += 2;
 				len = (sym&mask)+3;
 				off = (sym>>shift)+1;
-				const_bytes o = out-off;
+				const_rest_bytes o = out-off;
 				if (UNLIKELY(o < out_start)) { /*SET_ERROR(stream, "LZNT1 Decompression Error: Invalid data: Illegal offset (%p-%u < %p)", out, off, out_start);*/ return MSCOMP_DATA_ERROR; }
 				FAST_COPY_SHORT(out, o, len, off, out_endx,
 						if (UNLIKELY(out + len > out_end)) { return (out - out_start) + len > CHUNK_SIZE ? MSCOMP_DATA_ERROR : MSCOMP_BUF_ERROR; }
@@ -119,9 +119,9 @@ CHECKED_COPY:		for (end = out + len; out < end; ++out) { *out = *(out-off); }
 	*_out_len = out - out_start;
 	return MSCOMP_OK;
 }
-MSCompStatus lznt1_decompress_chunk_read(mscomp_stream* const stream, const_bytes const in, size_t* const in_len)
+MSCompStatus lznt1_decompress_chunk_read(mscomp_stream* RESTRICT const stream, const_rest_bytes const in, size_t* RESTRICT const in_len)
 {
-	mscomp_internal_state *state = stream->state;
+	mscomp_internal_state* RESTRICT state = stream->state;
 
 	// Read chunk header
 	const uint16_t header = GET_UINT16(in);
@@ -207,11 +207,11 @@ MSCompStatus lznt1_decompress_chunk_read(mscomp_stream* const stream, const_byte
 
 	return MSCOMP_OK;
 }
-MSCompStatus lznt1_inflate_init(mscomp_stream* stream)
+MSCompStatus lznt1_inflate_init(mscomp_stream* RESTRICT stream)
 {
 	INIT_STREAM(stream, false, MSCOMP_LZNT1);
 
-	mscomp_internal_state* state = (mscomp_internal_state*)malloc(sizeof(mscomp_internal_state));
+	mscomp_internal_state* RESTRICT state = (mscomp_internal_state*)malloc(sizeof(mscomp_internal_state));
 	if (UNLIKELY(state == NULL)) { SET_ERROR(stream, "LZNT1 Decompression Error: Unable to allocate buffer memory"); return MSCOMP_MEM_ERROR; }
 	state->end_of_stream = false;
 	state->in_needed = 0;
@@ -222,11 +222,11 @@ MSCompStatus lznt1_inflate_init(mscomp_stream* stream)
 	stream->state = state;
 	return MSCOMP_OK;
 }
-ENTRY_POINT MSCompStatus lznt1_inflate(mscomp_stream* stream)
+ENTRY_POINT MSCompStatus lznt1_inflate(mscomp_stream* RESTRICT stream)
 {
 	CHECK_STREAM_PLUS(stream, false, MSCOMP_LZNT1, stream->state == NULL);
 
-	mscomp_internal_state *state = stream->state;
+	mscomp_internal_state* RESTRICT state = stream->state;
 
 	DUMP_OUT(state, stream);
 	if (UNLIKELY(state->end_of_stream))
@@ -266,11 +266,11 @@ ENTRY_POINT MSCompStatus lznt1_inflate(mscomp_stream* stream)
 
 	return UNLIKELY(!stream->in_avail && !state->in_avail && !state->out_avail) ? MSCOMP_POSSIBLE_STREAM_END : MSCOMP_OK;
 }
-MSCompStatus lznt1_inflate_end(mscomp_stream* stream)
+MSCompStatus lznt1_inflate_end(mscomp_stream* RESTRICT stream)
 {
 	CHECK_STREAM_PLUS(stream, false, MSCOMP_LZNT1, stream->state == NULL);
 
-	mscomp_internal_state* state = stream->state;
+	mscomp_internal_state* RESTRICT state = stream->state;
 
 	MSCompStatus status = MSCOMP_OK;
 	if (UNLIKELY(stream->in_avail || state->in_avail || state->out_avail)) { SET_ERROR(stream, "LZNT1 Decompression Error: End prematurely called"); status = MSCOMP_DATA_ERROR; }
@@ -281,7 +281,7 @@ MSCompStatus lznt1_inflate_end(mscomp_stream* stream)
 	return status;
 }
 #ifdef NOT_OPTIMAL___MSCOMP_WITH_OPT_DECOMPRESS // NOTE: the "optimized" version is actually slower!
-ENTRY_POINT MSCompStatus lznt1_decompress(const_bytes in, size_t in_len, bytes out, size_t* _out_len)
+ENTRY_POINT MSCompStatus lznt1_decompress(const_rest_bytes in, size_t in_len, rest_bytes out, size_t* RESTRICT _out_len)
 {
 	const size_t out_len = *_out_len;
 	const const_bytes in_end  = in  + in_len-1;

@@ -162,6 +162,21 @@
 #define FORCE_INLINE INLINE
 #endif
 
+///// Get RESTRICT /////
+#if defined(_MSC_VER)
+#define RESTRICT __restrict
+#elif defined(__GNUC__)
+#define RESTRICT __restrict__
+#elif (__STDC_VERSION__ >= 199901L)
+#define RESTRICT restrict
+#else
+#define RESTRICT
+#endif
+// typedef the most common restricted pointers
+typedef byte* RESTRICT rest_bytes;
+typedef const_byte* RESTRICT const_rest_bytes;
+
+
 ///// Intrinsic and Built-in functions /////
 // The available compiler hints are:
 // 	 LIKELY(x) / UNLIKELY(x)	- used in conditionals to tell the compiler the outcome is (un)likely

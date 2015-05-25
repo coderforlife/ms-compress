@@ -46,7 +46,7 @@ struct _mscomp_internal_state
 
 
 /////////////////// Compression Functions /////////////////////////////////////
-FORCE_INLINE static uint_fast16_t lznt1_compress_chunk(const_bytes const in, const uint_fast16_t in_len, bytes const out, const size_t out_len, LZNT1Dictionary* d)
+FORCE_INLINE static uint_fast16_t lznt1_compress_chunk(const_rest_bytes const in, const uint_fast16_t in_len, rest_bytes const out, const size_t out_len, LZNT1Dictionary* RESTRICT d)
 {
 	uint_fast16_t in_pos = 0, out_pos = 0, rem = in_len, pow2 = 0x10, mask3 = 0x1002, shift = 12;
 #ifdef MSCOMP_WITH_LZNT1_SA_DICT
@@ -92,11 +92,11 @@ FORCE_INLINE static uint_fast16_t lznt1_compress_chunk(const_bytes const in, con
 	// Return insufficient buffer or the compressed size
 	return rem ? in_len : out_pos;
 }
-static bool lznt1_compress_chunk_write(mscomp_stream* const stream, const_bytes const in, const uint_fast16_t in_len)
+static bool lznt1_compress_chunk_write(mscomp_stream* RESTRICT const stream, const_rest_bytes const in, const uint_fast16_t in_len)
 {
-	mscomp_internal_state* state = stream->state;
+	mscomp_internal_state* RESTRICT state = stream->state;
 	bool out_buffering = stream->out_avail < in_len+2u;
-	bytes out = out_buffering ? state->out : stream->out;
+	rest_bytes out = out_buffering ? state->out : stream->out;
 
 	// Compress the chunk
 	uint_fast16_t out_size = lznt1_compress_chunk(in, in_len, out+2, in_len, &state->d), flags;
@@ -133,11 +133,11 @@ static bool lznt1_compress_chunk_write(mscomp_stream* const stream, const_bytes 
 
 	return true;
 }
-MSCompStatus lznt1_deflate_init(mscomp_stream* const stream)
+MSCompStatus lznt1_deflate_init(mscomp_stream* RESTRICT const stream)
 {
 	INIT_STREAM(stream, true, MSCOMP_LZNT1);
 
-	mscomp_internal_state* state = (mscomp_internal_state*)malloc(sizeof(mscomp_internal_state));
+	mscomp_internal_state* RESTRICT state = (mscomp_internal_state*)malloc(sizeof(mscomp_internal_state));
 	if (UNLIKELY(state == NULL)) { SET_ERROR(stream, "LZNT1 Compression Error: Unable to allocate buffer memory"); return MSCOMP_MEM_ERROR; }
 	state->finished  = false;
 	state->in_needed = 0;
@@ -149,11 +149,11 @@ MSCompStatus lznt1_deflate_init(mscomp_stream* const stream)
 	stream->state = state;
 	return MSCOMP_OK;
 }
-ENTRY_POINT MSCompStatus lznt1_deflate(mscomp_stream* const stream, const MSCompFlush flush)
+ENTRY_POINT MSCompStatus lznt1_deflate(mscomp_stream* RESTRICT const stream, const MSCompFlush flush)
 {
 	CHECK_STREAM_PLUS(stream, true, MSCOMP_LZNT1, stream->state == NULL || stream->state->finished);
 
-	mscomp_internal_state *state = stream->state;
+	mscomp_internal_state* RESTRICT state = stream->state;
 
 	DUMP_OUT(state, stream);
 	APPEND_IN(state, stream,
@@ -213,11 +213,11 @@ STREAM_END:
 	}
 	return MSCOMP_OK;
 }
-MSCompStatus lznt1_deflate_end(mscomp_stream* stream)
+MSCompStatus lznt1_deflate_end(mscomp_stream* RESTRICT stream)
 {
 	CHECK_STREAM_PLUS(stream, true, MSCOMP_LZNT1, stream->state == NULL);
 
-	mscomp_internal_state *state = stream->state;
+	mscomp_internal_state* RESTRICT state = stream->state;
 
 	MSCompStatus status = MSCOMP_OK;
 	if (UNLIKELY(!state->finished || stream->in_avail || state->in_avail || state->out_avail)) { SET_ERROR(stream, "LZNT1 Compression Error: End prematurely called"); status = MSCOMP_DATA_ERROR; }
@@ -230,7 +230,7 @@ MSCompStatus lznt1_deflate_end(mscomp_stream* stream)
 	return status;
 }
 #ifdef MSCOMP_WITH_OPT_COMPRESS
-ENTRY_POINT MSCompStatus lznt1_compress(const_bytes in, size_t in_len, bytes out, size_t* _out_len)
+ENTRY_POINT MSCompStatus lznt1_compress(const_rest_bytes in, size_t in_len, rest_bytes out, size_t* RESTRICT _out_len)
 {
 	const size_t out_len = *_out_len;
 	size_t out_pos = 0, in_pos = 0;
