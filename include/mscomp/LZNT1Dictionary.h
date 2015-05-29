@@ -41,7 +41,7 @@ private:
 	// An entry within the dictionary, using a dynamically resized array of positions
 	struct Entry // 6+ bytes (10+ bytes on 64-bit systems)
 	{
-		const_rest_bytes* pos;
+		const_bytes* pos;
 		int16_t cap;
 		INLINE bool add(const const_rest_bytes data, const int16_t size)
 		{
