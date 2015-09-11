@@ -45,20 +45,51 @@
 	#error Unsupported char size
 #endif
 
+#ifdef GAHDILABSLJDBALSD
+	#pragma message "?????"
+#endif
+#define GAHDILABSLJDBALSD
+
 ///// Determine the endianness of the compilation, however this isn't very accurate /////
-// It would be much better to define LITTLE_ENDIAN, BIG_ENDIAN, or PDP_ENDIAN yourself
-// LITTLE_ENDIAN is what the program is developed for and tested with
-// BIG_ENDIAN and PDP_ENDIAN are untested
-#if !defined(LITTLE_ENDIAN) && !defined(BIG_ENDIAN) && !defined(PDP_ENDIAN) && !defined(_MSC_VER) && !defined(_WIN32) && !defined(__LITTLE_ENDIAN__) && !defined(__IEEE_LITTLE_ENDIAN)
-	#if defined(WORDS_BIGENDIAN) || defined(__BIG_ENDIAN__) || defined(__IEEE_BIG_ENDIAN)
-		#define BIG_ENDIAN
-	#else
-		#include <endian.h>
-		#if (defined(__PDP_ENDIAN) && !defined(__LITTLE_ENDIAN)) || __BYTE_ORDER == __PDP_ENDIAN
-			#define PDP_ENDIAN
-		#elif (defined(__BIG_ENDIAN) && !defined(__LITTLE_ENDIAN)) || __BYTE_ORDER == __BIG_ENDIAN
-			#define BIG_ENDIAN
+// It would be much better to define MSCOMP_LITTLE_ENDIAN, MSCOMP_MSCOMP_BIG_ENDIAN, or PDP_ENDIAN yourself
+// MSCOMP_LITTLE_ENDIAN is what the program is developed for and tested with
+// MSCOMP_BIG_ENDIAN and PDP_ENDIAN are untested
+#if !defined(MSCOMP_LITTLE_ENDIAN) && !defined(MSCOMP_BIG_ENDIAN) && !defined(MSCOMP_PDP_ENDIAN)
+	#if defined(_MSC_VER) || defined(_WIN32)
+		#define MSCOMP_LITTLE_ENDIAN
+	#elif defined(__BYTE_ORDER__)
+		#if   __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+			#define MSCOMP_LITTLE_ENDIAN
+		#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+			#define MSCOMP_BIG_ENDIAN
+		#elif __BYTE_ORDER__ == __ORDER_PDP_ENDIAN__
+			#define MSCOMP_PDP_ENDIAN
+		#else
+			#error unknown endian, define one of LITTLE_ENDIAN, BIG_ENDIAN, or PDP_ENDIAN
 		#endif
+	#elif defined(__LITTLE_ENDIAN__)
+		#define MSCOMP_LITTLE_ENDIAN
+	#elif defined(WORDS_BIGENDIAN) || defined(__BIG_ENDIAN__)
+		#define MSCOMP_BIG_ENDIAN
+	#else
+		#include <endian.h> // may also be in machine/endian.h (Mac OS and Open BSD) or sys/endian.h (non-open BSD)
+		#if defined(__BYTE_ORDER)
+			#if   __BYTE_ORDER == __LITTLE_ENDIAN
+				#define MSCOMP_LITTLE_ENDIAN
+			#elif __BYTE_ORDER == __BIG_ENDIAN
+				#define MSCOMP_BIG_ENDIAN
+			#elif __BYTE_ORDER == __PDP_ENDIAN
+				#define MSCOMP_PDP_ENDIAN
+			#endif
+		#elif defined(_BYTE_ORDER)
+			#if   _BYTE_ORDER == _LITTLE_ENDIAN
+				#define MSCOMP_LITTLE_ENDIAN
+			#elif _BYTE_ORDER == _BIG_ENDIAN
+				#define MSCOMP_BIG_ENDIAN
+			#elif _BYTE_ORDER == _PDP_ENDIAN
+				#define MSCOMP_PDP_ENDIAN
+			#endif
+ 		#endif
 	#endif
 #endif
 
@@ -69,49 +100,47 @@
 #define GET_UINT32_RAW(x)		(*(const uint32_t*)(x))
 #define SET_UINT16_RAW(x,val)	(*(uint16_t*)(x) = (uint16_t)(val))
 #define SET_UINT32_RAW(x,val)	(*(uint32_t*)(x) = (uint32_t)(val))
-#if defined(BIG_ENDIAN)
+#if defined(MSCOMP_LITTLE_ENDIAN)
+	#define GET_UINT16(x)		(*(const uint16_t*)(x))
+	#define GET_UINT32(x)		(*(const uint32_t*)(x))
+	#define SET_UINT16(x,val)	(*(uint16_t*)(x) = (uint16_t)(val))
+	#define SET_UINT32(x,val)	(*(uint32_t*)(x) = (uint32_t)(val))
+#elif defined(MSCOMP_BIG_ENDIAN)
 	// These could also use the without-unaligned-access versions always
 	#define GET_UINT16(x)		byte_swap(*(const uint16_t*)(x))
 	#define GET_UINT32(x)		byte_swap(*(const uint32_t*)(x))
 	#define SET_UINT16(x,val)	(*(uint16_t*)(x) = byte_swap((uint16_t)(val)))
 	#define SET_UINT32(x,val)	(*(uint32_t*)(x) = byte_swap((uint32_t)(val)))
-#elif defined(PDP_ENDIAN) // for 16-bit ints its the same as little-endian
+#elif defined(MSCOMP_PDP_ENDIAN) // for 16-bit ints its the same as little-endian
 	#define GET_UINT16(x)		(*(const uint16_t*)(x))
 	#define GET_UINT32(x)		((*(const uint16_t*)(x)<<16)|*(const uint16_t*)((x)+2))
 	#define SET_UINT16(x,val)	(*(uint16_t*)(x) = (uint16_t)(val))
 	#define SET_UINT32(x,val)	(*(uint16_t*)(x) = (uint16_t)((val) >> 16), *(((uint16_t*)(x))+1) = (uint16_t)(val))
 #else
-	#ifndef LITTLE_ENDIAN
-		#define LITTLE_ENDIAN
-	#endif
-	#define GET_UINT16(x)		(*(const uint16_t*)(x))
-	#define GET_UINT32(x)		(*(const uint32_t*)(x))
-	#define SET_UINT16(x,val)	(*(uint16_t*)(x) = (uint16_t)(val))
-	#define SET_UINT32(x,val)	(*(uint32_t*)(x) = (uint32_t)(val))
+	#error unknown endian, define one of MSCOMP_LITTLE_ENDIAN, MSCOMP_BIG_ENDIAN, or MSCOMP_PDP_ENDIAN
 #endif
 #else
 #define GET_UINT16_RAW(x)		(((byte*)(x))[0]|(((byte*)(x))[1]<<8))
 #define GET_UINT32_RAW(x)		(((byte*)(x))[0]|(((byte*)(x))[1]<<8)|(((byte*)(x))[2]<<16)|(((byte*)(x))[3]<<24))
 #define SET_UINT16_RAW(x,val)	(((byte*)(x))[0]=(byte)(val), ((byte*)(x))[1]=(byte)((val)>>8))
 #define SET_UINT32_RAW(x,val)	(((byte*)(x))[0]=(byte)(val), ((byte*)(x))[1]=(byte)((val)>>8), ((byte*)(x))[2]=(byte)((val)>>16), ((byte*)(x))[3]=(byte)((val)>>24))
-#if defined(BIG_ENDIAN)
+#if defined(MSCOMP_LITTLE_ENDIAN)
+	#define GET_UINT16(x)		(((byte*)(x))[0]|(((byte*)(x))[1]<<8))
+	#define GET_UINT32(x)		(((byte*)(x))[0]|(((byte*)(x))[1]<<8)|(((byte*)(x))[2]<<16)|(((byte*)(x))[3]<<24))
+	#define SET_UINT16(x,val)	(((byte*)(x))[0]=(byte)(val), ((byte*)(x))[1]=(byte)((val)>>8))
+	#define SET_UINT32(x,val)	(((byte*)(x))[0]=(byte)(val), ((byte*)(x))[1]=(byte)((val)>>8), ((byte*)(x))[2]=(byte)((val)>>16), ((byte*)(x))[3]=(byte)((val)>>24))
+#elif defined(MSCOMP_BIG_ENDIAN)
 	#define GET_UINT16(x)		((((byte*)(x))[0]<<8)|((byte*)(x))[1])
 	#define GET_UINT32(x)		((((byte*)(x))[0]<<24)|(((byte*)(x))[1]<<16)|(((byte*)(x))[2]<<8)|((byte*)(x))[3])
 	#define SET_UINT16(x,val)	(((byte*)(x))[0]=(byte)((val)>>8), ((byte*)(x))[1]=(byte)((val)>>0))
 	#define SET_UINT32(x,val)	(((byte*)(x))[0]=(byte)((val)>>24), ((byte*)(x))[1]=(byte)((val)>>16), ((byte*)(x))[2]=(byte)((val)>>8), ((byte*)(x))[3]=(byte)(val))
-#elif defined(PDP_ENDIAN) // for 16-bit ints its the same as little-endian
+#elif defined(MSCOMP_PDP_ENDIAN) // for 16-bit ints its the same as little-endian
 	#define GET_UINT16(x)		(((byte*)(x))[0]|(((byte*)(x))[1]<<8))
 	#define GET_UINT32(x)		((((byte*)(x))[0]<<16)|(((byte*)(x))[1]<<24)|((byte*)(x))[2]|(((byte*)(x))[3]<<8))
 	#define SET_UINT16(x,val)	(((byte*)(x))[0]=(byte)(val), ((byte*)(x))[1]=(byte)((val)>>8))
 	#define SET_UINT32(x,val)	(((byte*)(x))[0]=(byte)((val)>>16), ((byte*)(x))[1]=(byte)((val)>>24), ((byte*)(x))[2]=(byte)(val), ((byte*)(x))[3]=(byte)((val)>>8))
 #else
-	#ifndef LITTLE_ENDIAN
-		#define LITTLE_ENDIAN
-	#endif
-	#define GET_UINT16(x)		(((byte*)(x))[0]|(((byte*)(x))[1]<<8))
-	#define GET_UINT32(x)		(((byte*)(x))[0]|(((byte*)(x))[1]<<8)|(((byte*)(x))[2]<<16)|(((byte*)(x))[3]<<24))
-	#define SET_UINT16(x,val)	(((byte*)(x))[0]=(byte)(val), ((byte*)(x))[1]=(byte)((val)>>8))
-	#define SET_UINT32(x,val)	(((byte*)(x))[0]=(byte)(val), ((byte*)(x))[1]=(byte)((val)>>8), ((byte*)(x))[2]=(byte)((val)>>16), ((byte*)(x))[3]=(byte)((val)>>24))
+	#error unknown endian, define one of MSCOMP_LITTLE_ENDIAN, MSCOMP_BIG_ENDIAN, or MSCOMP_PDP_ENDIAN
 #endif
 #endif
 
