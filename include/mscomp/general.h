@@ -95,7 +95,11 @@ typedef enum _MSCompFlush
 // Compression Stream Object
 typedef struct _mscomp_stream {
 	MSCompFormat	format;
+#ifdef __cplusplus
 	bool		compressing;
+#else
+	int		compressing;
+#endif
 
 	const_bytes	in;			// next input byte
 	size_t		in_avail;	// number of bytes available at next_in
