@@ -19,8 +19,9 @@ same testing environment.
 Other Microsoft compression algorithms not included (at least not yet):
  * [LZSS](http://www.cabextract.org.uk/libmspack/doc/szdd_kwaj_format.html) - used by COMPRESS.EXE and in HLP files, decompressor available as part of [libmspack](http://sourceforge.net/p/libmspack/code/HEAD/tree/libmspack/trunk/mspack/lzxd.c)
  * [LZSS+Huffman](http://www.cabextract.org.uk/libmspack/doc/szdd_kwaj_format.html) - used by COMPRESS.EXE, decompressor available as part of [libmspack](http://sourceforge.net/p/libmspack/code/HEAD/tree/libmspack/trunk/mspack/kwajd.c)
- * [MSZIP](https://msdn.microsoft.com/library/bb417343.aspx#microsoftmszipdatacompressionformat) - essentially "deflate" ([zlib](http://zlib.net)) algorithm
+ * [MSZIP](https://msdn.microsoft.com/library/bb417343.aspx#microsoftmszipdatacompressionformat) - essentially "deflate" ([zlib](http://zlib.net)) algorithm used in CAB files
  * [Quantum](http://en.wikipedia.org/wiki/Quantum_compression) - used in some very rare CAB files, not mentioned in the MSDN at all, decompressor available as part of [libmspack](http://sourceforge.net/p/libmspack/code/HEAD/tree/libmspack/trunk/mspack/qtmd.c)
+ * [MS-OXRTFCP](https://msdn.microsoft.com/library/cc463890%28v=exchg.80%29.aspx) - RTF Compression Algorithm used in the Exchange server - possibly similar to LZNT1
  * [Delta/LZXD](https://msdn.microsoft.com/library/bb417345.aspx) - delta version of LZX used in Windows Updates, decompressor available as part of [libmspack](http://sourceforge.net/p/libmspack/code/HEAD/tree/libmspack/trunk/mspack/oabd.c)
  * [RDC](https://msdn.microsoft.com/en-us/library/windows/desktop/aa372948.aspx) - similar to RSYNC
  * LZMS - recently introduced compression format used in WIM files, available in [wimlib](http://wimlib.sourceforge.net/)
@@ -51,7 +52,7 @@ _Status: fully mature_ - no more significant changes likely
 
 Xpress
 ------
-Used for Windows XP and newer hibernation file, Directory Replication Service (LDAP/RPC/AD), Windows Update Services, and Windows CE.
+Used for Windows XP and newer hibernation file, Directory Replication Service (LDAP/RPC/AD), Exchange Server HTML compression, Windows Update Services, and Windows CE.
 
 MSDN article [MS-XCA]: https://msdn.microsoft.com/library/hh554002.aspx  
 Which includes [compression](https://msdn.microsoft.com/library/hh554053.aspx)
