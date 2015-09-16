@@ -89,7 +89,7 @@
 			#elif _BYTE_ORDER == _PDP_ENDIAN
 				#define MSCOMP_PDP_ENDIAN
 			#endif
- 		#endif
+		#endif
 	#endif
 #endif
 
