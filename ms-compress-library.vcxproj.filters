@@ -63,9 +63,6 @@
     <ClInclude Include="include\mscomp\LZNT1Dictionary_SA.h">
       <Filter>Internal</Filter>
     </ClInclude>
-    <ClInclude Include="include\mscomp\XpressDictionary2.h">
-      <Filter>Internal</Filter>
-    </ClInclude>
     <ClInclude Include="include\mscomp\sorting.h">
       <Filter>Internal</Filter>
     </ClInclude>
