@@ -611,7 +611,7 @@ typedef const_byte* RESTRICT const_rest_bytes;
 		strm.out = out; \
 		strm.out_avail = *_out_len; \
 		status = name##_inflate(&strm); \
-		if (UNLIKELY(status < 0)) { name##_inflate_end(&strm); } \
+		if (UNLIKELY(status <= MSCOMP_OK)) { name##_inflate_end(&strm); if (status == MSCOMP_OK) { status = MSCOMP_BUF_ERROR; } } \
 		else if (LIKELY((status = name##_inflate_end(&strm)) == MSCOMP_OK)) { *_out_len = strm.out_total; } \
 		return status; \
 	}
