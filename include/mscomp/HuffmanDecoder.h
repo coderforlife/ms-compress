@@ -63,6 +63,7 @@ public:
 		{
 			this->lims[len] = (last += (cnts[len] << (NumBitsMax - len)));
 			const uint_fast16_t limit = this->lims[len] >> (NumBitsMax - NumTableBits);
+			if (UNLIKELY(limit > sizeof(this->lens))) { return false; }
 			memset(this->lens+index, len, limit-index); index = limit;
 		}
 		for (uint_fast8_t len = NumTableBits + 1; len < NumBitsMax; ++len)
