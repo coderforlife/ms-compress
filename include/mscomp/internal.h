@@ -45,11 +45,6 @@
 	#error Unsupported char size
 #endif
 
-#ifdef GAHDILABSLJDBALSD
-	#pragma message "?????"
-#endif
-#define GAHDILABSLJDBALSD
-
 ///// Determine the endianness of the compilation, however this isn't very accurate /////
 // It would be much better to define MSCOMP_LITTLE_ENDIAN, MSCOMP_MSCOMP_BIG_ENDIAN, or PDP_ENDIAN yourself
 // MSCOMP_LITTLE_ENDIAN is what the program is developed for and tested with
@@ -468,9 +463,9 @@ typedef const_byte* RESTRICT const_rest_bytes;
 	INIT_STREAM_ERROR_MESSAGE(s); INIT_STREAM_WARNING_MESSAGE(s); \
 	s->state = NULL
 #define CHECK_STREAM(s, c, f) \
-	if (UNLIKELY(s == NULL || s->format != f || s->compressing != c || s->in == NULL || s->out == NULL)) { SET_ERROR(s, "Error: Invalid stream provided"); return MSCOMP_ARG_ERROR; }
+	if (UNLIKELY(s == NULL || s->format != f || s->compressing != c || (s->in == NULL && s->in_avail != 0) || (s->out == NULL && s->out_avail != 0))) { SET_ERROR(s, "Error: Invalid stream provided"); return MSCOMP_ARG_ERROR; }
 #define CHECK_STREAM_PLUS(s, c, f, x) \
-	if (UNLIKELY(s == NULL || s->format != f || s->compressing != c || s->in == NULL || s->out == NULL || (x))) { SET_ERROR(s, "Error: Invalid stream provided"); return MSCOMP_ARG_ERROR; }
+	if (UNLIKELY(s == NULL || s->format != f || s->compressing != c || (s->in == NULL && s->in_avail != 0) || (s->out == NULL && s->out_avail != 0) || (x))) { SET_ERROR(s, "Error: Invalid stream provided"); return MSCOMP_ARG_ERROR; }
 
 #define ADVANCE_IN(s, x)      s->in  += (x);          s->in_total  += (x);          s->in_avail -= (x)
 #define ADVANCE_IN_TO_END(s)  s->in  += s->in_avail;  s->in_total  += s->in_avail;  s->in_avail  = 0
