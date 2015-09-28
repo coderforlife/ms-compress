@@ -98,6 +98,7 @@ public:
 	INLINE const_bytes Fill(const_bytes data)
 	{
 		// equivalent to Add(data, ChunkSize)
+		if (UNLIKELY(data >= this->end2)) { return this->end2; }
 		uint32_t pos = WindowPos(data); // either 0x00000 or ChunkSize
 		const const_bytes end = ((data + ChunkSize) < this->end2) ? data + ChunkSize : this->end2;
 		uint_fast16_t hash = HashUpdate(data[0], data[1]);
@@ -123,6 +124,7 @@ public:
 	
 	INLINE void Add(const_bytes data, size_t len)
 	{
+		if (UNLIKELY(data >= this->end2)) { return; }
 		uint32_t pos = WindowPos(data);
 		const const_bytes end = ((data + len) < this->end2) ? data + len : this->end2;
 		uint_fast16_t hash = HashUpdate(data[0], data[1]);
