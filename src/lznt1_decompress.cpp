@@ -23,14 +23,14 @@
 
 #define CHUNK_SIZE 0x1000 // to be compatible with all known forms of Windows
 
-struct _mscomp_internal_state
+typedef struct
 { // 8,214 - 8,230 bytes (+padding)
 	bool end_of_stream;
 	byte in[CHUNK_SIZE+2];
 	size_t in_needed, in_avail;
 	byte out[CHUNK_SIZE];
 	size_t out_pos, out_avail;
-};
+} mscomp_lznt1_decompress_state;
 
 
 /////////////////// Decompression Functions ///////////////////////////////////
@@ -39,7 +39,7 @@ static MSCompStatus lznt1_decompress_chunk(const_rest_bytes in, const const_byte
 	const const_bytes                  in_endx  = in_end -0x11; // 1 + 8 * 2 from the end
 	const const_bytes out_start = out, out_endx = out_end-8*FAST_COPY_ROOM;
 	byte flags, flagged;
-	
+
 	uint_fast16_t pow2 = 0x10, mask = 0xFFF, shift = 12;
 	const_bytes pow2_target = out_start + 0x10;
 	uint_fast16_t len, off;
@@ -72,7 +72,7 @@ static MSCompStatus lznt1_decompress_chunk(const_rest_bytes in, const const_byte
 			flags >>= 1;
 		} while (LIKELY(flags));
 	}
-	
+
 	// Slower decompression but with full bounds checking
 	while (LIKELY(in < in_end))
 	{
@@ -121,7 +121,7 @@ CHECKED_COPY:		for (end = out + len; out < end; ++out) { *out = *(out-off); }
 }
 MSCompStatus lznt1_decompress_chunk_read(mscomp_stream* RESTRICT const stream, const_rest_bytes const in, size_t* RESTRICT const in_len)
 {
-	mscomp_internal_state* RESTRICT state = stream->state;
+	mscomp_lznt1_decompress_state* RESTRICT state = (mscomp_lznt1_decompress_state*) stream->state;
 
 	// Read chunk header
 	const uint16_t header = GET_UINT16(in);
@@ -211,7 +211,7 @@ MSCompStatus lznt1_inflate_init(mscomp_stream* RESTRICT stream)
 {
 	INIT_STREAM(stream, false, MSCOMP_LZNT1);
 
-	mscomp_internal_state* RESTRICT state = (mscomp_internal_state*)malloc(sizeof(mscomp_internal_state));
+	mscomp_lznt1_decompress_state* RESTRICT state = (mscomp_lznt1_decompress_state*)malloc(sizeof(mscomp_lznt1_decompress_state));
 	if (UNLIKELY(state == NULL)) { SET_ERROR(stream, "LZNT1 Decompression Error: Unable to allocate buffer memory"); return MSCOMP_MEM_ERROR; }
 	state->end_of_stream = false;
 	state->in_needed = 0;
@@ -219,14 +219,14 @@ MSCompStatus lznt1_inflate_init(mscomp_stream* RESTRICT stream)
 	state->out_pos   = 0;
 	state->out_avail = 0;
 
-	stream->state = state;
+	stream->state = (mscomp_internal_state*) state;
 	return MSCOMP_OK;
 }
 ENTRY_POINT MSCompStatus lznt1_inflate(mscomp_stream* RESTRICT stream)
 {
 	CHECK_STREAM_PLUS(stream, false, MSCOMP_LZNT1, stream->state == NULL);
 
-	mscomp_internal_state* RESTRICT state = stream->state;
+	mscomp_lznt1_decompress_state* RESTRICT state = (mscomp_lznt1_decompress_state*) stream->state;
 
 	DUMP_OUT(state, stream);
 	if (UNLIKELY(state->end_of_stream))
@@ -244,7 +244,7 @@ ENTRY_POINT MSCompStatus lznt1_inflate(mscomp_stream* RESTRICT stream)
 		else if (UNLIKELY(state->end_of_stream)) { return MSCOMP_STREAM_END; }
 		else if (state->in_needed) { continue; } // we only had enough to read the header this time
 	);
-	
+
 	// Decompress full chunks while there is room in the output buffer
 	while (stream->out_avail && stream->in_avail >= 2)
 	{
@@ -270,7 +270,7 @@ MSCompStatus lznt1_inflate_end(mscomp_stream* RESTRICT stream)
 {
 	CHECK_STREAM_PLUS(stream, false, MSCOMP_LZNT1, stream->state == NULL);
 
-	mscomp_internal_state* RESTRICT state = stream->state;
+	mscomp_lznt1_decompress_state* RESTRICT state = (mscomp_lznt1_decompress_state*) stream->state;
 
 	MSCompStatus status = MSCOMP_OK;
 	if (UNLIKELY(stream->in_avail || state->in_avail || state->out_avail)) { SET_ERROR(stream, "LZNT1 Decompression Error: End prematurely called"); status = MSCOMP_DATA_ERROR; }

@@ -29,20 +29,20 @@ typedef XpressDictionary<0x2000> Dictionary;
 
 size_t xpress_max_compressed_size(size_t in_len) { return in_len + 4 + 4 * (in_len / 32); }
 
-struct _mscomp_internal_state
+typedef struct
 { // ?-? bytes
 	bool finished;
-	
+
 	uint32_t flags, *out_flags;
 	byte flag_count;
 	byte* half_byte;
-	
+
 	//byte in[10];
 	//size_t in_avail;
 
 	byte out[10];
 	size_t out_avail;
-};
+} mscomp_xpress_compress_state;
 
 ////////////////////////////// Compression Functions ///////////////////////////////////////////////
 #define PRINT_ERROR(...) // TODO: remove
@@ -52,7 +52,7 @@ MSCompStatus xpress_deflate_init(mscomp_stream* stream)
 #ifdef _DEBUG
 	INIT_STREAM(stream, true, MSCOMP_XPRESS);
 
-	mscomp_internal_state* state = (mscomp_internal_state*)malloc(sizeof(mscomp_internal_state));
+	mscomp_xpress_compress_state* state = (mscomp_xpress_compress_state*)malloc(sizeof(mscomp_xpress_compress_state));
 	if (UNLIKELY(state == NULL)) { SET_ERROR(stream, "XPRESS Compression Error: Unable to allocate buffer memory"); return MSCOMP_MEM_ERROR; }
 	state->finished  = false;
 	state->flags = 0;
@@ -83,7 +83,7 @@ ENTRY_POINT MSCompStatus xpress_deflate(mscomp_stream* stream, MSCompFlush flush
 #ifdef _XDEBUG
 	CHECK_STREAM_PLUS(stream, true, MSCOMP_XPRESS, stream->state == NULL || stream->state->finished);
 
-	mscomp_internal_state *state = stream->state;
+	mscomp_xpress_compress_state *state = (mscomp_xpress_compress_state*) stream->state;
 
 	const size_t out_avail = stream->out_avail;
 	const_bytes in  = stream->in;  const const_bytes in_end  = in +stream->in_avail;
@@ -247,7 +247,7 @@ ENTRY_POINT MSCompStatus xpress_compress(const_bytes in, size_t in_len, bytes ou
 	uint32_t flags = 0, *out_flags = (uint32_t*)out;
 	byte flag_count;
 	byte* half_byte = NULL;
-	
+
 	Dictionary d(in, in_end);
 
 	if (in_len == 0)
