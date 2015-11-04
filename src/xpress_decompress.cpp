@@ -25,7 +25,7 @@
 #include "../include/mscomp/CircularBuffer.h"
 typedef CircularBuffer<0x2000> Buffer;
 
-struct _mscomp_internal_state
+typedef struct
 { // 38-42 bytes (+padding) + buffer
 	uint32_t flagged, flags;
 	byte half_byte;
@@ -35,7 +35,7 @@ struct _mscomp_internal_state
 	Buffer buffer;
 	uint_fast16_t copy_off;
 	uint32_t copy_len;
-};
+} mscomp_xpress_decompress_state;
 
 // This function checks that a number is of the form 1..10..0 - basically all 1 bits are more significant than all 0 bits (also allowed are all 1s and all 0s)
 static FORCE_INLINE bool set_bits_are_highest(uint32_t x) { x = ~x; return !((x+1) & x); }
@@ -46,7 +46,7 @@ MSCompStatus xpress_inflate_init(mscomp_stream* stream)
 {
 	INIT_STREAM(stream, false, MSCOMP_XPRESS);
 
-	mscomp_internal_state* state = (mscomp_internal_state*)malloc(sizeof(mscomp_internal_state));
+	mscomp_xpress_decompress_state* state = (mscomp_xpress_decompress_state*)malloc(sizeof(mscomp_xpress_decompress_state));
 	if (UNLIKELY(state == NULL)) { SET_ERROR(stream, "XPRESS Decompression Error: Unable to allocate state memory"); return MSCOMP_MEM_ERROR; }
 
 	state->flagged = 1;
@@ -56,7 +56,7 @@ MSCompStatus xpress_inflate_init(mscomp_stream* stream)
 	state->copy_len = 0;
 	new (&state->buffer) Buffer();
 
-	stream->state = state;
+	stream->state = (mscomp_internal_state*) state;
 	return MSCOMP_OK;
 }
 #define _READ_SYMBOL(ERROR, LABEL) \
@@ -248,7 +248,7 @@ ENTRY_POINT MSCompStatus xpress_inflate(mscomp_stream* stream)
 {
 	CHECK_STREAM_PLUS(stream, false, MSCOMP_XPRESS, stream->state == NULL);
 
-	mscomp_internal_state *state = stream->state;
+	mscomp_xpress_decompress_state *state = (mscomp_xpress_decompress_state*) stream->state;
 	Buffer* const buf = &state->buffer;
 	const bytes out_start = stream->out;
 
@@ -389,7 +389,7 @@ MSCompStatus xpress_inflate_end(mscomp_stream* stream)
 {
 	CHECK_STREAM_PLUS(stream, false, MSCOMP_XPRESS, stream->state == NULL);
 
-	mscomp_internal_state* state = stream->state;
+	mscomp_xpress_decompress_state* state = (mscomp_xpress_decompress_state*) stream->state;
 
 	MSCompStatus status = MSCOMP_OK;
 	if (UNLIKELY(stream->in_avail || state->in_avail || !state->flagged || !set_bits_are_highest(state->flags))) { SET_ERROR(stream, "XPRESS Decompression Error: End prematurely called"); status = MSCOMP_DATA_ERROR; }
