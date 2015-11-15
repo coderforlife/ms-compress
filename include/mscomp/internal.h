@@ -25,11 +25,17 @@
 #define MSCOMP_INTERNAL_H
 
 // For MSVC
-#define _CRT_SECURE_NO_WARNINGS
-#define _CRT_NON_CONFORMING_SWPRINTFS
+#if !defined(_CRT_SECURE_NO_WARNINGS)
+	#define _CRT_SECURE_NO_WARNINGS
+#endif
+#if !defined(_CRT_NON_CONFORMING_SWPRINTFS)
+	#define _CRT_NON_CONFORMING_SWPRINTFS
+#endif
 
 // For GCC
-#define __STDC_LIMIT_MACROS
+#if !defined(__STDC_LIMIT_MACROS)
+	#define __STDC_LIMIT_MACROS
+#endif
 
 #include "general.h"
 #include <stddef.h>
