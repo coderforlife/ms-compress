@@ -90,7 +90,7 @@ static size_t xh_compress_lz77(const_bytes in, int32_t /* * */ in_len, const_byt
 			if (rem >= 3 && (len = d->Find(in, &off)) >= 3)
 			{
 				// TODO: allow len > rem (chunk-spanning matches)
-				if (len > rem) { len = rem; }
+				if (len > (uint32_t)rem) { len = rem; }
 				in += len; rem -= len;
 				
 				//d->Add(in + 1, len - 1);
