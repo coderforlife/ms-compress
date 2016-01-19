@@ -33,7 +33,7 @@ private:
 	static const int NumTableBits = (NumBitsMax+1)/2 + 1; // = 9 for a NumBitsMax of 15 and 16
 	// TODO: increasing the value gives speedups but requires more space, eventually great increases in memory provide little increase in speed
 
-	uint_fast32_t lims[NumBitsMax + 1]; // lims[i] = value limit for syms with length = i
+	uint_fast16_t lims[NumBitsMax + 1]; // lims[i] = value limit for syms with length = i
 	uint_fast16_t poss[NumBitsMax + 1]; // poss[i] = index in syms[] of first symbol with length = i
 	uint16_t syms[NumSymbols];
 	byte     lens[1 << NumTableBits]; // table for short codes
@@ -57,7 +57,7 @@ public:
 
 		// Get limits and lengths
 		const uint_fast16_t MaxValue = (1 << NumBitsMax);
-		uint_fast32_t last = 0, index = 0;
+		uint_fast16_t last = 0, index = 0;
 		this->lims[0] = 0; this->lims[NumBitsMax] = MaxValue;
 		for (uint_fast8_t len = 1; len <= NumTableBits; ++len)
 		{
