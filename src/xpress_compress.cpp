@@ -66,7 +66,7 @@ MSCompStatus xpress_deflate_init(mscomp_stream* stream)
 	//if (!(d = new (d) DictionaryStatic())->Initialized()) { free(state); d->~DictionaryStatic(); free(d); SET_ERROR(stream, "XPRESS Compression Error: Unable to allocate dictionary memory"); return MSCOMP_MEM_ERROR; }
 	//state->d = d;
 
-	stream->state = (mscomp_internal_state*)state;
+	stream->state = (mscomp_internal_state*) state;
 	return MSCOMP_OK;
 #else
 	return MSCOMP_MEM_ERROR;
@@ -81,9 +81,9 @@ ENTRY_POINT MSCompStatus xpress_deflate(mscomp_stream* stream, MSCompFlush flush
 	// of 10 the next time a length 10+ match is found). This adds at most 2 bytes to the output
 	// for data that is already not compressing well (each time it occurs).
 #ifdef _XDEBUG
-	CHECK_STREAM_PLUS(stream, true, MSCOMP_XPRESS, stream->state == NULL || stream->state->finished);
-
 	mscomp_xpress_compress_state *state = (mscomp_xpress_compress_state*) stream->state;
+
+	CHECK_STREAM_PLUS(stream, true, MSCOMP_XPRESS, state == NULL || state->finished);
 
 	const size_t out_avail = stream->out_avail;
 	const_bytes in  = stream->in;  const const_bytes in_end  = in +stream->in_avail;

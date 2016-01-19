@@ -77,5 +77,5 @@
 // The LZNT1 SA is about half as fast as the default dictionary but uses much less memory and does
 // not dynamically allocate memory (so no memory errors, but needs at least 41 KB of stack space).
 #if !defined(MSCOMP_WITH_LZNT1_SA_DICT) && !defined(MSCOMP_WITHOUT_LZNT1_SA_DICT)
-#define MSCOMP_WITHOUT_LZNT1_SA_DICT
+#define MSCOMP_WITH_LZNT1_SA_DICT // OUT
 #endif
