@@ -43,7 +43,7 @@
 typedef XpressDictionary<MAX_OFFSET, CHUNK_SIZE> Dictionary;
 typedef HuffmanEncoder<HUFF_BITS_MAX, SYMBOLS> Encoder;
 
-size_t xpress_huff_max_compressed_size(size_t in_len) { return in_len + 32 + (HALF_SYMBOLS + 2) + (HALF_SYMBOLS + 2) * (in_len / CHUNK_SIZE); }
+size_t xpress_huff_max_compressed_size(size_t in_len) { return in_len + 34 + (HALF_SYMBOLS + 2) + (HALF_SYMBOLS + 2) * (in_len / CHUNK_SIZE); }
 
 
 ////////////////////////////// Compression Functions ///////////////////////////////////////////////
@@ -303,12 +303,12 @@ ENTRY_POINT MSCompStatus xpress_huff_compress(const_bytes in, size_t in_len, byt
 		////////// Guarantee Max Compression Size //////////
 		// This is required to guarantee max compressed size
 		// It is very rare that it is used (mainly medium-high uncompressible data)
-		if (UNLIKELY(comp_len > in_len+34)) // +34 for alignment and end of stream (because it causes a different symbol to need 9 bits)
+		if (UNLIKELY(comp_len > in_len+36)) // +36 for alignment and end of stream (because it causes a different symbol to need 9 bits)
 		{
 			buf_len = xh_compress_no_matching(in, in_len, true, buf, symbol_counts);
 			lens = encoder.CreateCodesSlow(symbol_counts);
 			comp_len = xh_calc_compressed_len_no_matching(lens, symbol_counts);
-			assert(comp_len <= in_len+34);
+			assert(comp_len <= in_len+36);
 		}
 
 		////////// Output Huffman prefix codes as lengths and Encode compressed data //////////
