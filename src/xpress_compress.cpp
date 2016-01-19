@@ -66,7 +66,7 @@ MSCompStatus xpress_deflate_init(mscomp_stream* stream)
 	//if (!(d = new (d) DictionaryStatic())->Initialized()) { free(state); d->~DictionaryStatic(); free(d); SET_ERROR(stream, "XPRESS Compression Error: Unable to allocate dictionary memory"); return MSCOMP_MEM_ERROR; }
 	//state->d = d;
 
-	stream->state = state;
+	stream->state = (mscomp_internal_state*)state;
 	return MSCOMP_OK;
 #else
 	return MSCOMP_MEM_ERROR;
