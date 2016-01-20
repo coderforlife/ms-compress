@@ -307,6 +307,7 @@
     <ClInclude Include="include/lznt1.h" />
     <ClInclude Include="include/xpress.h" />
     <ClInclude Include="include/xpress_huff.h" />
+    <ClInclude Include="include\mscomp\Array.h" />
     <ClInclude Include="include\mscomp\LZNT1Dictionary_SA.h" />
     <ClInclude Include="include\mscomp\sorting.h" />
   </ItemGroup>

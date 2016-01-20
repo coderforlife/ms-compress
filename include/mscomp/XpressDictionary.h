@@ -23,6 +23,7 @@
 #ifndef MSCOMP_XPRESS_DICTIONARY_H
 #define MSCOMP_XPRESS_DICTIONARY_H
 #include "internal.h"
+#include "Array.h"
 
 template<unsigned> class XpressDictionaryLevel { private: XpressDictionaryLevel(); };
 template<> struct XpressDictionaryLevel<1> { const static uint32_t NiceLength =  16, MaxChain =   4; };
@@ -37,7 +38,7 @@ template<> struct XpressDictionaryLevel<8> { const static uint32_t NiceLength = 
 WARNINGS_PUSH()
 WARNINGS_IGNORE_ASSIGNMENT_OPERATOR_NOT_GENERATED()
 
-template<uint32_t MaxOffset, uint32_t ChunkSize = MaxOffset, unsigned HashBits = 15, unsigned Level = 3>
+template<uint32_t MaxOffset, uint32_t ChunkSize = MaxOffset, unsigned HashBits = 15, bool ForceUseStack = false, unsigned Level = 3>
 class XpressDictionary
 	// when ChunkSize is 0x02000: 192 kb (or  384 kb on 64-bit) [Xpress]
 	// when ChunkSize is 0x10000: 640 kb (or 1280 kb on 64-bit) [Xpress Huffman]
@@ -59,9 +60,14 @@ private:
 	FORCE_INLINE static uint_fast16_t HashUpdate(const uint_fast16_t h, const byte c) { return ((h<<HashShift) ^ c) & HashMask; }
 
 	const const_bytes start, end, end2;
-	const_bytes table[HashSize];
-	const_bytes window[WindowSize];
-	
+#ifdef MSCOMP_WITH_LARGE_STACK
+	Array<const_bytes, HashSize, true> table;    // 128/256 kb
+	Array<const_bytes, WindowSize, true> window; //  64/128 kb  or  512/1024 kb
+#else
+	Array<const_bytes, HashSize, ForceUseStack> table;
+	Array<const_bytes, WindowSize, ForceUseStack> window;
+#endif
+
 #ifdef MSCOMP_WITH_UNALIGNED_ACCESS
 	INLINE static uint32_t GetMatchLength(const_bytes a, const_bytes b, const const_bytes end, const const_bytes end4)
 #else
@@ -92,7 +98,7 @@ public:
 
 	INLINE XpressDictionary(const const_bytes start, const const_bytes end) : start(start), end(end), end2(end - 2)
 	{
-		memset(this->table, 0, HashSize*sizeof(const_bytes));
+		memset(this->table.data(), 0, HashSize*sizeof(const_bytes));
 	}
 
 	INLINE const_bytes Fill(const_bytes data)
@@ -100,15 +106,15 @@ public:
 		// equivalent to Add(data, ChunkSize)
 		if (UNLIKELY(data >= this->end2)) { return this->end2; }
 		uint32_t pos = WindowPos(data); // either 0x00000 or ChunkSize
-		const const_bytes end = ((data + ChunkSize) < this->end2) ? data + ChunkSize : this->end2;
+		const const_bytes endx = ((data + ChunkSize) < this->end2) ? data + ChunkSize : this->end2;
 		uint_fast16_t hash = HashUpdate(data[0], data[1]);
-		while (data < end)
+		while (data < endx)
 		{
 			hash = HashUpdate(hash, data[2]);
 			this->window[pos++] = this->table[hash];
 			this->table[hash] = data++;
 		}
-		return end;
+		return endx;
 	}
 
 	INLINE void Add(const_bytes data)
@@ -139,12 +145,12 @@ public:
 	INLINE uint32_t Find(const const_bytes data, uint32_t* offset) const
 	{
 #if PNTR_BITS <= 32
-		const const_bytes end = this->end; // on 32-bit, + UINT32_MAX will always overflow
+		const const_bytes endx = this->end; // on 32-bit, + UINT32_MAX will always overflow
 #else
-		const const_bytes end = ((data + UINT32_MAX) < data || (data + UINT32_MAX) >= this->end) ? this->end : data + UINT32_MAX; // if overflow or past end use the end
+		const const_bytes endx = ((data + UINT32_MAX) < data || (data + UINT32_MAX) >= this->end) ? this->end : data + UINT32_MAX; // if overflow or past end use the end
 #endif
 #ifdef MSCOMP_WITH_UNALIGNED_ACCESS
-		const const_bytes xend = data - MaxOffset, end4 = end - 4;
+		const const_bytes xend = data - MaxOffset, end4 = endx - 4;
 		const uint16_t prefix = *(uint16_t*)data;
 #else
 		const const_bytes xend = data - MaxOffset;
@@ -158,12 +164,12 @@ public:
 			if (*(uint16_t*)x == prefix)
 			{
 				// at this point the at least 3 bytes are matched (due to the hashing function forcing byte 3 to the same)
-				const uint32_t l = GetMatchLength(x, data, end, end4);
+				const uint32_t l = GetMatchLength(x, data, endx, end4);
 #else
 			if (x[0] == prefix0 && x[1] == prefix1)
 			{
 				// at this point the at least 3 bytes are matched (due to the hashing function forcing byte 3 to the same)
-				const uint32_t l = GetMatchLength(x, data, end);
+				const uint32_t l = GetMatchLength(x, data, endx);
 #endif
 				if (l > len)
 				{
