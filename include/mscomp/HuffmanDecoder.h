@@ -61,14 +61,17 @@ public:
 		this->lims[0] = 0; this->lims[NumBitsMax] = MaxValue;
 		for (uint_fast8_t len = 1; len <= NumTableBits; ++len)
 		{
-			this->lims[len] = (last += (cnts[len] << (NumBitsMax - len)));
-			const uint_fast16_t limit = this->lims[len] >> (NumBitsMax - NumTableBits);
-			if (UNLIKELY(limit > sizeof(this->lens))) { return false; }
+			uint_fast16_t inc = cnts[len] << (NumBitsMax - len);
+			if (UNLIKELY(last + (uint_fast32_t)inc > MaxValue)) { return false; }
+			this->lims[len] = (last += inc);
+			const uint_fast16_t limit = last >> (NumBitsMax - NumTableBits);
 			memset(this->lens+index, len, limit-index); index = limit;
 		}
 		for (uint_fast8_t len = NumTableBits + 1; len < NumBitsMax; ++len)
 		{
-			this->lims[len] = (last += (cnts[len] << (NumBitsMax - len)));
+			uint_fast16_t inc = cnts[len] << (NumBitsMax - len);
+			if (UNLIKELY(last + (uint_fast32_t)inc > MaxValue)) { return false; }
+			this->lims[len] = (last += inc);
 		}
 		if (UNLIKELY(last + cnts[NumBitsMax] > MaxValue)) { return false; }
 
