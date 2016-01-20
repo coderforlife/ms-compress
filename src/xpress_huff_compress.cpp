@@ -148,7 +148,7 @@ static size_t xh_compress_lz77(const_bytes in, int32_t /* * */ in_len, const_byt
 	return out - out_orig;
 }
 WARNINGS_POP()
-static uint32_t xh_compress_no_matching(const_bytes in, int32_t in_len, bool is_end, bytes out, uint32_t symbol_counts[SYMBOLS])
+static size_t xh_compress_no_matching(const_bytes in, size_t in_len, bool is_end, bytes out, uint32_t symbol_counts[SYMBOLS])
 {
 	const const_bytes in_end = in + in_len, in_endx = in_end - 32;
 	const const_bytes out_orig = out;

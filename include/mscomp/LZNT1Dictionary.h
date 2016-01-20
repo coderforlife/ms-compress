@@ -57,12 +57,20 @@ private:
 	};
 
 	// The dictionary
-	const_bytes data;
+	const_bytes _data;
+#ifdef MSCOMP_WITH_LARGE_STACK
 	Entry entries[0x100*0x100]; // 384/640 KB
 	int16_t sizes[0x100*0x100]; // 128 KB
+#else
+	Entry *entries;
+	int16_t *sizes;
+#endif
 
 public:
 	INLINE LZNT1Dictionary()
+#ifndef MSCOMP_WITH_LARGE_STACK
+		: entries((Entry*)malloc(0x100*0x100*sizeof(Entry))), sizes((int16_t*)malloc(0x100*0x100*sizeof(int16_t)))
+#endif
 	{
 		// need to set pos to NULL and cap to 0
 		memset(this->entries, 0, 0x100*0x100*sizeof(Entry));
@@ -74,21 +82,25 @@ public:
 		{
 			free(this->entries[idx].pos);
 		}
+#ifndef MSCOMP_WITH_LARGE_STACK
+		free(this->entries);
+		free(this->sizes);
+#endif
 	}
 
 	// Fills the dictionary, ready to start a new chunk
 	// This should also be called before any Find
 	bool Fill(const_rest_bytes data, const int_fast16_t len)
 	{
-		this->data = data;
-		Entry* const RESTRICT entries = this->entries;
-		int16_t* const RESTRICT sizes = this->sizes;
-		memset(sizes, 0, 0x100*0x100*sizeof(uint16_t));
+		this->_data = data;
+		Entry* const RESTRICT entrs = this->entries;
+		int16_t* const RESTRICT szs = this->sizes;
+		memset(szs, 0, 0x100*0x100*sizeof(uint16_t));
 		uint16_t idx = data[0];
 		for (const_bytes end = data + len - 2; data < end; ++data)
 		{
 			idx = idx << 8 | data[1];
-			if (UNLIKELY(!entries[idx].add(data, sizes[idx]++))) { return false; }
+			if (UNLIKELY(!entrs[idx].add(data, szs[idx]++))) { return false; }
 		}
 		return true;
 	}
@@ -101,7 +113,7 @@ WARNINGS_IGNORE_POTENTIAL_UNINIT_VALRIABLE_USED()
 	// offset is set to the offset from the current position to the string
 	int_fast16_t Find(const_rest_bytes data, const int_fast16_t max_len, int_fast16_t* RESTRICT offset) const
 	{
-		if (LIKELY(max_len >= 3 && data > this->data))
+		if (LIKELY(max_len >= 3 && data > this->_data))
 		{
 			const uint_fast16_t idx = data[0] << 8 | data[1];
 			const byte z = data[2];

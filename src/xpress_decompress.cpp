@@ -209,9 +209,9 @@ LABEL			if (UNLIKELY(in + 2 > in_end)) { ERROR("XPRESS Decompression Error: Inva
 #define READ_ALL_IN() INFLATE_SYNC_STATE(); READ_ALL_IN_NO_SYNC()
 #define WROTE_ALL_OUT() \
 	INFLATE_SYNC_STATE(); \
-	size_t in_len = in - stream->in; \
-	stream->in_total  += in_len;  stream->in_avail -= in_len; stream->in  = in; \
-	stream->out_total += out_len; stream->out_avail = 0;      stream->out = out_end
+	size_t _in_len = in - stream->in; \
+	stream->in_total  += _in_len; stream->in_avail -= _in_len; stream->in  = in; \
+	stream->out_total += out_len; stream->out_avail = 0;       stream->out = out_end
 #define SET_STREAM_ERROR(MSG) SET_ERROR(stream, MSG)
 #define READ_SYMBOL_PART_ERROR(MSG, NOT_ENOUGH_BYTES, BYTES_ADVANCED, ...) \
 	WARNINGS_PUSH() \

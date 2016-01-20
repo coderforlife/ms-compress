@@ -26,6 +26,13 @@
 #define MSCOMP_WITH_UNALIGNED_ACCESS
 #endif
 
+// LARGE_STACK - Allow the stack usage to be very large (>0.5 MiB)
+// Without this option large array are allocated from the heap instead of the stack, possibly
+// reducing performance
+#if !defined(MSCOMP_WITH_LARGE_STACK) && !defined(MSCOMP_WITHOUT_LARGE_STACK)
+#define MSCOMP_WITH_LARGE_STACK
+#endif
+
 // OPT_COMPRESS - Optimize compress(...)
 // Without this option the single-call compressors are simple wrappers around the stream functions,
 // otherwise they are specialized for single-calls.

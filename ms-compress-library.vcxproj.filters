@@ -66,6 +66,9 @@
     <ClInclude Include="include\mscomp\sorting.h">
       <Filter>Internal</Filter>
     </ClInclude>
+    <ClInclude Include="include\mscomp\Array.h">
+      <Filter>Internal</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src/mscomp.cpp">

@@ -22,7 +22,7 @@
 #include "sorting.h"
 
 template <byte NumBitsMax, uint16_t NumSymbols>
-class HuffmanEncoder
+class HuffmanEncoder // 1.5 kb (for NumSymbols == 0x200)
 {
 private:
 	uint16_t codes[NumSymbols];
@@ -126,7 +126,7 @@ public:
 		return this->lens;
 	}
 
-	const_bytes CreateCodesSlow(uint32_t symbol_counts[NumSymbols]) // 519 kb stack (for NumSymbols == 0x200)
+	const_bytes CreateCodesSlow(uint32_t symbol_counts[NumSymbols]) // 3 kb stack (for NumSymbols == 0x200) [519kb stack when compiled with MSCOMP_WITH_LARGE_STACK]
 	{
 		// Creates Length-Limited Huffman Codes using the package-merge algorithm
 		// Always produces optimal codes but is significantly slower than the Huffman algorithm
@@ -152,7 +152,13 @@ public:
 				byte symbols[NumSymbols];
 				uint_fast16_t count;
 			} collection;
-			collection _cols[NumSymbols], *cols = _cols, _next_cols[NumSymbols], *next_cols = _next_cols; // 2*516*512 = 516 kb
+#ifdef MSCOMP_WITH_LARGE_STACK
+			collection _cols[NumSymbols], _next_cols[NumSymbols],
+#else
+			collection *_cols = (collection*)malloc(NumSymbols*sizeof(collection)),
+				*_next_cols = (collection*)malloc(NumSymbols*sizeof(collection)),
+#endif
+				*cols = _cols, *next_cols = _next_cols; // 2*516*512 = 516 kb (not on stack any more)
 			uint_fast16_t cols_len = 0, next_cols_len = 0;
 
 			// Start at the lowest value row, adding new collection
@@ -199,11 +205,13 @@ public:
 				}
 
 				// Move the next_collections to the current collections
-				collection* temp = cols; cols = next_cols; next_cols = temp;
+				collection* temp_cols = cols; cols = next_cols; next_cols = temp_cols;
 				cols_len = next_cols_len;
 				next_cols_len = 0;
 			}
-
+#ifndef MSCOMP_WITH_LARGE_STACK
+			free(_cols); free(_next_cols);
+#endif
 
 			////////// Create Huffman codes from lengths //////////
 			merge_sort(syms_by_len, temp, this->lens, len); // Sort by the code lengths
