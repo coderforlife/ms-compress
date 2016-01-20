@@ -25,7 +25,7 @@
 
 #define MIN_DATA	5
 
-typedef XpressDictionary<0x2000, 0x2000, 15, true> Dictionary; // takes only 384 kb on 64-bit so always put it on the stack
+typedef XpressDictionary<0x2000> Dictionary;
 
 size_t xpress_max_compressed_size(size_t in_len) { return in_len + 4 + 4 * (in_len / 32); }
 
