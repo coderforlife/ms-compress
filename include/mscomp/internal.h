@@ -510,10 +510,12 @@ typedef const_byte* RESTRICT const_rest_bytes;
 		for (;;) \
 		{ \
 			const size_t copy = MIN(state->in_needed, stream->in_avail); \
-			memcpy(state->in + state->in_avail, stream->in, copy); \
-			state->in_avail  += copy; \
-			state->in_needed -= copy; \
-			ADVANCE_IN(stream, copy); \
+			if (copy != 0) { \
+				memcpy(state->in + state->in_avail, stream->in, copy); \
+				state->in_avail  += copy; \
+				state->in_needed -= copy; \
+				ADVANCE_IN(stream, copy); \
+			} \
 			OP \
 			break; \
 		} \
