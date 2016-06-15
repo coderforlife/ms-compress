@@ -416,7 +416,11 @@ typedef const_byte* RESTRICT const_rest_bytes;
 #define WARNINGS_IGNORE_ASSIGNMENT_WITHIN_COND_EXPR()       
 #define WARNINGS_IGNORE_TRUNCATED_OVERFLOW()                _Pragma("GCC diagnostic ignored \"-Woverflow\"")
 #define WARNINGS_IGNORE_ASSIGNMENT_OPERATOR_NOT_GENERATED() 
-#define WARNINGS_IGNORE_POTENTIAL_UNINIT_VALRIABLE_USED()   _Pragma("GCC diagnostic ignored \"-Wmaybe-uninitialized\"")
+#  if __GNUC__ == 4 && __GNUC_MINOR__ >= 7
+#  define WARNINGS_IGNORE_POTENTIAL_UNINIT_VALRIABLE_USED() _Pragma("GCC diagnostic ignored \"-Wmaybe-uninitialized\"")
+#  else
+#  define WARNINGS_IGNORE_POTENTIAL_UNINIT_VALRIABLE_USED() 
+#  endif
 #define WARNINGS_IGNORE_DIV_BY_0()                          _Pragma("GCC diagnostic ignored \"-Wdiv-by-zero\"")
 #else
 #define WARNINGS_PUSH() 
