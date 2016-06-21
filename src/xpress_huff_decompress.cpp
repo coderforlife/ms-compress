@@ -108,7 +108,7 @@ static MSCompStatus xpress_huff_decompress_chunk(const_bytes* _in, const const_b
 			{
 				const uint_fast8_t off_bits = (uint_fast8_t)((sym>>4) & 0xF);
 				if (UNLIKELY(off_bits > bstr.AvailableBits()))		{ PRINT_ERROR("XPRESS Huffman Decompression Error: Invalid data: Unable to read %u bits for offset\n", sym); return MSCOMP_DATA_ERROR; }
-				off = bstr.ReadBits_Fast(off_bits) + (1 << off_bits);
+				off = bstr.ReadBits(off_bits) + (1 << off_bits);
 			}
 			if (UNLIKELY(out - off < out_origin))					{ PRINT_ERROR("XPRESS Huffman Decompression Error: Invalid data: Illegal offset (%p-%u < %p)\n", out, off, out_origin); return MSCOMP_DATA_ERROR; }
 			if (UNLIKELY(out + len > out_end))						{ PRINT_ERROR("XPRESS Huffman Decompression Error: Insufficient buffer\n"); return MSCOMP_BUF_ERROR; }
