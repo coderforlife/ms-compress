@@ -52,10 +52,10 @@
 #endif
 
 ///// Determine the endianness of the compilation, however this isn't very accurate /////
-// It would be much better to define MSCOMP_LITTLE_ENDIAN, MSCOMP_MSCOMP_BIG_ENDIAN, or PDP_ENDIAN yourself
+// It would be much better to define MSCOMP_LITTLE_ENDIAN or MSCOMP_MSCOMP_BIG_ENDIAN yourself
 // MSCOMP_LITTLE_ENDIAN is what the program is developed for and tested with
-// MSCOMP_BIG_ENDIAN and PDP_ENDIAN are untested
-#if !defined(MSCOMP_LITTLE_ENDIAN) && !defined(MSCOMP_BIG_ENDIAN) && !defined(MSCOMP_PDP_ENDIAN)
+// MSCOMP_BIG_ENDIAN has been tested as well
+#if !defined(MSCOMP_LITTLE_ENDIAN) && !defined(MSCOMP_BIG_ENDIAN)
 	#if defined(_MSC_VER) || defined(_WIN32)
 		#define MSCOMP_LITTLE_ENDIAN
 	#elif defined(__BYTE_ORDER__)
@@ -63,86 +63,70 @@
 			#define MSCOMP_LITTLE_ENDIAN
 		#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
 			#define MSCOMP_BIG_ENDIAN
-		#elif __BYTE_ORDER__ == __ORDER_PDP_ENDIAN__
-			#define MSCOMP_PDP_ENDIAN
-		#else
-			#error unknown endian, define one of LITTLE_ENDIAN, BIG_ENDIAN, or PDP_ENDIAN
 		#endif
 	#elif defined(__LITTLE_ENDIAN__)
 		#define MSCOMP_LITTLE_ENDIAN
 	#elif defined(WORDS_BIGENDIAN) || defined(__BIG_ENDIAN__)
 		#define MSCOMP_BIG_ENDIAN
 	#else
-		#include <endian.h> // may also be in machine/endian.h (Mac OS and Open BSD) or sys/endian.h (non-open BSD)
+		#if defined(__APPLE__)
+			#include <libkern/OSByteOrder.h>
+		#elif defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__bsdi__) || defined(__DragonFly__)
+			#include <sys/endian.h>
+		#elif defined(__sun) || defined(sun)
+			#include <sys/byteorder.h>
+		#else
+			#include <endian.h>
+		#endif
 		#if defined(__BYTE_ORDER)
 			#if   __BYTE_ORDER == __LITTLE_ENDIAN
 				#define MSCOMP_LITTLE_ENDIAN
 			#elif __BYTE_ORDER == __BIG_ENDIAN
 				#define MSCOMP_BIG_ENDIAN
-			#elif __BYTE_ORDER == __PDP_ENDIAN
-				#define MSCOMP_PDP_ENDIAN
 			#endif
 		#elif defined(_BYTE_ORDER)
 			#if   _BYTE_ORDER == _LITTLE_ENDIAN
 				#define MSCOMP_LITTLE_ENDIAN
 			#elif _BYTE_ORDER == _BIG_ENDIAN
 				#define MSCOMP_BIG_ENDIAN
-			#elif _BYTE_ORDER == _PDP_ENDIAN
-				#define MSCOMP_PDP_ENDIAN
 			#endif
 		#endif
 	#endif
 #endif
+#if !defined(MSCOMP_LITTLE_ENDIAN) && !defined(MSCOMP_BIG_ENDIAN)
+	#error unknown endian, define one of MSCOMP_LITTLE_ENDIAN or MSCOMP_BIG_ENDIAN
+#endif
+
 
 ///// Get ints from a byte stream /////
 // These assume that the byte stream is little-endian (except RAW which don't care)
 #if defined(MSCOMP_WITH_UNALIGNED_ACCESS)
-#define GET_UINT16_RAW(x)		(*(const uint16_t*)(x))
-#define GET_UINT32_RAW(x)		(*(const uint32_t*)(x))
-#define SET_UINT16_RAW(x,val)	(*(uint16_t*)(x) = (uint16_t)(val))
-#define SET_UINT32_RAW(x,val)	(*(uint32_t*)(x) = (uint32_t)(val))
-#if defined(MSCOMP_LITTLE_ENDIAN)
-	#define GET_UINT16(x)		(*(const uint16_t*)(x))
-	#define GET_UINT32(x)		(*(const uint32_t*)(x))
-	#define SET_UINT16(x,val)	(*(uint16_t*)(x) = (uint16_t)(val))
-	#define SET_UINT32(x,val)	(*(uint32_t*)(x) = (uint32_t)(val))
-#elif defined(MSCOMP_BIG_ENDIAN)
-	// These could also use the without-unaligned-access versions always
-	#define GET_UINT16(x)		byte_swap(*(const uint16_t*)(x))
-	#define GET_UINT32(x)		byte_swap(*(const uint32_t*)(x))
-	#define SET_UINT16(x,val)	(*(uint16_t*)(x) = byte_swap((uint16_t)(val)))
-	#define SET_UINT32(x,val)	(*(uint32_t*)(x) = byte_swap((uint32_t)(val)))
-#elif defined(MSCOMP_PDP_ENDIAN) // for 16-bit ints its the same as little-endian
-	#define GET_UINT16(x)		(*(const uint16_t*)(x))
-	#define GET_UINT32(x)		((*(const uint16_t*)(x)<<16)|*(const uint16_t*)((x)+2))
-	#define SET_UINT16(x,val)	(*(uint16_t*)(x) = (uint16_t)(val))
-	#define SET_UINT32(x,val)	(*(uint16_t*)(x) = (uint16_t)((val) >> 16), *(((uint16_t*)(x))+1) = (uint16_t)(val))
-#else
-	#error unknown endian, define one of MSCOMP_LITTLE_ENDIAN, MSCOMP_BIG_ENDIAN, or MSCOMP_PDP_ENDIAN
-#endif
-#else
-#define GET_UINT16_RAW(x)		(((byte*)(x))[0]|(((byte*)(x))[1]<<8))
-#define GET_UINT32_RAW(x)		(((byte*)(x))[0]|(((byte*)(x))[1]<<8)|(((byte*)(x))[2]<<16)|(((byte*)(x))[3]<<24))
-#define SET_UINT16_RAW(x,val)	(((byte*)(x))[0]=(byte)(val), ((byte*)(x))[1]=(byte)((val)>>8))
-#define SET_UINT32_RAW(x,val)	(((byte*)(x))[0]=(byte)(val), ((byte*)(x))[1]=(byte)((val)>>8), ((byte*)(x))[2]=(byte)((val)>>16), ((byte*)(x))[3]=(byte)((val)>>24))
-#if defined(MSCOMP_LITTLE_ENDIAN)
-	#define GET_UINT16(x)		(((byte*)(x))[0]|(((byte*)(x))[1]<<8))
-	#define GET_UINT32(x)		(((byte*)(x))[0]|(((byte*)(x))[1]<<8)|(((byte*)(x))[2]<<16)|(((byte*)(x))[3]<<24))
-	#define SET_UINT16(x,val)	(((byte*)(x))[0]=(byte)(val), ((byte*)(x))[1]=(byte)((val)>>8))
-	#define SET_UINT32(x,val)	(((byte*)(x))[0]=(byte)(val), ((byte*)(x))[1]=(byte)((val)>>8), ((byte*)(x))[2]=(byte)((val)>>16), ((byte*)(x))[3]=(byte)((val)>>24))
-#elif defined(MSCOMP_BIG_ENDIAN)
-	#define GET_UINT16(x)		((((byte*)(x))[0]<<8)|((byte*)(x))[1])
-	#define GET_UINT32(x)		((((byte*)(x))[0]<<24)|(((byte*)(x))[1]<<16)|(((byte*)(x))[2]<<8)|((byte*)(x))[3])
-	#define SET_UINT16(x,val)	(((byte*)(x))[0]=(byte)((val)>>8), ((byte*)(x))[1]=(byte)((val)>>0))
-	#define SET_UINT32(x,val)	(((byte*)(x))[0]=(byte)((val)>>24), ((byte*)(x))[1]=(byte)((val)>>16), ((byte*)(x))[2]=(byte)((val)>>8), ((byte*)(x))[3]=(byte)(val))
-#elif defined(MSCOMP_PDP_ENDIAN) // for 16-bit ints its the same as little-endian
-	#define GET_UINT16(x)		(((byte*)(x))[0]|(((byte*)(x))[1]<<8))
-	#define GET_UINT32(x)		((((byte*)(x))[0]<<16)|(((byte*)(x))[1]<<24)|((byte*)(x))[2]|(((byte*)(x))[3]<<8))
-	#define SET_UINT16(x,val)	(((byte*)(x))[0]=(byte)(val), ((byte*)(x))[1]=(byte)((val)>>8))
-	#define SET_UINT32(x,val)	(((byte*)(x))[0]=(byte)((val)>>16), ((byte*)(x))[1]=(byte)((val)>>24), ((byte*)(x))[2]=(byte)(val), ((byte*)(x))[3]=(byte)((val)>>8))
-#else
-	#error unknown endian, define one of MSCOMP_LITTLE_ENDIAN, MSCOMP_BIG_ENDIAN, or MSCOMP_PDP_ENDIAN
-#endif
+	#define GET_UINT16_RAW(x)		(*(const uint16_t*)(x))
+	#define GET_UINT32_RAW(x)		(*(const uint32_t*)(x))
+	#define SET_UINT16_RAW(x,val)	(*(uint16_t*)(x) = (uint16_t)(val))
+	#define SET_UINT32_RAW(x,val)	(*(uint32_t*)(x) = (uint32_t)(val))
+	#if defined(MSCOMP_LITTLE_ENDIAN)
+		#define GET_UINT16(x)		GET_UINT16_RAW(x)
+		#define GET_UINT32(x)		GET_UINT32_RAW(x)
+		#define SET_UINT16(x,val)	SET_UINT16_RAW(x,val)
+		#define SET_UINT32(x,val)	SET_UINT32_RAW(x,val)
+	#elif defined(MSCOMP_BIG_ENDIAN)
+		// These could also use the without-unaligned-access versions always
+		#define GET_UINT16(x)		byte_swap(*(const uint16_t*)(x))
+		#define GET_UINT32(x)		byte_swap(*(const uint32_t*)(x))
+		#define SET_UINT16(x,val)	(*(uint16_t*)(x) = byte_swap((uint16_t)(val)))
+		#define SET_UINT32(x,val)	(*(uint32_t*)(x) = byte_swap((uint32_t)(val)))
+	#endif
+#else // if MSCOMP_WITHOUT_UNALIGNED_ACCESS:
+	// When not using unaligned access, nothing needs to be done for different endians
+	#define GET_UINT16_RAW(x)		(((byte*)(x))[0]|(((byte*)(x))[1]<<8))
+	#define GET_UINT32_RAW(x)		(((byte*)(x))[0]|(((byte*)(x))[1]<<8)|(((byte*)(x))[2]<<16)|(((byte*)(x))[3]<<24))
+	#define SET_UINT16_RAW(x,val)	(((byte*)(x))[0]=(byte)(val), ((byte*)(x))[1]=(byte)((val)>>8))
+	#define SET_UINT32_RAW(x,val)	(((byte*)(x))[0]=(byte)(val), ((byte*)(x))[1]=(byte)((val)>>8), ((byte*)(x))[2]=(byte)((val)>>16), ((byte*)(x))[3]=(byte)((val)>>24))
+	#define GET_UINT16(x)			GET_UINT16_RAW(x)
+	#define GET_UINT32(x)			GET_UINT32_RAW(x)
+	#define SET_UINT16(x,val)		SET_UINT16_RAW(x,val)
+	#define SET_UINT32(x,val)		SET_UINT32_RAW(x,val)
 #endif
 
 ///// Determine the number of bits used by pointers /////
@@ -162,45 +146,45 @@
 // Note: most compilers define these for us, just MSVC doesn't define __SSE__/__SSE2__
 // However it does define __AVX__
 #if defined(_MSC_VER)
-#if defined(_M_AMD64) || defined(_M_X64) || (defined(_M_IX86_FP) && _M_IX86_FP == 2)
-#define __SSE2__
-#define __SSE__
-#elif defined(_M_IX86_FP) && _M_IX86_FP == 1
-#define __SSE__
-#endif
+	#if defined(_M_AMD64) || defined(_M_X64) || (defined(_M_IX86_FP) && _M_IX86_FP == 2)
+		#define __SSE2__
+		#define __SSE__
+	#elif defined(_M_IX86_FP) && _M_IX86_FP == 1
+		#define __SSE__
+	#endif
 #endif
 #ifdef __SSE__
-#include <xmmintrin.h>
+	#include <xmmintrin.h>
 #endif
 
 ///// Get NOINLINE, INLINE and FORCE_INLINE /////
 #if defined(_MSC_VER)
-#define NOINLINE __declspec(noinline)
-#define INLINE __inline
-#define FORCE_INLINE __forceinline
+	#define NOINLINE __declspec(noinline)
+	#define INLINE __inline
+	#define FORCE_INLINE __forceinline
 #elif defined(__GNUC__)
-#define NOINLINE __attribute__((noinline))
-#define INLINE inline
-#define FORCE_INLINE inline __attribute__((always_inline))
+	#define NOINLINE __attribute__((noinline))
+	#define INLINE inline
+	#define FORCE_INLINE inline __attribute__((always_inline))
 #elif (__STDC_VERSION__ >= 199901L)
-#define NOINLINE
-#define INLINE inline
-#define FORCE_INLINE INLINE
+	#define NOINLINE
+	#define INLINE inline
+	#define FORCE_INLINE INLINE
 #else
-#define NOINLINE
-#define INLINE
-#define FORCE_INLINE INLINE
+	#define NOINLINE
+	#define INLINE
+	#define FORCE_INLINE INLINE
 #endif
 
 ///// Get RESTRICT /////
 #if defined(_MSC_VER)
-#define RESTRICT __restrict
+	#define RESTRICT __restrict
 #elif defined(__GNUC__)
-#define RESTRICT __restrict__
+	#define RESTRICT __restrict__
 #elif (__STDC_VERSION__ >= 199901L)
-#define RESTRICT restrict
+	#define RESTRICT restrict
 #else
-#define RESTRICT
+	#define RESTRICT
 #endif
 // typedef the most common restricted pointers
 typedef byte* RESTRICT rest_bytes;
@@ -377,60 +361,60 @@ typedef const_byte* RESTRICT const_rest_bytes;
 
 ///// Get SIZE_T format specifier /////
 #if defined(_WIN32) && (!defined(__USE_MINGW_ANSI_STDIO) || __USE_MINGW_ANSI_STDIO != 1)
-#define SSIZE_T_FMT "I"
+	#define SSIZE_T_FMT "I"
 #else
-#define SSIZE_T_FMT "z"
+	#define SSIZE_T_FMT "z"
 #endif
 
 ///// Compile it right /////
 #if defined(__cplusplus_cli)
-#pragma unmanaged
+	#pragma unmanaged
 #endif
 #if defined(_MSC_VER) && defined(NDEBUG)
-#pragma optimize("t", on)
+	#pragma optimize("t", on)
 #endif
 #if defined(__GNUC__) && defined(__MINGW32__)
 // GCC assumes a 16-byte aligned stack, Windows only guarantees 4-byte alignment, we need to tell
 // GCC to fix all entry points to have a 16-byte alignment (but once aligned, we are good to go).
 // ENTRY_POINT only needs to be used on functions that may use SSE instructions in their call stack
 // and that can be called directly by outside code (export, callback, or main function). 
-#define ENTRY_POINT __attribute__((force_align_arg_pointer))
+	#define ENTRY_POINT __attribute__((force_align_arg_pointer))
 #else
-#define ENTRY_POINT
+	#define ENTRY_POINT
 #endif
 
 ///// Warning disable support /////
 #if defined(_MSC_VER)
-#define WARNINGS_PUSH() __pragma(warning(push))
-#define WARNINGS_POP()  __pragma(warning(pop))
-#define WARNINGS_IGNORE_CONDITIONAL_EXPR_CONSTANT()         __pragma(warning(disable:4127))
-#define WARNINGS_IGNORE_ASSIGNMENT_WITHIN_COND_EXPR()       __pragma(warning(disable:4706))
-#define WARNINGS_IGNORE_TRUNCATED_OVERFLOW()                __pragma(warning(disable:4309))
-#define WARNINGS_IGNORE_ASSIGNMENT_OPERATOR_NOT_GENERATED() __pragma(warning(disable:4512))
-#define WARNINGS_IGNORE_POTENTIAL_UNINIT_VALRIABLE_USED()   __pragma(warning(disable:4701 4703))
-#define WARNINGS_IGNORE_DIV_BY_0()				            __pragma(warning(disable:4723 4724))
+	#define WARNINGS_PUSH() __pragma(warning(push))
+	#define WARNINGS_POP()  __pragma(warning(pop))
+	#define WARNINGS_IGNORE_CONDITIONAL_EXPR_CONSTANT()         __pragma(warning(disable:4127))
+	#define WARNINGS_IGNORE_ASSIGNMENT_WITHIN_COND_EXPR()       __pragma(warning(disable:4706))
+	#define WARNINGS_IGNORE_TRUNCATED_OVERFLOW()                __pragma(warning(disable:4309))
+	#define WARNINGS_IGNORE_ASSIGNMENT_OPERATOR_NOT_GENERATED() __pragma(warning(disable:4512))
+	#define WARNINGS_IGNORE_POTENTIAL_UNINIT_VALRIABLE_USED()   __pragma(warning(disable:4701 4703))
+	#define WARNINGS_IGNORE_DIV_BY_0()				            __pragma(warning(disable:4723 4724))
 #elif defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6))
-#define WARNINGS_PUSH() _Pragma("GCC diagnostic push")
-#define WARNINGS_POP()  _Pragma("GCC diagnostic pop")
-#define WARNINGS_IGNORE_CONDITIONAL_EXPR_CONSTANT()         
-#define WARNINGS_IGNORE_ASSIGNMENT_WITHIN_COND_EXPR()       
-#define WARNINGS_IGNORE_TRUNCATED_OVERFLOW()                _Pragma("GCC diagnostic ignored \"-Woverflow\"")
-#define WARNINGS_IGNORE_ASSIGNMENT_OPERATOR_NOT_GENERATED() 
-#  if __GNUC__ == 4 && __GNUC_MINOR__ >= 7
-#  define WARNINGS_IGNORE_POTENTIAL_UNINIT_VALRIABLE_USED() _Pragma("GCC diagnostic ignored \"-Wmaybe-uninitialized\"")
-#  else
-#  define WARNINGS_IGNORE_POTENTIAL_UNINIT_VALRIABLE_USED() 
-#  endif
-#define WARNINGS_IGNORE_DIV_BY_0()                          _Pragma("GCC diagnostic ignored \"-Wdiv-by-zero\"")
+	#define WARNINGS_PUSH() _Pragma("GCC diagnostic push")
+	#define WARNINGS_POP()  _Pragma("GCC diagnostic pop")
+	#define WARNINGS_IGNORE_CONDITIONAL_EXPR_CONSTANT()         
+	#define WARNINGS_IGNORE_ASSIGNMENT_WITHIN_COND_EXPR()       
+	#define WARNINGS_IGNORE_TRUNCATED_OVERFLOW()                _Pragma("GCC diagnostic ignored \"-Woverflow\"")
+	#define WARNINGS_IGNORE_ASSIGNMENT_OPERATOR_NOT_GENERATED() 
+	#if __GNUC__ == 4 && __GNUC_MINOR__ >= 7
+		#define WARNINGS_IGNORE_POTENTIAL_UNINIT_VALRIABLE_USED() _Pragma("GCC diagnostic ignored \"-Wmaybe-uninitialized\"")
+	#else
+		#define WARNINGS_IGNORE_POTENTIAL_UNINIT_VALRIABLE_USED() 
+	#endif
+	#define WARNINGS_IGNORE_DIV_BY_0()                          _Pragma("GCC diagnostic ignored \"-Wdiv-by-zero\"")
 #else
-#define WARNINGS_PUSH() 
-#define WARNINGS_POP()  
-#define WARNINGS_IGNORE_CONDITIONAL_EXPR_CONSTANT()         
-#define WARNINGS_IGNORE_ASSIGNMENT_WITHIN_COND_EXPR()       
-#define WARNINGS_IGNORE_TRUNCATED_OVERFLOW()                
-#define WARNINGS_IGNORE_ASSIGNMENT_OPERATOR_NOT_GENERATED() 
-#define WARNINGS_IGNORE_POTENTIAL_UNINIT_VALRIABLE_USED()   
-#define WARNINGS_IGNORE_DIV_BY_0()                          
+	#define WARNINGS_PUSH() 
+	#define WARNINGS_POP()  
+	#define WARNINGS_IGNORE_CONDITIONAL_EXPR_CONSTANT()         
+	#define WARNINGS_IGNORE_ASSIGNMENT_WITHIN_COND_EXPR()       
+	#define WARNINGS_IGNORE_TRUNCATED_OVERFLOW()                
+	#define WARNINGS_IGNORE_ASSIGNMENT_OPERATOR_NOT_GENERATED() 
+	#define WARNINGS_IGNORE_POTENTIAL_UNINIT_VALRIABLE_USED()   
+	#define WARNINGS_IGNORE_DIV_BY_0()                          
 #endif
 
 ///// Compile-time assert /////
@@ -441,26 +425,26 @@ typedef const_byte* RESTRICT const_rest_bytes;
 
 ///// Error and Warning Messages /////
 #if defined(MSCOMP_WITH_ERROR_MESSAGES) || defined(MSCOMP_WITH_WARNING_MESSAGES)
-#include <stdio.h>
-#if _MSC_VER
-#define snprintf _snprintf
-#endif
+	#include <stdio.h>
+	#if _MSC_VER
+		#define snprintf _snprintf
+	#endif
 #endif
 
 #ifdef MSCOMP_WITH_ERROR_MESSAGES
-#define SET_ERROR(s, ...)	snprintf(s->error, ARRAYSIZE(s->error), __VA_ARGS__)
-#define INIT_STREAM_ERROR_MESSAGE(s) s->error[0] = 0
+	#define SET_ERROR(s, ...)	snprintf(s->error, ARRAYSIZE(s->error), __VA_ARGS__)
+	#define INIT_STREAM_ERROR_MESSAGE(s) s->error[0] = 0
 #else
-#define SET_ERROR(s, ...)
-#define INIT_STREAM_ERROR_MESSAGE(s)
+	#define SET_ERROR(s, ...)
+	#define INIT_STREAM_ERROR_MESSAGE(s)
 #endif
 
 #ifdef MSCOMP_WITH_WARNING_MESSAGES
-#define SET_WARNING(s, ...)	snprintf(s->warning, ARRAYSIZE(s->warning), __VA_ARGS__)
-#define INIT_STREAM_WARNING_MESSAGE(s) s->warning[0] = 0
+	#define SET_WARNING(s, ...)	snprintf(s->warning, ARRAYSIZE(s->warning), __VA_ARGS__)
+	#define INIT_STREAM_WARNING_MESSAGE(s) s->warning[0] = 0
 #else
-#define SET_WARNING(s, ...)
-#define INIT_STREAM_WARNING_MESSAGE(s)
+	#define SET_WARNING(s, ...)
+	#define INIT_STREAM_WARNING_MESSAGE(s)
 #endif
 
 ///// Stream initialization and checking /////
@@ -530,20 +514,20 @@ typedef const_byte* RESTRICT const_rest_bytes;
 #define COPY_4x(out, in)    (out)[0] = (in)[0]; (out)[1] = (in)[1]; (out)[2] = (in)[2]; (out)[3] = (in)[3]
 
 #if defined(MSCOMP_WITH_UNALIGNED_ACCESS)
-// COPY_32 - Copy a 32-bit value from the pointer in to the pointer out
-#define COPY_32(out, in)    *(uint32_t*)(out) = *(uint32_t*)(in)
-// COPY_4x32 - Copy 4 32-bit values from the pointer in to the pointer out
-#define COPY_4x32(out, in)  COPY_4x(((uint32_t*)(out)), ((uint32_t*)(in)))
+	// COPY_32 - Copy a 32-bit value from the pointer in to the pointer out
+	#define COPY_32(out, in)    *(uint32_t*)(out) = *(uint32_t*)(in)
+	// COPY_4x32 - Copy 4 32-bit values from the pointer in to the pointer out
+	#define COPY_4x32(out, in)  COPY_4x(((uint32_t*)(out)), ((uint32_t*)(in)))
 #else
-#define COPY_32(out, in)    COPY_4x((byte*)(out), (byte*)(in))
-#define COPY_4x32(out, in)  COPY_32(((uint32_t*)(out)), ((uint32_t*)(in))); COPY_32(((uint32_t*)(out))+1, ((uint32_t*)(in))+1); COPY_32(((uint32_t*)(out))+2, ((uint32_t*)(in))+2); COPY_32(((uint32_t*)(out))+3, ((uint32_t*)(in))+3)
+	#define COPY_32(out, in)    COPY_4x((byte*)(out), (byte*)(in))
+	#define COPY_4x32(out, in)  COPY_32(((uint32_t*)(out)), ((uint32_t*)(in))); COPY_32(((uint32_t*)(out))+1, ((uint32_t*)(in))+1); COPY_32(((uint32_t*)(out))+2, ((uint32_t*)(in))+2); COPY_32(((uint32_t*)(out))+3, ((uint32_t*)(in))+3)
 #endif
 
 // COPY_128_FAST - Copy a 128-bit value from the pointer in to the pointer out
 #if defined(__SSE__) && defined(MSCOMP_WITH_UNALIGNED_ACCESS)
-#define COPY_128_FAST(out, in) _mm_storeu_ps((float*)(out), _mm_loadu_ps((float*)(in)))
+	#define COPY_128_FAST(out, in) _mm_storeu_ps((float*)(out), _mm_loadu_ps((float*)(in)))
 #else
-#define COPY_128_FAST(out, in) COPY_4x32(out, in)
+	#define COPY_128_FAST(out, in) COPY_4x32(out, in)
 #endif
 
 #define FAST_COPY_ROOM 16
