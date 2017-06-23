@@ -264,7 +264,8 @@ ENTRY_POINT MSCompStatus lznt1_inflate(mscomp_stream* RESTRICT stream)
 		stream->in += 1; stream->in_total += 1; stream->in_avail = 0;
 	}
 
-	return UNLIKELY(!stream->in_avail && !state->in_avail && !state->out_avail) ? MSCOMP_POSSIBLE_STREAM_END : MSCOMP_OK;
+	return UNLIKELY((!stream->in_avail || (stream->in_avail == 1 && stream->in[0] == 0)) && !state->in_avail && !state->out_avail) ?
+			MSCOMP_POSSIBLE_STREAM_END : MSCOMP_OK;
 }
 MSCompStatus lznt1_inflate_end(mscomp_stream* RESTRICT stream)
 {
