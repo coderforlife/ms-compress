@@ -264,15 +264,15 @@ if dll is not None:
             s_ptr = byref(s)
             OpenSrc.deflate_init(self.format, byref(s))
             try:
+                done = False
                 s.in_avail = input.readinto(input_buf)
                 while s.in_avail != 0:
                     s.in_ = input_ptr
                     while s.in_avail != 0:
                         s.out, s.out_avail = output_ptr, output_len
-                        OpenSrc.deflate(s_ptr, OpenSrc.NO_FLUSH)
+                        done = OpenSrc.deflate(s_ptr, OpenSrc.NO_FLUSH) >= 1
                         output.write(buffer(output_buf, 0, output_len-s.out_avail))
                     s.in_avail = input.readinto(input_buf)
-                done = False
                 while not done:
                     s.out, s.out_avail = output_ptr, output_len
                     done = OpenSrc.deflate(s_ptr, OpenSrc.FINISH) >= 1
@@ -287,15 +287,15 @@ if dll is not None:
             s_ptr = byref(s)
             OpenSrc.inflate_init(self.format, byref(s))
             try:
+                done = False
                 s.in_avail = input.readinto(input_buf)
                 while s.in_avail != 0:
                     s.in_ = input_ptr
                     while s.in_avail != 0:
                         s.out, s.out_avail = output_ptr, output_len
-                        OpenSrc.inflate(s_ptr)
+                        done = OpenSrc.inflate(s_ptr) >= 1
                         output.write(buffer(output_buf, 0, output_len-s.out_avail))
                     s.in_avail = input.readinto(input_buf)
-                done = False
                 while not done:
                     s.out, s.out_avail = output_ptr, output_len
                     done = OpenSrc.inflate(s_ptr) >= 1

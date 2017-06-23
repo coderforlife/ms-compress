@@ -222,6 +222,11 @@ MSCompStatus lznt1_inflate_init(mscomp_stream* RESTRICT stream)
 	stream->state = (mscomp_internal_state*) state;
 	return MSCOMP_OK;
 }
+inline static bool lznt1_is_possible_stream_end(const mscomp_stream* RESTRICT stream, const mscomp_lznt1_decompress_state* RESTRICT state)
+{
+	return (!stream->in_avail || (stream->in_avail == 1 && stream->in[0] == 0)) &&
+		   (!state->in_avail  || (state->in_avail  == 1 && state->in[0]  == 0)) && !state->out_avail;
+}
 ENTRY_POINT MSCompStatus lznt1_inflate(mscomp_stream* RESTRICT stream)
 {
 	CHECK_STREAM_PLUS(stream, false, MSCOMP_LZNT1, stream->state == NULL);
@@ -264,8 +269,7 @@ ENTRY_POINT MSCompStatus lznt1_inflate(mscomp_stream* RESTRICT stream)
 		stream->in += 1; stream->in_total += 1; stream->in_avail = 0;
 	}
 
-	return UNLIKELY((!stream->in_avail || (stream->in_avail == 1 && stream->in[0] == 0)) && !state->in_avail && !state->out_avail) ?
-			MSCOMP_POSSIBLE_STREAM_END : MSCOMP_OK;
+	return UNLIKELY(lznt1_is_possible_stream_end(stream, state)) ? MSCOMP_POSSIBLE_STREAM_END : MSCOMP_OK;
 }
 MSCompStatus lznt1_inflate_end(mscomp_stream* RESTRICT stream)
 {
@@ -274,7 +278,11 @@ MSCompStatus lznt1_inflate_end(mscomp_stream* RESTRICT stream)
 	mscomp_lznt1_decompress_state* RESTRICT state = (mscomp_lznt1_decompress_state*) stream->state;
 
 	MSCompStatus status = MSCOMP_OK;
-	if (UNLIKELY(stream->in_avail || state->in_avail || state->out_avail)) { SET_ERROR(stream, "LZNT1 Decompression Error: End prematurely called"); status = MSCOMP_DATA_ERROR; }
+	if (UNLIKELY(!lznt1_is_possible_stream_end(stream, state)))
+	{
+		SET_ERROR(stream, "LZNT1 Decompression Error: End prematurely called");
+		status = MSCOMP_DATA_ERROR;
+	}
 
 	free(state);
 	stream->state = NULL;
