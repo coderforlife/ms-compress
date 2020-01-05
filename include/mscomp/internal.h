@@ -241,6 +241,19 @@ typedef const_byte* RESTRICT const_rest_bytes;
 		int FORCE_INLINE log2(uint16_t x) { return 31 - _CountLeadingZeros(x);   }
 		int FORCE_INLINE log2(uint32_t x) { return 31 - _CountLeadingZeros(x);   }
 		int FORCE_INLINE log2(uint64_t x) { return 63 - _CountLeadingZeros64(x); }
+	#elif defined(_M_ARM64)
+		int FORCE_INLINE count_bits_set(uint8_t x)  { x -= (x>>1)&0x55; x = (((x>>2)&0x33) + (x&0x33)); x = (((x>>4)+x)&0x0f); return x&0x0f; }
+		int FORCE_INLINE count_bits_set(uint16_t x) { x -= (x>>1)&0x5555; x = (((x>>2)&0x3333) + (x&0x3333)); x = (((x>>4)+x)&0x0f0f); x += (x>>8); return x&0x1f; }
+		int FORCE_INLINE count_bits_set(uint32_t x) { x -= (x>>1)&0x55555555; x = (((x>>2)&0x33333333) + (x&0x33333333)); x = (((x>>4)+x)&0x0f0f0f0f); x += (x>>8); x += (x>>16); return x&0x3f; }
+		int FORCE_INLINE count_bits_set(uint64_t x) { x -= (x>>1)&0x5555555555555555ull; x = ((x>>2)&0x3333333333333333ull) + (x&0x3333333333333333ull); return (int)(((((x>>4)+x)&0xf0f0f0f0f0f0f0full)*0x101010101010101ull)>>56); }
+		int FORCE_INLINE count_leading_zeros(uint8_t x)  { return _CountLeadingZeros(x) - 24; }
+		int FORCE_INLINE count_leading_zeros(uint16_t x) { return _CountLeadingZeros(x) - 16; }
+		int FORCE_INLINE count_leading_zeros(uint32_t x) { return _CountLeadingZeros(x); }
+		int FORCE_INLINE count_leading_zeros(uint64_t x) { return _CountLeadingZeros64(x); }
+		int FORCE_INLINE log2(uint8_t x)  { return 31 - _CountLeadingZeros(x);   }
+		int FORCE_INLINE log2(uint16_t x) { return 31 - _CountLeadingZeros(x);   }
+		int FORCE_INLINE log2(uint32_t x) { return 31 - _CountLeadingZeros(x);   }
+		int FORCE_INLINE log2(uint64_t x) { return 63 - _CountLeadingZeros64(x); }
 	#elif defined(_M_IX86) || defined(_M_AMD64) || defined(_M_X64)
 		// TODO: lzcnt16/lzcnt/lzcnt64 are only available if bit 5 of CPUInfo[2] (ECX) is set after __cpuid(int cpuInfo[4], 0x80000001) [Haswell - 2013]
 		// TODO: popcnt16/popcnt/popcnt64 are only available if bit 23 of CPUInfo[2] (ECX) is set after __cpuid(int cpuInfo[4], 0x00000001) [Nephalem - 2008]
