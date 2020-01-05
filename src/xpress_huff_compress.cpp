@@ -54,7 +54,7 @@ static size_t xh_compress_lz77(const_bytes in, int32_t /* * */ in_len, const_byt
 	int32_t rem = /* * */ in_len;
 	uint32_t mask;
 	const const_bytes in_orig = in, out_orig = out;
-	uint32_t* mask_out;
+	uint32_t* mask_out = NULL;
 	byte i;
 
 	d->Fill(in);
@@ -142,7 +142,11 @@ static size_t xh_compress_lz77(const_bytes in, int32_t /* * */ in_len, const_byt
 		out += 3;
 		++symbol_counts[STREAM_END];
 	}
-	SET_UINT32_RAW(mask_out, mask);
+
+	if (LIKELY(mask_out != NULL))
+	{
+		SET_UINT32_RAW(mask_out, mask);
+	}
 
 	// Return the number of bytes in the output
 	return out - out_orig;
