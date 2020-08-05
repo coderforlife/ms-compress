@@ -454,16 +454,16 @@ typedef const_byte* RESTRICT const_rest_bytes;
 #endif
 
 #ifdef MSCOMP_WITH_ERROR_MESSAGES
-	#define SET_ERROR(s, ...)	snprintf(s->error, ARRAYSIZE(s->error), __VA_ARGS__)
-	#define INIT_STREAM_ERROR_MESSAGE(s) s->error[0] = 0
+	#define SET_ERROR(s, ...)	(s ? snprintf(s->error, ARRAYSIZE(s->error), __VA_ARGS__) : -1)
+	#define INIT_STREAM_ERROR_MESSAGE(s) (s ? s->error[0] = 0 : 0)
 #else
 	#define SET_ERROR(s, ...)
 	#define INIT_STREAM_ERROR_MESSAGE(s)
 #endif
 
 #ifdef MSCOMP_WITH_WARNING_MESSAGES
-	#define SET_WARNING(s, ...)	snprintf(s->warning, ARRAYSIZE(s->warning), __VA_ARGS__)
-	#define INIT_STREAM_WARNING_MESSAGE(s) s->warning[0] = 0
+	#define SET_WARNING(s, ...)	 (s ? snprintf(s->warning, ARRAYSIZE(s->warning), __VA_ARGS__) : -1)
+	#define INIT_STREAM_WARNING_MESSAGE(s) (s ? s->warning[0] = 0 : 0)
 #else
 	#define SET_WARNING(s, ...)
 	#define INIT_STREAM_WARNING_MESSAGE(s)

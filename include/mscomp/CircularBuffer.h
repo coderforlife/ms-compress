@@ -39,6 +39,8 @@ public:
 		memcpy(this->buffer, rhs.buffer, Size);
 		this->tail = this->buffer + (rhs.tail - rhs.buffer);
 		this->full = rhs.full;
+
+		return *this;
 	}
 	INLINE bool empty() const { return UNLIKELY(!this->full && this->tail == this->buffer); }
 	INLINE uint32_t size() const { return LIKELY(this->full) ? Size : (uint32_t)(this->tail - this->buffer); }
